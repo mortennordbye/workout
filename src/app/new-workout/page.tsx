@@ -2,25 +2,23 @@
  * New Workout Page – Program Selection
  *
  * Shown after tapping "Start Workout" on the home screen.
- * Users pick a pre-defined program or choose "No Program" to start a
- * free-form session. All options navigate to the active workout page.
- *
- * Programs are currently hardcoded. When a programs table is added to the
- * database, replace the PROGRAMS constant with a server-side query.
+ * Users pick a program (loaded from the DB) or "No Program" to start a
+ * free-form session. Program options link to the workout page; "No Program"
+ * also links to the workout page without a program context.
  */
 
+import { getPrograms } from "@/lib/actions/programs";
 import { ChevronLeftIcon } from "lucide-react";
 import Link from "next/link";
 
-const PROGRAMS = [
-  "Interval (1k)",
-  "Legs 1",
-  "Pull 1",
-  "Push 1",
-  "Upper Body 1",
-];
+export const dynamic = "force-dynamic";
 
-export default function NewWorkoutPage() {
+const DEMO_USER_ID = 1;
+
+export default async function NewWorkoutPage() {
+  const result = await getPrograms(DEMO_USER_ID);
+  const programs = result.success ? result.data : [];
+
   return (
     <div className="min-h-screen bg-background flex flex-col px-4 pt-6">
       {/* Back navigation */}
@@ -34,34 +32,26 @@ export default function NewWorkoutPage() {
 
       <h1 className="text-3xl font-bold tracking-tight mb-8">New Workout</h1>
 
-      {/* Program list */}
-      <div className="flex flex-col gap-2 mb-4">
-        {PROGRAMS.map((program) => (
-          <Link
-            key={program}
-            href="/workout"
-            className="
-              bg-muted rounded-xl px-5 py-4
-              text-base font-medium
-              hover:bg-muted/70 active:bg-muted/50
-              transition-colors
-            "
-          >
-            {program}
-          </Link>
-        ))}
-      </div>
+      {/* Programs from DB */}
+      {programs.length > 0 && (
+        <div className="flex flex-col divide-y divide-border rounded-xl bg-muted overflow-hidden mb-4">
+          {programs.map((program) => (
+            <Link
+              key={program.id}
+              href="/workout"
+              className="px-5 py-4 text-base font-medium hover:bg-muted/70 active:bg-muted/50 transition-colors"
+            >
+              {program.name}
+            </Link>
+          ))}
+        </div>
+      )}
 
-      {/* No Program – visually separated */}
-      <div className="flex flex-col gap-2">
+      {/* No Program – always shown, visually separated */}
+      <div className="rounded-xl bg-muted overflow-hidden">
         <Link
           href="/workout"
-          className="
-            bg-muted rounded-xl px-5 py-4
-            text-base font-medium
-            hover:bg-muted/70 active:bg-muted/50
-            transition-colors
-          "
+          className="block px-5 py-4 text-base font-medium hover:bg-muted/70 active:bg-muted/50 transition-colors"
         >
           No Program
         </Link>

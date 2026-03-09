@@ -26,6 +26,14 @@ export default function Home() {
             Workout
           </button>
         </Link>
+
+        {/* Quick links */}
+        <Link
+          href="/programs"
+          className="text-primary text-sm font-medium hover:opacity-80"
+        >
+          Programs
+        </Link>
       </div>
     </div>
   );

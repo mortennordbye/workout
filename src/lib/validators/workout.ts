@@ -128,6 +128,40 @@ export const createExerciseSchema = z.object({
   isCustom: z.boolean().default(true),
 });
 
+/**
+ * Programs Schemas
+ */
+export const createProgramSchema = z.object({
+  userId: z.number().int().positive(),
+  name: z.string().min(1).max(100),
+});
+
+export const addExerciseToProgramSchema = z.object({
+  programId: z.number().int().positive(),
+  exerciseId: z.number().int().positive(),
+  orderIndex: z.number().int().min(0).optional(),
+  notes: z.string().max(500).optional(),
+});
+
+export const addProgramSetSchema = z.object({
+  programExerciseId: z.number().int().positive(),
+  setNumber: z.number().int().positive(),
+  targetReps: z.number().int().positive().optional(),
+  weightKg: z.number().min(0).max(1000).optional(),
+  durationSeconds: z.number().int().min(0).optional(),
+  restTimeSeconds: z.number().int().min(0).max(3600).default(60),
+});
+
+export const updateProgramSetSchema = addProgramSetSchema
+  .omit({ programExerciseId: true, setNumber: true })
+  .extend({ id: z.number().int().positive() });
+
+export type CreateProgramInput = z.infer<typeof createProgramSchema>;
+export type AddExerciseToProgramInput = z.infer<
+  typeof addExerciseToProgramSchema
+>;
+export type AddProgramSetInput = z.infer<typeof addProgramSetSchema>;
+
 // Type exports for use in components
 export type CreateWorkoutSessionInput = z.infer<
   typeof createWorkoutSessionSchema

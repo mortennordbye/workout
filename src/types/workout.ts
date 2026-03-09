@@ -16,7 +16,15 @@
  * ```
  */
 
-import { exercises, users, workoutSessions, workoutSets } from "@/db/schema";
+import {
+  exercises,
+  programExercises,
+  programSets,
+  programs,
+  users,
+  workoutSessions,
+  workoutSets,
+} from "@/db/schema";
 
 // ============================================================================
 // Database Table Types (Inferred from Drizzle Schemas)
@@ -37,6 +45,26 @@ export type NewWorkoutSession = typeof workoutSessions.$inferInsert;
 // Workout Sets
 export type WorkoutSet = typeof workoutSets.$inferSelect;
 export type NewWorkoutSet = typeof workoutSets.$inferInsert;
+
+// Programs
+export type Program = typeof programs.$inferSelect;
+export type NewProgram = typeof programs.$inferInsert;
+
+export type ProgramExercise = typeof programExercises.$inferSelect;
+export type NewProgramExercise = typeof programExercises.$inferInsert;
+
+export type ProgramSet = typeof programSets.$inferSelect;
+export type NewProgramSet = typeof programSets.$inferInsert;
+
+// Program with nested exercises and sets
+export type ProgramSetRow = ProgramSet;
+export type ProgramExerciseWithSets = ProgramExercise & {
+  exercise: Exercise;
+  programSets: ProgramSet[];
+};
+export type ProgramWithExercises = Program & {
+  programExercises: ProgramExerciseWithSets[];
+};
 
 // ============================================================================
 // Composite Types (For Complex Queries)

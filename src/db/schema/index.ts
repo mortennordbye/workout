@@ -12,6 +12,7 @@
 
 // Table schemas
 export * from "./exercises";
+export * from "./programs";
 export * from "./users";
 export * from "./workout-sessions";
 export * from "./workout-sets";
