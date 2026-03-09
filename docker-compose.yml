@@ -25,6 +25,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: workout-pwa:latest
     container_name: workout-app
     restart: unless-stopped
     ports:
