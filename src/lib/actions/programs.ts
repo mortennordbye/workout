@@ -9,17 +9,17 @@
 import { db } from "@/db";
 import { programExercises, programSets, programs } from "@/db/schema";
 import {
-    addExerciseToProgramSchema,
-    addProgramSetSchema,
-    createProgramSchema,
-    updateProgramSetSchema,
+  addExerciseToProgramSchema,
+  addProgramSetSchema,
+  createProgramSchema,
+  updateProgramSetSchema,
 } from "@/lib/validators/workout";
 import type {
-    ActionResult,
-    Program,
-    ProgramExercise,
-    ProgramSet,
-    ProgramWithExercises,
+  ActionResult,
+  Program,
+  ProgramExercise,
+  ProgramSet,
+  ProgramWithExercises,
 } from "@/types/workout";
 import { asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -147,6 +147,26 @@ export async function removeExerciseFromProgram(
     await db
       .delete(programExercises)
       .where(eq(programExercises.id, programExerciseId));
+    revalidatePath(`/programs/${programId}`);
+    return { success: true, data: undefined };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function reorderProgramExercises(
+  programId: number,
+  orderedIds: number[],
+): Promise<ActionResult<void>> {
+  try {
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        db
+          .update(programExercises)
+          .set({ orderIndex: index })
+          .where(eq(programExercises.id, id)),
+      ),
+    );
     revalidatePath(`/programs/${programId}`);
     return { success: true, data: undefined };
   } catch (err) {
