@@ -35,7 +35,8 @@ import {
 } from "@/lib/actions/workout-sessions";
 import { getSessionSets } from "@/lib/actions/workout-sets";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, ChevronLeftIcon } from "lucide-react";
+import Link from "next/link";
 
 // Force dynamic rendering so database queries run on every request.
 // Without this, Next.js pre-renders the page at build time (when no real DB
@@ -111,6 +112,15 @@ export default async function WorkoutPage() {
 
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
+      {/* Back navigation */}
+      <Link
+        href="/new-workout"
+        className="flex items-center gap-1 text-primary mb-4 w-fit"
+      >
+        <ChevronLeftIcon className="h-5 w-5" />
+        <span className="text-sm font-medium">New Workout</span>
+      </Link>
+
       {/* Session Header */}
       <div className="mb-6 flex items-start justify-between">
         <div>
