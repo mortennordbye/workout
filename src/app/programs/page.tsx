@@ -6,9 +6,8 @@
  */
 
 import { NewProgramButton } from "@/components/features/NewProgramButton";
+import { ProgramListItem } from "@/components/features/ProgramListItem";
 import { getPrograms } from "@/lib/actions/programs";
-import { ChevronRightIcon } from "lucide-react";
-import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -26,14 +25,7 @@ export default async function ProgramsPage() {
       {programList.length > 0 && (
         <div className="flex flex-col divide-y divide-border rounded-xl bg-muted overflow-hidden mb-4">
           {programList.map((program) => (
-            <Link
-              key={program.id}
-              href={`/programs/${program.id}`}
-              className="flex items-center justify-between px-5 py-4 hover:bg-muted/70 active:bg-muted/50 transition-colors"
-            >
-              <span className="text-base font-medium">{program.name}</span>
-              <ChevronRightIcon className="h-5 w-5 text-muted-foreground" />
-            </Link>
+            <ProgramListItem key={program.id} program={program} />
           ))}
         </div>
       )}

@@ -14,7 +14,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
     networks:
@@ -22,34 +22,33 @@ services:
 
   # Next.js Application
   app:
+    # Use the image built by the script, default to dev if variable is missing
+    image: ${IMAGE_NAME:-workout-pwa:dev}
     build:
       context: .
       dockerfile: Dockerfile
-    image: workout-pwa:latest
+      # This allows the script to switch between 'dev' and 'runner' stages
+      target: ${TARGET_STAGE:-dev}
     container_name: workout-app
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      NODE_ENV: production
+      # These variables will adapt based on the script flags
+      NODE_ENV: ${NODE_ENV:-development}
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/workout_db
+      HOSTNAME: "0.0.0.0"          
+      WATCHPACK_POLLING: "true"    
+      NEXT_TELEMETRY_DISABLED: 1
+    volumes:
+      # Only use these volumes in development to allow hot-reloading
+      - .:/app                      
+      - /app/node_modules           
+      - /app/.next                  
     depends_on:
       postgres:
         condition: service_healthy
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:3000/api/health",
-        ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    tty: true 
     networks:
       - workout-network
 

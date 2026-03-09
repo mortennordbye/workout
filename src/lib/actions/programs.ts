@@ -87,7 +87,6 @@ export async function createProgram(
       .returning();
 
     revalidatePath("/programs");
-    revalidatePath("/new-workout");
     return { success: true, data: program };
   } catch (err) {
     return { success: false, error: String(err) };
@@ -100,7 +99,6 @@ export async function deleteProgram(
   try {
     await db.delete(programs).where(eq(programs.id, programId));
     revalidatePath("/programs");
-    revalidatePath("/new-workout");
     return { success: true, data: undefined };
   } catch (err) {
     return { success: false, error: String(err) };

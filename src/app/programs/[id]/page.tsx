@@ -6,6 +6,7 @@
  */
 
 import { AddExerciseForm } from "@/components/features/AddExerciseForm";
+import { DeleteProgramButton } from "@/components/features/DeleteProgramButton";
 import { getAllExercises } from "@/lib/actions/exercises";
 import { getProgramWithExercises } from "@/lib/actions/programs";
 import type { ProgramSet } from "@/types/workout";
@@ -74,7 +75,10 @@ export default async function ProgramDetailPage({ params }: Props) {
         <span className="text-sm font-medium">Programs</span>
       </Link>
 
-      <h1 className="text-3xl font-bold tracking-tight mb-6">{program.name}</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold tracking-tight">{program.name}</h1>
+        <DeleteProgramButton programId={programId} programName={program.name} />
+      </div>
 
       {/* Exercise list */}
       {program.programExercises.length > 0 ? (

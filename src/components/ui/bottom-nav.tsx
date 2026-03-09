@@ -1,0 +1,69 @@
+"use client";
+
+import { Dumbbell, Library, ListChecks, Settings } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+const navItems = [
+  {
+    label: "Workout",
+    href: "/",
+    icon: Dumbbell,
+  },
+  {
+    label: "Programs",
+    href: "/programs",
+    icon: ListChecks,
+  },
+  {
+    label: "Exercises",
+    href: "/exercises",
+    icon: Library,
+  },
+  {
+    label: "Settings",
+    href: "/settings",
+    icon: Settings,
+  },
+];
+
+export function BottomNav() {
+  const pathname = usePathname();
+
+  const isActive = (href: string) => {
+    if (href === "/") {
+      return pathname === "/";
+    }
+    return pathname.startsWith(href);
+  };
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
+      <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const active = isActive(item.href);
+
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`
+                flex flex-col items-center justify-center gap-1 flex-1 h-full
+                transition-colors
+                ${
+                  active
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
+                }
+              `}
+            >
+              <Icon className="w-5 h-5" />
+              <span className="text-xs font-medium">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

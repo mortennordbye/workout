@@ -92,12 +92,16 @@ export default async function ProgramExerciseDetailPage({ params }: Props) {
         </p>
       )}
 
-      {/* Add / delete sets */}
-      <AddSetForm
-        programExerciseId={peId}
-        nextSetNumber={sets.length + 1}
-        sets={sets}
-      />
+      {/* Existing sets with delete */}
+      <AddSetForm programExerciseId={peId} sets={sets} />
+
+      {/* Add new set button */}
+      <Link
+        href={`/programs/${programId}/exercises/${peId}/sets/new`}
+        className="mt-4 w-full rounded-xl bg-primary py-4 text-center text-base font-semibold text-primary-foreground"
+      >
+        Add Set
+      </Link>
     </div>
   );
 }
