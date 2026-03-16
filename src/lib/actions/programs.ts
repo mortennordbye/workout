@@ -206,6 +206,19 @@ export async function addProgramSet(
       .values(validation.data as typeof programSets.$inferInsert)
       .returning();
 
+    // Look up programId to revalidate the correct paths
+    const [pe] = await db
+      .select({ programId: programExercises.programId })
+      .from(programExercises)
+      .where(eq(programExercises.id, validation.data.programExerciseId))
+      .limit(1);
+
+    if (pe) {
+      revalidatePath(`/programs/${pe.programId}/workout/exercises/${validation.data.programExerciseId}`);
+      revalidatePath(`/programs/${pe.programId}/exercises/${validation.data.programExerciseId}`);
+      revalidatePath(`/programs/${pe.programId}/workout`);
+    }
+
     return { success: true, data: ps };
   } catch (err) {
     return { success: false, error: String(err) };
@@ -236,6 +249,8 @@ export async function updateProgramSet(
 
 export async function deleteProgramSet(
   programSetId: number,
+  programId: number,
+  programExerciseId: number,
 ): Promise<ActionResult<void>> {
   const validation = deleteProgramSetSchema.safeParse({ programSetId });
   if (!validation.success) return { success: false, error: "Invalid input" };
@@ -243,6 +258,8 @@ export async function deleteProgramSet(
     await db
       .delete(programSets)
       .where(eq(programSets.id, validation.data.programSetId));
+    revalidatePath(`/programs/${programId}/workout/exercises/${programExerciseId}`);
+    revalidatePath(`/programs/${programId}/workout`);
     return { success: true, data: undefined };
   } catch (err) {
     return { success: false, error: String(err) };

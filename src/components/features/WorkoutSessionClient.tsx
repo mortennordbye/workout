@@ -121,13 +121,10 @@ export function WorkoutSessionClient({
               <Link
                 href={`/programs/${programId}/workout/add-exercise`}
                 onClick={() => setShowActionSheet(false)}
-                className="flex items-center justify-center py-4 text-base font-medium border-b border-border active:bg-muted/50 transition-colors"
+                className="flex items-center justify-center py-4 text-base font-medium active:bg-muted/50 transition-colors"
               >
                 Add Exercise
               </Link>
-              <button className="w-full flex items-center justify-center py-4 text-base font-medium active:bg-muted/50 transition-colors">
-                Add Rest
-              </button>
             </div>
             <div className="bg-card rounded-2xl overflow-hidden">
               <button

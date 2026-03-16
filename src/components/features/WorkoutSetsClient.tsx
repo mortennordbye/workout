@@ -1,9 +1,11 @@
 "use client";
 
 import { WorkoutSetsList } from "@/components/features/WorkoutSetsList";
+import { deleteProgramSet } from "@/lib/actions/programs";
 import type { ProgramSet } from "@/types/workout";
 import { ChevronLeftIcon, Clock, Plus } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type Props = {
@@ -19,10 +21,18 @@ export function WorkoutSetsClient({
   programExerciseId,
   programName,
   exerciseName,
-  sets,
+  sets: initial,
 }: Props) {
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
+  const [sets, setSets] = useState(initial);
+
+  async function handleDeleteSet(setId: number) {
+    setSets((prev) => prev.filter((s) => s.id !== setId));
+    await deleteProgramSet(setId, programId, programExerciseId);
+    router.refresh();
+  }
 
   return (
     <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
@@ -117,6 +127,7 @@ export function WorkoutSetsClient({
               programId={programId}
               programExerciseId={programExerciseId}
               isEditing={isEditing}
+              onDeleteSet={handleDeleteSet}
             />
             <div className="py-4 border-t border-border">
               <button className="text-primary text-sm font-medium">

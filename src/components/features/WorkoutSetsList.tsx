@@ -12,6 +12,7 @@ type WorkoutSetsListProps = {
   programId: number;
   programExerciseId: number;
   isEditing?: boolean;
+  onDeleteSet?: (setId: number) => void;
 };
 
 function formatTime(totalSeconds: number): string {
@@ -27,6 +28,7 @@ export function WorkoutSetsList({
   programId,
   programExerciseId,
   isEditing = false,
+  onDeleteSet,
 }: WorkoutSetsListProps) {
   const router = useRouter();
   const [completedSets, setCompletedSets] = useState<Set<number>>(new Set());
@@ -107,7 +109,11 @@ export function WorkoutSetsList({
             <div className="flex items-center gap-3 py-4">
               {/* Delete button in edit mode */}
               {isEditing && (
-                <button className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onDeleteSet?.(set.id)}
+                  className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center shrink-0"
+                >
                   <Minus className="w-4 h-4 text-white" />
                 </button>
               )}
@@ -172,7 +178,11 @@ export function WorkoutSetsList({
               >
                 {isEditing && (
                   <>
-                    <button className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => onDeleteSet?.(set.id)}
+                      className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center shrink-0"
+                    >
                       <Minus className="w-4 h-4 text-white" />
                     </button>
                     <div className="w-7 shrink-0" />
