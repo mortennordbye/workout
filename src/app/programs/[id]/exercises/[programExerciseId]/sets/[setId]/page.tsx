@@ -1,10 +1,10 @@
 /**
- * New Set Page
+ * Program Set Edit Page
  *
- * Full-page view for adding a new set with picker-based input.
+ * Edit an existing planned set within a program exercise.
  */
 
-import { NewSetView } from "@/components/features/NewSetView";
+import { SetEditView } from "@/components/features/SetEditView";
 import { getProgramWithExercises } from "@/lib/actions/programs";
 import { ChevronLeftIcon } from "lucide-react";
 import Link from "next/link";
@@ -16,15 +16,17 @@ type Props = {
   params: Promise<{
     id: string;
     programExerciseId: string;
+    setId: string;
   }>;
 };
 
-export default async function NewSetPage({ params }: Props) {
-  const { id, programExerciseId } = await params;
+export default async function ProgramSetEditPage({ params }: Props) {
+  const { id, programExerciseId, setId } = await params;
   const programId = Number(id);
   const peId = Number(programExerciseId);
+  const setIdNum = Number(setId);
 
-  if (isNaN(programId) || isNaN(peId)) notFound();
+  if (isNaN(programId) || isNaN(peId) || isNaN(setIdNum)) notFound();
 
   const result = await getProgramWithExercises(programId);
   if (!result.success) notFound();
@@ -33,13 +35,16 @@ export default async function NewSetPage({ params }: Props) {
   const pe = program.programExercises.find((e) => e.id === peId);
   if (!pe) notFound();
 
-  const nextSetNumber = pe.programSets.length + 1;
-  const lastSet = pe.programSets[pe.programSets.length - 1];
+  const set = pe.programSets.find((s) => s.id === setIdNum);
+  if (!set) notFound();
+
+  const setIndex = pe.programSets.indexOf(set);
+  const totalSets = pe.programSets.length;
 
   return (
-    <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
+    <div className="h-[100dvh] pb-16 bg-background flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-6 pb-4">
+      <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
         <Link
           href={`/programs/${programId}/exercises/${peId}`}
           className="flex items-center gap-1 text-primary"
@@ -47,29 +52,25 @@ export default async function NewSetPage({ params }: Props) {
           <ChevronLeftIcon className="h-5 w-5" />
           <span className="text-sm font-medium">Sets</span>
         </Link>
-        <div className="text-lg font-bold">Add Set</div>
-        <div className="w-16" /> {/* Spacer for centering */}
+        <div className="text-lg font-bold">Edit Set</div>
+        <div className="w-16" />
       </div>
 
       {/* Set indicator */}
-      <div className="px-4 pb-6 text-center">
+      <div className="px-4 pb-6 text-center shrink-0">
         <div className="inline-flex items-center gap-2">
           <span className="text-sm text-muted-foreground">SET</span>
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
             <span className="text-sm font-bold text-primary-foreground">
-              {nextSetNumber}
+              {setIndex + 1}
             </span>
           </div>
+          <span className="text-sm text-muted-foreground">OF {totalSets}</span>
         </div>
       </div>
 
-      {/* Add view */}
-      <NewSetView
-        programId={programId}
-        programExerciseId={peId}
-        nextSetNumber={nextSetNumber}
-        lastSet={lastSet}
-      />
+      {/* Edit view */}
+      <SetEditView set={set} programId={programId} programExerciseId={peId} />
     </div>
   );
 }

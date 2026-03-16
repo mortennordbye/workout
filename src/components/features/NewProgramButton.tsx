@@ -39,7 +39,7 @@ export function NewProgramButton() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center justify-center gap-2 rounded-full border-2 border-primary px-6 py-3 text-primary font-semibold text-sm hover:bg-primary/10 transition-colors"
+        className="flex items-center justify-center gap-2 rounded-full border-2 border-primary px-6 py-3 text-primary font-semibold text-sm hover:bg-primary/10 active:bg-primary/20 transition-colors"
       >
         <PlusIcon className="h-4 w-4" />
         New Program

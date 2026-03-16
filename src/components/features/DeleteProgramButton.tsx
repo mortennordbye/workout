@@ -27,7 +27,7 @@ export function DeleteProgramButton({ programId, programName }: Props) {
     <button
       onClick={handleDelete}
       disabled={deleting}
-      className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-destructive/10 transition-colors disabled:opacity-50"
+      className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-destructive/10 active:bg-destructive/20 transition-colors disabled:opacity-50"
       title="Delete program"
     >
       <Trash2Icon className="h-4 w-4 text-destructive" />

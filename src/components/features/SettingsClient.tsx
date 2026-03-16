@@ -48,7 +48,7 @@ export function SettingsClient() {
                   <button
                     key={color.value}
                     onClick={() => setAccentColor(color.value as any)}
-                    className="relative w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                    className="relative w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                     style={{ backgroundColor: color.color }}
                   >
                     {accentColor === color.value && (

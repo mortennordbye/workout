@@ -1,7 +1,24 @@
 "use client";
 
 import type { ProgramSet } from "@/types/workout";
-import { Check, ChevronRightIcon } from "lucide-react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Check, ChevronRightIcon, GripVertical, Minus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -14,6 +31,9 @@ type Exercise = {
 type Props = {
   programId: number;
   exercises: Exercise[];
+  isEditing?: boolean;
+  onDeleteExercise?: (id: number) => void;
+  onReorderExercises?: (orderedIds: number[]) => void;
 };
 
 /** Format a single set into a compact summary token */
@@ -50,69 +70,161 @@ function buildSetSummary(sets: ProgramSet[]): string {
   return tokens.join("; ");
 }
 
-export function WorkoutExerciseList({ programId, exercises }: Props) {
+export function WorkoutExerciseList({
+  programId,
+  exercises,
+  isEditing = false,
+  onDeleteExercise,
+  onReorderExercises,
+}: Props) {
   const [completedExercises, setCompletedExercises] = useState<Set<number>>(
     new Set(),
   );
 
-  const toggleExercise = (exerciseId: number, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = exercises.findIndex((e) => e.id === active.id);
+    const newIndex = exercises.findIndex((e) => e.id === over.id);
+    const reordered = arrayMove(exercises, oldIndex, newIndex);
+    onReorderExercises?.(reordered.map((e) => e.id));
+  }
+
+  const toggleExercise = (exerciseId: number) => {
     setCompletedExercises((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(exerciseId)) {
-        newSet.delete(exerciseId);
-      } else {
-        newSet.add(exerciseId);
-      }
-      return newSet;
+      const next = new Set(prev);
+      next.has(exerciseId) ? next.delete(exerciseId) : next.add(exerciseId);
+      return next;
     });
   };
 
   return (
-    <>
-      {exercises.map((exercise) => {
-        const isCompleted = completedExercises.has(exercise.id);
-        const summary = buildSetSummary(exercise.sets);
-
-        return (
-          <Link
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext
+        items={exercises.map((e) => e.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        {exercises.map((exercise) => (
+          <SortableExerciseRow
             key={exercise.id}
-            href={`/programs/${programId}/workout/exercises/${exercise.id}`}
-            className="flex items-center gap-4 py-4 border-b border-border"
-          >
-            {/* Completion status circle */}
-            <button
-              onClick={(e) => toggleExercise(exercise.id, e)}
-              className={`
-                w-10 h-10 rounded-full flex items-center justify-center shrink-0
-                ${
-                  isCompleted
-                    ? "bg-primary"
-                    : "border-2 border-muted-foreground"
-                }
-              `}
-            >
-              {isCompleted && (
-                <Check className="w-6 h-6 text-primary-foreground" />
-              )}
-            </button>
+            exercise={exercise}
+            programId={programId}
+            isEditing={isEditing}
+            isCompleted={completedExercises.has(exercise.id)}
+            summary={buildSetSummary(exercise.sets)}
+            onToggle={() => toggleExercise(exercise.id)}
+            onDelete={() => onDeleteExercise?.(exercise.id)}
+          />
+        ))}
+      </SortableContext>
+    </DndContext>
+  );
+}
 
-            {/* Exercise info */}
-            <div className="flex-1 min-w-0">
-              <p className="text-base font-medium">{exercise.name}</p>
-              {summary && (
-                <p className="text-xs text-muted-foreground truncate mt-1">
-                  {summary}
-                </p>
-              )}
-            </div>
+function SortableExerciseRow({
+  exercise,
+  programId,
+  isEditing,
+  isCompleted,
+  summary,
+  onToggle,
+  onDelete,
+}: {
+  exercise: Exercise;
+  programId: number;
+  isEditing: boolean;
+  isCompleted: boolean;
+  summary: string;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: exercise.id, disabled: !isEditing });
 
-            {/* Chevron */}
-            <ChevronRightIcon className="h-5 w-5 text-muted-foreground shrink-0" />
-          </Link>
-        );
-      })}
-    </>
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
+      className="flex items-center gap-3 py-4 border-b border-border"
+    >
+      {isEditing && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center shrink-0"
+        >
+          <Minus className="w-4 h-4 text-white" />
+        </button>
+      )}
+
+      {isEditing ? (
+        <div className="w-7 h-7 rounded-full border-2 border-muted-foreground/30 shrink-0" />
+      ) : (
+        <button
+          onClick={onToggle}
+          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+            isCompleted ? "bg-primary" : "border-2 border-muted-foreground/30"
+          }`}
+        >
+          {isCompleted && <Check className="w-4 h-4 text-primary-foreground" />}
+        </button>
+      )}
+
+      {isEditing ? (
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-medium">{exercise.name}</p>
+          {summary && (
+            <p className="text-xs text-muted-foreground truncate mt-1">
+              {summary}
+            </p>
+          )}
+        </div>
+      ) : (
+        <Link
+          href={`/programs/${programId}/workout/exercises/${exercise.id}`}
+          className="flex-1 min-w-0"
+        >
+          <p className="text-base font-medium">{exercise.name}</p>
+          {summary && (
+            <p className="text-xs text-muted-foreground truncate mt-1">
+              {summary}
+            </p>
+          )}
+        </Link>
+      )}
+
+      {isEditing ? (
+        <button
+          {...attributes}
+          {...listeners}
+          className="w-10 h-10 flex items-center justify-center shrink-0 text-muted-foreground touch-none"
+        >
+          <GripVertical className="h-5 w-5" />
+        </button>
+      ) : (
+        <ChevronRightIcon className="h-5 w-5 text-muted-foreground shrink-0" />
+      )}
+    </div>
   );
 }

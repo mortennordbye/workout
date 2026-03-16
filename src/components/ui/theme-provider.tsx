@@ -62,6 +62,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const applyAccentColor = (color: AccentColor, currentTheme: Theme) => {
+    if (typeof document === "undefined") return;
     const colorValue =
       currentTheme === "dark"
         ? accentColors[color].dark
@@ -79,17 +80,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => {
     setTheme((prev) => {
       const next: Theme = prev === "dark" ? "light" : "dark";
-      localStorage.setItem("theme", next);
-      document.documentElement.classList.toggle("dark", next === "dark");
-      applyAccentColor(accentColor, next);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("theme", next);
+        document.documentElement.classList.toggle("dark", next === "dark");
+        applyAccentColor(accentColor, next);
+      }
       return next;
     });
   };
 
   const setAccentColor = (color: AccentColor) => {
     setAccentColorState(color);
-    localStorage.setItem("accentColor", color);
-    applyAccentColor(color, theme);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("accentColor", color);
+      applyAccentColor(color, theme);
+    }
   };
 
   return (

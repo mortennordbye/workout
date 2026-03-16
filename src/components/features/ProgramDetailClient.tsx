@@ -2,32 +2,32 @@
 
 import { AddExerciseForm } from "@/components/features/AddExerciseForm";
 import {
-    deleteProgram,
-    removeExerciseFromProgram,
-    reorderProgramExercises,
+  deleteProgram,
+  removeExerciseFromProgram,
+  reorderProgramExercises,
 } from "@/lib/actions/programs";
 import type { Exercise, ProgramSet } from "@/types/workout";
 import {
-    DndContext,
-    KeyboardSensor,
-    PointerSensor,
-    closestCenter,
-    useSensor,
-    useSensors,
-    type DragEndEvent,
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
-    SortableContext,
-    arrayMove,
-    sortableKeyboardCoordinates,
-    useSortable,
-    verticalListSortingStrategy,
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2Icon } from "lucide-react";
+import { ChevronRight, GripVertical, Minus, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type ProgramExItem = {
   id: number;
@@ -93,20 +93,20 @@ function SortableExerciseRow({
         transition,
         opacity: isDragging ? 0.4 : 1,
       }}
-      className="flex items-center gap-3 px-4 py-4 border-b border-border last:border-0"
+      className="flex items-center gap-3 py-4 border-b border-border last:border-0"
     >
-      {/* Left: drag handle in edit, decorative circle in view */}
+      {/* Left: red minus in edit, decorative circle in view */}
       {isEditing ? (
         <button
-          {...attributes}
-          {...listeners}
-          className="w-10 h-10 flex items-center justify-center shrink-0 text-muted-foreground touch-none"
-          aria-label="Drag to reorder"
+          type="button"
+          onClick={() => onDelete(exercise.id)}
+          className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center shrink-0"
+          aria-label="Remove exercise"
         >
-          <GripVertical className="w-5 h-5" />
+          <Minus className="w-4 h-4 text-white" />
         </button>
       ) : (
-        <div className="w-10 h-10 rounded-full border-2 border-muted-foreground/30 shrink-0" />
+        <div className="w-7 h-7 rounded-full border-2 border-muted-foreground/30 shrink-0" />
       )}
 
       {/* Exercise info */}
@@ -122,16 +122,18 @@ function SortableExerciseRow({
         )}
       </Link>
 
-      {/* Right: delete in edit mode only */}
-      {isEditing && (
+      {/* Right: grip handle in edit mode, chevron in view mode */}
+      {isEditing ? (
         <button
-          type="button"
-          onClick={() => onDelete(exercise.id)}
-          className="w-10 h-10 flex items-center justify-center shrink-0 text-destructive"
-          aria-label="Remove exercise"
+          {...attributes}
+          {...listeners}
+          className="w-10 h-10 flex items-center justify-center shrink-0 text-muted-foreground touch-none"
+          aria-label="Drag to reorder"
         >
-          <Trash2Icon className="w-5 h-5" />
+          <GripVertical className="w-5 h-5" />
         </button>
+      ) : (
+        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
       )}
     </div>
   );
@@ -147,6 +149,11 @@ export function ProgramDetailClient({
   const [isEditing, setIsEditing] = useState(false);
   const [exercises, setExercises] = useState(initial);
   const [deletingProgram, setDeletingProgram] = useState(false);
+
+  // Sync local state when server refreshes with new data
+  useEffect(() => {
+    setExercises(initial);
+  }, [initial]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -184,20 +191,43 @@ export function ProgramDetailClient({
   }
 
   return (
-    <div className="h-screen bg-background flex flex-col overflow-hidden">
-      {/* Header — same layout as workout page */}
+    <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
+      {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
-        <Link href="/programs" className="text-primary text-sm font-medium">
-          &lt; Programs
-        </Link>
+        {isEditing ? (
+          <button
+            type="button"
+            onClick={() => setIsEditing(false)}
+            className="text-primary text-sm font-medium"
+          >
+            Done
+          </button>
+        ) : (
+          <Link href="/programs" className="text-primary text-sm font-medium">
+            &lt; Programs
+          </Link>
+        )}
         <h1 className="text-xl font-bold truncate px-2">{programName}</h1>
-        <button
-          type="button"
-          onClick={() => setIsEditing((v) => !v)}
-          className="text-primary text-sm font-medium"
-        >
-          {isEditing ? "Done" : "Edit"}
-        </button>
+        {isEditing ? (
+          <button
+            type="button"
+            className="w-7 h-7 rounded-full border-2 border-primary flex items-center justify-center"
+            onClick={() => {
+              const el = document.getElementById("add-exercise-form");
+              el?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            <Plus className="w-4 h-4 text-primary" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsEditing(true)}
+            className="text-primary text-sm font-medium"
+          >
+            Edit
+          </button>
+        )}
       </div>
 
       {/* Exercises — scrollable */}
@@ -234,7 +264,7 @@ export function ProgramDetailClient({
         )}
 
         {isEditing && (
-          <div className="mt-4">
+          <div id="add-exercise-form" className="mt-4">
             <AddExerciseForm programId={programId} exercises={allExercises} />
           </div>
         )}
@@ -251,7 +281,7 @@ export function ProgramDetailClient({
         )}
       </div>
 
-      {/* Start Workout — view mode only, pinned to bottom */}
+      {/* Start Workout — pinned to bottom, view mode only */}
       {!isEditing && (
         <div className="px-4 pb-8 shrink-0">
           <Link

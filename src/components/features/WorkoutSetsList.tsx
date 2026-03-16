@@ -2,15 +2,16 @@
 
 import { updateProgramSet } from "@/lib/actions/programs";
 import type { ProgramSet } from "@/types/workout";
-import { Check, Pencil } from "lucide-react";
+import { Check, GripVertical, Minus, Pencil, Play } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-type Props = {
+type WorkoutSetsListProps = {
   sets: ProgramSet[];
   programId: number;
   programExerciseId: number;
+  isEditing?: boolean;
 };
 
 function formatTime(totalSeconds: number): string {
@@ -21,7 +22,12 @@ function formatTime(totalSeconds: number): string {
   return `${m}:${sec}`;
 }
 
-export function WorkoutSetsList({ sets, programId, programExerciseId }: Props) {
+export function WorkoutSetsList({
+  sets,
+  programId,
+  programExerciseId,
+  isEditing = false,
+}: WorkoutSetsListProps) {
   const router = useRouter();
   const [completedSets, setCompletedSets] = useState<Set<number>>(new Set());
   const [restTimers, setRestTimers] = useState<Map<number, number>>(new Map());
@@ -98,28 +104,37 @@ export function WorkoutSetsList({ sets, programId, programExerciseId }: Props) {
         return (
           <div key={set.id}>
             {/* Set row */}
-            <div className="flex items-center gap-4 py-4">
-              {/* Completion checkbox */}
+            <div className="flex items-center gap-3 py-4">
+              {/* Delete button in edit mode */}
+              {isEditing && (
+                <button className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center shrink-0">
+                  <Minus className="w-4 h-4 text-white" />
+                </button>
+              )}
+
+              {/* Play / completed button */}
               <button
-                onClick={() => toggleSet(set.id, index)}
+                onClick={() => !isEditing && toggleSet(set.id, index)}
                 className={`
-                    w-10 h-10 rounded-full flex items-center justify-center shrink-0
-                    transition-colors
+                    w-7 h-7 rounded-full flex items-center justify-center shrink-0
+                    transition-colors border-2
                     ${
                       isCompleted
-                        ? "bg-primary"
-                        : "border-2 border-muted-foreground hover:border-primary"
+                        ? "bg-primary border-primary"
+                        : "border-primary bg-transparent"
                     }
                   `}
               >
-                {isCompleted && (
-                  <Check className="w-6 h-6 text-primary-foreground" />
+                {isCompleted ? (
+                  <Check className="w-4 h-4 text-primary-foreground" />
+                ) : (
+                  <Play className="w-3 h-3 text-primary fill-primary" />
                 )}
               </button>
 
               {/* Set number badge */}
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
-                <span className="text-sm font-bold">{index + 1}</span>
+              <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
+                <span className="text-xs font-bold">{index + 1}</span>
               </div>
 
               {/* Set details */}
@@ -135,30 +150,56 @@ export function WorkoutSetsList({ sets, programId, programExerciseId }: Props) {
                 )}
               </div>
 
-              {/* Edit button */}
-              <Link
-                href={`/programs/${programId}/workout/exercises/${programExerciseId}/sets/${set.id}`}
-                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
-              >
-                <Pencil className="w-4 h-4 text-muted-foreground" />
-              </Link>
+              {/* Edit button or drag handle */}
+              {isEditing ? (
+                <button className="w-8 h-8 flex items-center justify-center shrink-0">
+                  <GripVertical className="w-5 h-5 text-muted-foreground" />
+                </button>
+              ) : (
+                <Link
+                  href={`/programs/${programId}/workout/exercises/${programExerciseId}/sets/${set.id}`}
+                  className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
+                >
+                  <Pencil className="w-4 h-4 text-muted-foreground" />
+                </Link>
+              )}
             </div>
 
             {/* Rest time */}
             {index < sets.length - 1 && (
-              <div className="pl-24 pb-4">
-                <div className="text-xs text-muted-foreground uppercase tracking-wider">
-                  REST{" "}
-                  {restRemaining !== undefined
-                    ? formatTime(restRemaining)
-                    : formatTime(Number(set.restTimeSeconds))}
+              <div
+                className={`pb-2 flex items-center gap-3 ${isEditing ? "" : "pl-[4.75rem]"}`}
+              >
+                {isEditing && (
+                  <>
+                    <button className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center shrink-0">
+                      <Minus className="w-4 h-4 text-white" />
+                    </button>
+                    <div className="w-7 shrink-0" />
+                    <div className="w-7 shrink-0" />
+                  </>
+                )}
+                <div className="flex-1">
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                    REST{" "}
+                    {restRemaining !== undefined
+                      ? formatTime(restRemaining)
+                      : formatTime(Number(set.restTimeSeconds))}
+                  </div>
+                  {!isEditing && (
+                    <div className="mt-1 h-1 bg-primary/20 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-primary rounded-full transition-all duration-1000"
+                        style={{ width: `${restProgress}%` }}
+                      />
+                    </div>
+                  )}
                 </div>
-                <div className="mt-1 h-1 bg-primary/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all duration-1000"
-                    style={{ width: `${restProgress}%` }}
-                  />
-                </div>
+                {isEditing && (
+                  <button className="w-8 h-8 flex items-center justify-center shrink-0">
+                    <GripVertical className="w-5 h-5 text-muted-foreground" />
+                  </button>
+                )}
               </div>
             )}
           </div>

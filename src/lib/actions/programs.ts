@@ -12,6 +12,9 @@ import {
   addExerciseToProgramSchema,
   addProgramSetSchema,
   createProgramSchema,
+  deleteProgramSetSchema,
+  removeExerciseFromProgramSchema,
+  reorderProgramExercisesSchema,
   updateProgramSetSchema,
 } from "@/lib/validators/workout";
 import type {
@@ -133,6 +136,7 @@ export async function addExerciseToProgram(
       .returning();
 
     revalidatePath(`/programs/${validation.data.programId}`);
+    revalidatePath(`/programs/${validation.data.programId}/workout`);
     return { success: true, data: pe };
   } catch (err) {
     return { success: false, error: String(err) };
@@ -143,11 +147,16 @@ export async function removeExerciseFromProgram(
   programExerciseId: number,
   programId: number,
 ): Promise<ActionResult<void>> {
+  const validation = removeExerciseFromProgramSchema.safeParse({
+    programExerciseId,
+    programId,
+  });
+  if (!validation.success) return { success: false, error: "Invalid input" };
   try {
     await db
       .delete(programExercises)
-      .where(eq(programExercises.id, programExerciseId));
-    revalidatePath(`/programs/${programId}`);
+      .where(eq(programExercises.id, validation.data.programExerciseId));
+    revalidatePath(`/programs/${validation.data.programId}`);
     return { success: true, data: undefined };
   } catch (err) {
     return { success: false, error: String(err) };
@@ -158,16 +167,21 @@ export async function reorderProgramExercises(
   programId: number,
   orderedIds: number[],
 ): Promise<ActionResult<void>> {
+  const validation = reorderProgramExercisesSchema.safeParse({
+    programId,
+    orderedIds,
+  });
+  if (!validation.success) return { success: false, error: "Invalid input" };
   try {
     await Promise.all(
-      orderedIds.map((id, index) =>
+      validation.data.orderedIds.map((id, index) =>
         db
           .update(programExercises)
           .set({ orderIndex: index })
           .where(eq(programExercises.id, id)),
       ),
     );
-    revalidatePath(`/programs/${programId}`);
+    revalidatePath(`/programs/${validation.data.programId}`);
     return { success: true, data: undefined };
   } catch (err) {
     return { success: false, error: String(err) };
@@ -223,8 +237,12 @@ export async function updateProgramSet(
 export async function deleteProgramSet(
   programSetId: number,
 ): Promise<ActionResult<void>> {
+  const validation = deleteProgramSetSchema.safeParse({ programSetId });
+  if (!validation.success) return { success: false, error: "Invalid input" };
   try {
-    await db.delete(programSets).where(eq(programSets.id, programSetId));
+    await db
+      .delete(programSets)
+      .where(eq(programSets.id, validation.data.programSetId));
     return { success: true, data: undefined };
   } catch (err) {
     return { success: false, error: String(err) };

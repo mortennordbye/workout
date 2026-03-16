@@ -156,6 +156,20 @@ export const updateProgramSetSchema = addProgramSetSchema
   .omit({ programExerciseId: true, setNumber: true })
   .extend({ id: z.number().int().positive() });
 
+export const removeExerciseFromProgramSchema = z.object({
+  programExerciseId: z.number().int().positive(),
+  programId: z.number().int().positive(),
+});
+
+export const reorderProgramExercisesSchema = z.object({
+  programId: z.number().int().positive(),
+  orderedIds: z.array(z.number().int().positive()).min(1),
+});
+
+export const deleteProgramSetSchema = z.object({
+  programSetId: z.number().int().positive(),
+});
+
 export type CreateProgramInput = z.infer<typeof createProgramSchema>;
 export type AddExerciseToProgramInput = z.infer<
   typeof addExerciseToProgramSchema

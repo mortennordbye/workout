@@ -74,10 +74,19 @@ A mobile-first Workout Tracking PWA built with Next.js 16 (App Router). The targ
 ## Development Environment
 
 - This project runs **only inside Docker/OrbStack** containers. Do not suggest `pnpm dev` or any local-machine commands.
-- Use `./scripts/dev.sh` to start the dev environment.
+- Use `./scripts/docker-dev.sh` to start the dev environment.
 - Hot-reloading via Turbopack is active through Docker volumes — no rebuilds needed for code changes.
-- To rebuild the container (e.g. after adding a new npm package): re-run `./scripts/dev.sh`.
+- To rebuild the container (e.g. after adding a new npm package): re-run `./scripts/docker-dev.sh`.
 - New npm packages added to `package.json` require a container rebuild to take effect.
+
+### Commands (run inside the container or via Docker exec)
+
+```bash
+pnpm lint              # ESLint
+pnpm db:push           # Push Drizzle schema changes to DB (preferred over migrations in dev)
+pnpm db:seed           # Seed the database
+pnpm db:studio         # Open Drizzle Studio
+```
 
 ---
 
@@ -89,3 +98,46 @@ A mobile-first Workout Tracking PWA built with Next.js 16 (App Router). The targ
 - No client-side data fetching when RSC can do it.
 - No hand-written TypeScript types that duplicate Drizzle schema types.
 - No local machine setup instructions that bypass Docker.
+
+---
+
+## Code Organisation
+
+```
+src/
+├── app/                  # Next.js App Router — pages and layouts only, no business logic
+├── components/
+│   ├── features/         # Feature-specific Client Components (named <Feature>Client.tsx)
+│   └── ui/               # shadcn/ui base components
+├── db/
+│   ├── index.ts          # Drizzle client
+│   └── schema/           # Table definitions — the single source of truth for all types
+├── lib/
+│   ├── actions/          # Server Actions ("use server") — one file per domain
+│   └── validators/       # Zod schemas, colocated with the actions that use them
+└── types/                # Shared TypeScript types inferred from Drizzle schema
+```
+
+### Naming conventions
+
+- **Client Components** in `features/` are suffixed `Client` (e.g. `WorkoutSetClient.tsx`).
+- **Server Actions** live in `src/lib/actions/` (one file per domain: `programs.ts`, `workout-sessions.ts`, etc.).
+- **Zod validators** mirror their action file (e.g. `src/lib/validators/programs.ts`).
+- Files use **kebab-case**; React components use **PascalCase**.
+
+---
+
+## Database Schema (Drizzle)
+
+Key tables (all defined under `src/db/schema/`):
+
+| Table | Purpose |
+|-------|---------|
+| `exercises` | Exercise library (system + user-created); category: strength/cardio/flexibility |
+| `programs` | Named workout templates (e.g. "Push 1") |
+| `program_exercises` | Ordered exercise slots within a program |
+| `program_sets` | Planned set blueprints (target reps, weight, duration) |
+| `workout_sessions` | Completed workouts (date, start/end time, isCompleted flag) |
+| `workout_sets` | Individual sets logged during a session (actualReps, weight, RPE 1–10) |
+
+All tables use `cascade` deletes. Types must be inferred with `typeof table.$inferSelect` — never hand-written.

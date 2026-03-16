@@ -43,7 +43,7 @@ export function AddExerciseForm({ programId, exercises }: Props) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 text-primary text-sm font-medium hover:opacity-80 transition-opacity"
+        className="flex items-center gap-2 text-primary text-sm font-medium hover:opacity-80 active:opacity-60 transition-opacity"
       >
         <PlusIcon className="h-4 w-4" />
         Add Exercise

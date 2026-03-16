@@ -4,7 +4,18 @@ import { addProgramSet } from "@/lib/actions/programs";
 import type { ProgramSet } from "@/types/workout";
 import { Loader2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
+
+// Interpolates orange → yellow → green across the range
+function gradientColor(index: number, total: number): string {
+  const ratio = index / Math.max(total - 1, 1);
+  if (ratio < 0.5) {
+    const t = ratio / 0.5;
+    return `rgb(${Math.round(249 + (234 - 249) * t)},${Math.round(115 + (179 - 115) * t)},${Math.round(22 + (8 - 22) * t)})`;
+  }
+  const t = (ratio - 0.5) / 0.5;
+  return `rgb(${Math.round(234 + (34 - 234) * t)},${Math.round(179 + (197 - 179) * t)},${Math.round(8 + (94 - 8) * t)})`;
+}
 
 type Props = {
   programId: number;
@@ -22,12 +33,14 @@ export function NewSetView({
   const router = useRouter();
   const [showRepsPicker, setShowRepsPicker] = useState(false);
   const [showWeightPicker, setShowWeightPicker] = useState(false);
-  const [showRestPicker, setShowRestPicker] = useState(false);
+  const [showRepsKeypad, setShowRepsKeypad] = useState(false);
+  const [showWeightKeypad, setShowWeightKeypad] = useState(false);
   const [saving, setSaving] = useState(false);
+  const repsInputRef = useRef<HTMLInputElement>(null);
+  const weightInputRef = useRef<HTMLInputElement>(null);
 
   const [reps, setReps] = useState(lastSet?.targetReps ?? 10);
   const [weight, setWeight] = useState(Number(lastSet?.weightKg ?? 0));
-  const [rest, setRest] = useState(Number(lastSet?.restTimeSeconds ?? 60));
 
   const handleSave = async () => {
     setSaving(true);
@@ -36,7 +49,7 @@ export function NewSetView({
       setNumber: nextSetNumber,
       targetReps: reps,
       weightKg: weight,
-      restTimeSeconds: rest,
+      restTimeSeconds: 0,
     });
     router.back();
   };
@@ -47,7 +60,7 @@ export function NewSetView({
         {/* Reps */}
         <button
           onClick={() => setShowRepsPicker(true)}
-          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50"
+          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
         >
           <span className="text-base font-medium">Reps</span>
           <span className="text-base text-muted-foreground">{reps}</span>
@@ -56,19 +69,10 @@ export function NewSetView({
         {/* Weight */}
         <button
           onClick={() => setShowWeightPicker(true)}
-          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50"
+          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
         >
           <span className="text-base font-medium">Weight (kg)</span>
           <span className="text-base text-muted-foreground">{weight}</span>
-        </button>
-
-        {/* Rest */}
-        <button
-          onClick={() => setShowRestPicker(true)}
-          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50"
-        >
-          <span className="text-base font-medium">Rest (seconds)</span>
-          <span className="text-base text-muted-foreground">{rest}</span>
         </button>
 
         {/* Base on previous workout suggestion */}
@@ -101,156 +105,142 @@ export function NewSetView({
 
       {/* Reps Picker Modal */}
       {showRepsPicker && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-200">
-          <div className="w-full bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-300 ease-out">
-            <div className="flex items-center justify-between mb-6">
-              <span className="text-sm text-muted-foreground uppercase tracking-wider">
+        <div
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-200"
+          onClick={() => setShowRepsPicker(false)}
+        >
+          <div
+            className="w-full bg-card rounded-t-3xl pb-10 animate-in slide-in-from-bottom duration-300 ease-out"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-6 pb-5">
+              <span className="text-sm font-semibold uppercase tracking-widest text-foreground">
                 Select Reps
               </span>
               <button
-                onClick={() => setShowRepsPicker(false)}
-                className="text-primary text-sm font-medium"
+                onClick={() => {
+                  setShowRepsKeypad((v) => !v);
+                  setTimeout(() => repsInputRef.current?.focus(), 50);
+                }}
+                className="px-4 py-1.5 rounded-full border border-primary text-primary text-sm font-medium active:bg-primary/10 transition-colors"
               >
-                Done
+                Keypad
               </button>
             </div>
 
-            {/* Number picker */}
-            <div className="flex gap-2 overflow-x-auto pb-4">
-              {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
-                <button
-                  key={num}
-                  onClick={() => {
-                    setReps(num);
-                    setShowRepsPicker(false);
-                  }}
-                  className={`flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center text-lg font-bold transition-all hover:scale-105 ${
-                    reps === num
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground hover:bg-muted/80"
-                  }`}
-                >
-                  {num}
-                </button>
-              ))}
+            {/* Scroll wheel */}
+            <div className="flex gap-2 overflow-x-auto px-5 pb-3 no-scrollbar cursor-grab active:cursor-grabbing">
+              {Array.from({ length: 30 }, (_, i) => i + 1).map((num, idx) => {
+                const color = gradientColor(idx, 30);
+                const selected = reps === num;
+                return (
+                  <button
+                    key={num}
+                    onClick={() => setReps(num)}
+                    style={
+                      selected
+                        ? { backgroundColor: color, borderColor: color }
+                        : { borderColor: color, color }
+                    }
+                    className={`flex-shrink-0 w-11 h-11 rounded-full border-2 flex items-center justify-center text-sm font-semibold transition-all ${
+                      selected ? "text-black scale-110" : "bg-transparent"
+                    }`}
+                  >
+                    {num}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Manual input */}
-            <div className="mt-4">
-              <input
-                type="number"
-                value={reps}
-                onChange={(e) => setReps(Number(e.target.value))}
-                className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
-              />
-            </div>
+            {showRepsKeypad && (
+              <div className="px-5 pt-2 pb-1">
+                <input
+                  ref={repsInputRef}
+                  type="number"
+                  inputMode="numeric"
+                  value={reps}
+                  onChange={(e) =>
+                    setReps(Math.max(1, Number(e.target.value) || 1))
+                  }
+                  className="w-full rounded-xl bg-background border border-border px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* Weight Picker Modal */}
       {showWeightPicker && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-200">
-          <div className="w-full bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-300 ease-out">
-            <div className="flex items-center justify-between mb-6">
-              <span className="text-sm text-muted-foreground uppercase tracking-wider">
+        <div
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-200"
+          onClick={() => setShowWeightPicker(false)}
+        >
+          <div
+            className="w-full bg-card rounded-t-3xl pb-10 animate-in slide-in-from-bottom duration-300 ease-out"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-6 pb-5">
+              <span className="text-sm font-semibold uppercase tracking-widest text-foreground">
                 Select Weight
               </span>
               <button
-                onClick={() => setShowWeightPicker(false)}
-                className="text-primary text-sm font-medium"
+                onClick={() => {
+                  setShowWeightKeypad((v) => !v);
+                  setTimeout(() => weightInputRef.current?.focus(), 50);
+                }}
+                className="px-4 py-1.5 rounded-full border border-primary text-primary text-sm font-medium active:bg-primary/10 transition-colors"
               >
-                Done
+                Keypad
               </button>
             </div>
 
-            {/* Weight picker */}
-            <div className="flex gap-2 overflow-x-auto pb-4">
-              {Array.from({ length: 40 }, (_, i) => (i + 1) * 2.5).map(
-                (num) => (
-                  <button
-                    key={num}
-                    onClick={() => {
-                      setWeight(num);
-                      setShowWeightPicker(false);
-                    }}
-                    className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all hover:scale-105 ${
-                      weight === num
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground hover:bg-muted/80"
-                    }`}
-                  >
-                    <span className="text-lg">{num}</span>
-                    <span className="text-xs opacity-70">kg</span>
-                  </button>
-                ),
+            {/* Scroll wheel */}
+            <div className="flex gap-2 overflow-x-auto px-5 pb-3 no-scrollbar cursor-grab active:cursor-grabbing">
+              {[0, ...Array.from({ length: 60 }, (_, i) => (i + 1) * 2.5)].map(
+                (num, idx) => {
+                  const total = 61;
+                  const color = gradientColor(idx, total);
+                  const selected = weight === num;
+                  return (
+                    <button
+                      key={num}
+                      onClick={() => setWeight(num)}
+                      style={
+                        selected
+                          ? { backgroundColor: color, borderColor: color }
+                          : { borderColor: color, color }
+                      }
+                      className={`flex-shrink-0 w-11 h-11 rounded-full border-2 flex items-center justify-center text-xs font-semibold transition-all ${
+                        selected ? "text-black scale-110" : "bg-transparent"
+                      }`}
+                    >
+                      {num % 1 === 0 ? num : num.toFixed(1)}
+                    </button>
+                  );
+                },
               )}
             </div>
 
             {/* Manual input */}
-            <div className="mt-4">
-              <input
-                type="number"
-                step="0.5"
-                value={weight}
-                onChange={(e) => setWeight(Number(e.target.value))}
-                className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Rest Picker Modal */}
-      {showRestPicker && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-200">
-          <div className="w-full bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-300 ease-out">
-            <div className="flex items-center justify-between mb-6">
-              <span className="text-sm text-muted-foreground uppercase tracking-wider">
-                Select Rest Time
-              </span>
-              <button
-                onClick={() => setShowRestPicker(false)}
-                className="text-primary text-sm font-medium"
-              >
-                Done
-              </button>
-            </div>
-
-            {/* Rest time picker */}
-            <div className="flex gap-2 overflow-x-auto pb-4">
-              {[30, 45, 60, 90, 120, 180, 240, 300].map((seconds) => (
-                <button
-                  key={seconds}
-                  onClick={() => {
-                    setRest(seconds);
-                    setShowRestPicker(false);
-                  }}
-                  className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all hover:scale-105 ${
-                    rest === seconds
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground hover:bg-muted/80"
-                  }`}
-                >
-                  <span className="text-lg">
-                    {seconds < 60 ? seconds : Math.floor(seconds / 60)}
-                  </span>
-                  <span className="text-xs opacity-70">
-                    {seconds < 60 ? "s" : "m"}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Manual input */}
-            <div className="mt-4">
-              <input
-                type="number"
-                value={rest}
-                onChange={(e) => setRest(Number(e.target.value))}
-                className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
-              />
-            </div>
+            {showWeightKeypad && (
+              <div className="px-5 pt-2 pb-1">
+                <input
+                  ref={weightInputRef}
+                  type="number"
+                  inputMode="decimal"
+                  step="0.5"
+                  value={weight}
+                  onChange={(e) =>
+                    setWeight(Math.max(0, Number(e.target.value) || 0))
+                  }
+                  className="w-full rounded-xl bg-background border border-border px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -16,12 +16,10 @@ export function SetEditView({ set, programId, programExerciseId }: Props) {
   const router = useRouter();
   const [showRepsPicker, setShowRepsPicker] = useState(false);
   const [showWeightPicker, setShowWeightPicker] = useState(false);
-  const [showRestPicker, setShowRestPicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [reps, setReps] = useState(set.targetReps ?? 10);
   const [weight, setWeight] = useState(Number(set.weightKg ?? 0));
-  const [rest, setRest] = useState(Number(set.restTimeSeconds));
 
   const handleSave = async () => {
     setSaving(true);
@@ -29,7 +27,6 @@ export function SetEditView({ set, programId, programExerciseId }: Props) {
       id: set.id,
       targetReps: reps,
       weightKg: weight,
-      restTimeSeconds: rest,
     });
     router.back();
   };
@@ -40,7 +37,7 @@ export function SetEditView({ set, programId, programExerciseId }: Props) {
         {/* Reps */}
         <button
           onClick={() => setShowRepsPicker(true)}
-          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50"
+          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
         >
           <span className="text-base font-medium">Reps</span>
           <span className="text-base text-muted-foreground">{reps}</span>
@@ -49,19 +46,10 @@ export function SetEditView({ set, programId, programExerciseId }: Props) {
         {/* Weight */}
         <button
           onClick={() => setShowWeightPicker(true)}
-          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50"
+          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
         >
           <span className="text-base font-medium">Weight (kg)</span>
           <span className="text-base text-muted-foreground">{weight}</span>
-        </button>
-
-        {/* Rest */}
-        <button
-          onClick={() => setShowRestPicker(true)}
-          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50"
-        >
-          <span className="text-base font-medium">Rest (seconds)</span>
-          <span className="text-base text-muted-foreground">{rest}</span>
         </button>
 
         {/* Base on previous workout suggestion */}
@@ -115,10 +103,10 @@ export function SetEditView({ set, programId, programExerciseId }: Props) {
                     setReps(num);
                     setShowRepsPicker(false);
                   }}
-                  className={`flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center text-lg font-bold transition-all hover:scale-105 ${
+                  className={`flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center text-lg font-bold transition-all hover:scale-105 active:scale-95 ${
                     reps === num
                       ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground hover:bg-muted/80"
+                      : "bg-muted text-foreground hover:bg-muted/80 active:bg-muted"
                   }`}
                 >
                   {num}
@@ -165,10 +153,10 @@ export function SetEditView({ set, programId, programExerciseId }: Props) {
                       setWeight(num);
                       setShowWeightPicker(false);
                     }}
-                    className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all hover:scale-105 ${
+                    className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all hover:scale-105 active:scale-95 ${
                       weight === num
                         ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground hover:bg-muted/80"
+                        : "bg-muted text-foreground hover:bg-muted/80 active:bg-muted"
                     }`}
                   >
                     <span className="text-lg">{num}</span>
@@ -185,60 +173,6 @@ export function SetEditView({ set, programId, programExerciseId }: Props) {
                 step="0.5"
                 value={weight}
                 onChange={(e) => setWeight(Number(e.target.value))}
-                className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Rest Picker Modal */}
-      {showRestPicker && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-200">
-          <div className="w-full bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-300 ease-out">
-            <div className="flex items-center justify-between mb-6">
-              <span className="text-sm text-muted-foreground uppercase tracking-wider">
-                Select Rest Time
-              </span>
-              <button
-                onClick={() => setShowRestPicker(false)}
-                className="text-primary text-sm font-medium"
-              >
-                Done
-              </button>
-            </div>
-
-            {/* Rest time picker */}
-            <div className="flex gap-2 overflow-x-auto pb-4">
-              {[30, 45, 60, 90, 120, 180, 240, 300].map((seconds) => (
-                <button
-                  key={seconds}
-                  onClick={() => {
-                    setRest(seconds);
-                    setShowRestPicker(false);
-                  }}
-                  className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all hover:scale-105 ${
-                    rest === seconds
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground hover:bg-muted/80"
-                  }`}
-                >
-                  <span className="text-lg">
-                    {seconds < 60 ? seconds : Math.floor(seconds / 60)}
-                  </span>
-                  <span className="text-xs opacity-70">
-                    {seconds < 60 ? "s" : "m"}
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Manual input */}
-            <div className="mt-4">
-              <input
-                type="number"
-                value={rest}
-                onChange={(e) => setRest(Number(e.target.value))}
                 className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
               />
             </div>
