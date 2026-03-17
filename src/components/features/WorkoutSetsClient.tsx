@@ -2,6 +2,7 @@
 
 import { WorkoutSetsList } from "@/components/features/WorkoutSetsList";
 import { deleteProgramSet } from "@/lib/actions/programs";
+import { useWorkoutSession } from "@/contexts/workout-session-context";
 import type { ProgramSet } from "@/types/workout";
 import { ChevronLeftIcon, Clock, Plus } from "lucide-react";
 import Link from "next/link";
@@ -14,6 +15,7 @@ type Props = {
   programName: string;
   exerciseName: string;
   sets: ProgramSet[];
+  isWorkout?: boolean;
 };
 
 export function WorkoutSetsClient({
@@ -22,15 +24,27 @@ export function WorkoutSetsClient({
   programName,
   exerciseName,
   sets: initial,
+  isWorkout = false,
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [sets, setSets] = useState(initial);
+  const workoutSession = useWorkoutSession();
 
   useEffect(() => {
     setSets(initial);
   }, [initial]);
+
+  const displaySets = sets.map((s) => {
+    const ov = workoutSession?.overrides[s.id];
+    if (!ov) return s;
+    return {
+      ...s,
+      targetReps: ov.targetReps,
+      weightKg: String(ov.weightKg) as typeof s.weightKg,
+    };
+  });
 
   async function handleDeleteSet(setId: number) {
     setSets((prev) => prev.filter((s) => s.id !== setId));
@@ -51,11 +65,13 @@ export function WorkoutSetsClient({
           </button>
         ) : (
           <Link
-            href={`/programs/${programId}/workout`}
+            href={isWorkout ? `/programs/${programId}/workout` : `/programs/${programId}`}
             className="flex items-center gap-1 text-primary"
           >
             <ChevronLeftIcon className="h-5 w-5" />
-            <span className="text-sm font-medium">{programName}</span>
+            <span className="text-sm font-medium">
+              {isWorkout ? "Workout" : programName}
+            </span>
           </Link>
         )}
         <div className="text-lg font-bold">Sets</div>
@@ -127,10 +143,11 @@ export function WorkoutSetsClient({
         ) : (
           <>
             <WorkoutSetsList
-              sets={sets}
+              sets={displaySets}
               programId={programId}
               programExerciseId={programExerciseId}
               isEditing={isEditing}
+              isWorkout={isWorkout}
               onDeleteSet={handleDeleteSet}
             />
             <div className="py-4 border-t border-border">

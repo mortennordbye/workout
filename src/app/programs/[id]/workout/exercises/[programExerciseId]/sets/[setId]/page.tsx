@@ -70,7 +70,7 @@ export default async function SetEditPage({ params }: Props) {
       </div>
 
       {/* Edit view */}
-      <SetEditView set={set} programId={programId} programExerciseId={peId} />
+      <SetEditView set={set} programId={programId} programExerciseId={peId} isWorkout={true} />
     </div>
   );
 }

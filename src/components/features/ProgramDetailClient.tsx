@@ -281,17 +281,6 @@ export function ProgramDetailClient({
         )}
       </div>
 
-      {/* Start Workout — pinned to bottom, view mode only */}
-      {!isEditing && (
-        <div className="px-4 pb-8 shrink-0">
-          <Link
-            href={`/programs/${programId}/workout`}
-            className="block w-full py-4 bg-primary text-primary-foreground rounded-xl font-semibold text-center text-base"
-          >
-            Start Workout
-          </Link>
-        </div>
-      )}
     </div>
   );
 }

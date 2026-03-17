@@ -10,6 +10,8 @@ interface ThemeContextValue {
   toggleTheme: () => void;
   accentColor: AccentColor;
   setAccentColor: (color: AccentColor) => void;
+  autoSaveToProgram: boolean;
+  setAutoSaveToProgram: (v: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -40,6 +42,7 @@ const accentColors: Record<AccentColor, { light: string; dark: string }> = {
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("light");
   const [accentColor, setAccentColorState] = useState<AccentColor>("blue");
+  const [autoSaveToProgram, setAutoSaveToProgramState] = useState(false);
 
   // On mount, read persisted preferences
   useEffect(() => {
@@ -59,6 +62,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       (localStorage.getItem("accentColor") as AccentColor | null) ?? "blue";
     setAccentColorState(storedColor);
     applyAccentColor(storedColor, preferredTheme);
+
+    setAutoSaveToProgramState(
+      localStorage.getItem("autoSaveToProgram") === "true",
+    );
   }, []);
 
   const applyAccentColor = (color: AccentColor, currentTheme: Theme) => {
@@ -97,9 +104,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setAutoSaveToProgram = (v: boolean) => {
+    setAutoSaveToProgramState(v);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("autoSaveToProgram", String(v));
+    }
+  };
+
   return (
     <ThemeContext.Provider
-      value={{ theme, toggleTheme, accentColor, setAccentColor }}
+      value={{ theme, toggleTheme, accentColor, setAccentColor, autoSaveToProgram, setAutoSaveToProgram }}
     >
       {children}
     </ThemeContext.Provider>

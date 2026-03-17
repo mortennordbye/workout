@@ -5,7 +5,7 @@
  * and allows adding or removing sets.
  */
 
-import { ExerciseDetailClient } from "@/components/features/ExerciseDetailClient";
+import { WorkoutSetsClient } from "@/components/features/WorkoutSetsClient";
 import { getProgramWithExercises } from "@/lib/actions/programs";
 import { notFound } from "next/navigation";
 
@@ -29,13 +29,13 @@ export default async function ProgramExerciseDetailPage({ params }: Props) {
   if (!pe) notFound();
 
   return (
-    <ExerciseDetailClient
+    <WorkoutSetsClient
       programId={programId}
       programExerciseId={peId}
       programName={program.name}
       exerciseName={pe.exercise.name}
-      category={pe.exercise.category ?? ""}
       sets={pe.programSets}
+      isWorkout={false}
     />
   );
 }

@@ -30,7 +30,12 @@ const navItems = [
 export function BottomNav() {
   const pathname = usePathname();
 
+  const isWorkoutRoute = pathname.includes("/workout");
+
   const isActive = (href: string) => {
+    if (isWorkoutRoute) {
+      return href === "/";
+    }
     if (href === "/") {
       return pathname === "/";
     }

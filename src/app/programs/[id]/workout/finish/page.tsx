@@ -4,9 +4,12 @@ import {
   completeWorkoutSession,
   createWorkoutSession,
 } from "@/lib/actions/workout-sessions";
+import { updateProgramSet } from "@/lib/actions/programs";
+import { useWorkoutSession } from "@/contexts/workout-session-context";
+import { useTheme } from "@/components/ui/theme-provider";
 import { Check, ChevronLeft, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, use, useMemo, useState } from "react";
 
 const DEMO_USER_ID = 1;
 
@@ -55,9 +58,22 @@ function FinishContent({ programId }: { programId: string }) {
 
   const [feeling, setFeeling] = useState<Feeling>("Good");
   const [saving, setSaving] = useState(false);
+  const workoutSession = useWorkoutSession();
+  const { autoSaveToProgram } = useTheme();
+  const showSaveToProgram = !autoSaveToProgram && (workoutSession?.hasOverrides ?? false);
+  const [saveToProgram, setSaveToProgram] = useState(true);
 
   const handleSave = async () => {
     setSaving(true);
+    if (showSaveToProgram && saveToProgram && workoutSession) {
+      for (const [setIdStr, override] of Object.entries(workoutSession.overrides)) {
+        await updateProgramSet({
+          id: Number(setIdStr),
+          targetReps: override.targetReps,
+          weightKg: override.weightKg,
+        });
+      }
+    }
     const created = await createWorkoutSession({
       userId: DEMO_USER_ID,
       date: toDateString(startTime),
@@ -71,6 +87,7 @@ function FinishContent({ programId }: { programId: string }) {
       sessionId: created.data.id,
       notes: feeling,
     });
+    workoutSession?.clearOverrides();
     router.push("/new-workout");
   };
 
@@ -130,19 +147,27 @@ function FinishContent({ programId }: { programId: string }) {
           </div>
         </div>
 
-        {/* Update program info */}
-        <div className="bg-card rounded-2xl p-5 flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0 mt-0.5">
-            <Check className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold">Program updated</p>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Your weights and reps from this workout have been saved to the
-              program for next time.
-            </p>
-          </div>
-        </div>
+        {/* Save to program card — only shown when there are pending overrides */}
+        {showSaveToProgram && (
+          <button
+            onClick={() => setSaveToProgram((v) => !v)}
+            className="w-full bg-card rounded-2xl p-5 flex items-start gap-3 text-left active:bg-muted/50 transition-colors"
+          >
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
+                saveToProgram ? "bg-primary" : "bg-muted"
+              }`}
+            >
+              {saveToProgram && <Check className="w-4 h-4 text-primary-foreground" />}
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Save changes to program</p>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Your weights and reps have been modified — save them for next time?
+              </p>
+            </div>
+          </button>
+        )}
       </div>
 
       {/* Save button */}
@@ -169,11 +194,12 @@ function FinishContent({ programId }: { programId: string }) {
 export default function WorkoutFinishPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = use(params);
   return (
     <Suspense>
-      <FinishContent programId={params.id} />
+      <FinishContent programId={id} />
     </Suspense>
   );
 }

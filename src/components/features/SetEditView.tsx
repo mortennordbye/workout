@@ -1,6 +1,8 @@
 "use client";
 
 import { updateProgramSet } from "@/lib/actions/programs";
+import { useWorkoutSession } from "@/contexts/workout-session-context";
+import { useTheme } from "@/components/ui/theme-provider";
 import type { ProgramSet } from "@/types/workout";
 import { Loader2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -10,24 +12,30 @@ type Props = {
   set: ProgramSet;
   programId: number;
   programExerciseId: number;
+  isWorkout?: boolean;
 };
 
-export function SetEditView({ set, programId, programExerciseId }: Props) {
+export function SetEditView({ set, programId, programExerciseId, isWorkout = false }: Props) {
   const router = useRouter();
   const [showRepsPicker, setShowRepsPicker] = useState(false);
   const [showWeightPicker, setShowWeightPicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const [reps, setReps] = useState(set.targetReps ?? 10);
-  const [weight, setWeight] = useState(Number(set.weightKg ?? 0));
+  const workoutSession = useWorkoutSession();
+  const { autoSaveToProgram } = useTheme();
+  const override = isWorkout ? (workoutSession?.overrides[set.id] ?? null) : null;
+
+  const [reps, setReps] = useState(override?.targetReps ?? set.targetReps ?? 10);
+  const [weight, setWeight] = useState(override?.weightKg ?? Number(set.weightKg ?? 0));
 
   const handleSave = async () => {
     setSaving(true);
-    await updateProgramSet({
-      id: set.id,
-      targetReps: reps,
-      weightKg: weight,
-    });
+    if (!isWorkout || autoSaveToProgram) {
+      await updateProgramSet({ id: set.id, targetReps: reps, weightKg: weight });
+    }
+    if (isWorkout && !autoSaveToProgram) {
+      workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight });
+    }
     router.back();
   };
 

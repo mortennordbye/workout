@@ -34,6 +34,7 @@ type WorkoutSetsListProps = {
   programId: number;
   programExerciseId: number;
   isEditing?: boolean;
+  isWorkout?: boolean;
   onDeleteSet?: (setId: number) => void;
 };
 
@@ -117,6 +118,7 @@ export function WorkoutSetsList({
   programId,
   programExerciseId,
   isEditing = false,
+  isWorkout = false,
   onDeleteSet,
 }: WorkoutSetsListProps) {
   const router = useRouter();
@@ -299,6 +301,7 @@ export function WorkoutSetsList({
                     set={item.set}
                     setNumber={setNumber}
                     isEditing={isEditing}
+                    isWorkout={isWorkout}
                     isCompleted={completedSets.has(item.set.id)}
                     programId={programId}
                     programExerciseId={programExerciseId}
@@ -433,6 +436,7 @@ function SortableSetRow({
   set,
   setNumber,
   isEditing,
+  isWorkout,
   isCompleted,
   programId,
   programExerciseId,
@@ -443,6 +447,7 @@ function SortableSetRow({
   set: ProgramSet;
   setNumber: number;
   isEditing: boolean;
+  isWorkout: boolean;
   isCompleted: boolean;
   programId: number;
   programExerciseId: number;
@@ -460,6 +465,10 @@ function SortableSetRow({
 
   const router = useRouter();
 
+  const setEditHref = isWorkout
+    ? `/programs/${programId}/workout/exercises/${programExerciseId}/sets/${set.id}`
+    : `/programs/${programId}/exercises/${programExerciseId}/sets/${set.id}`;
+
   return (
     <div
       ref={setNodeRef}
@@ -471,7 +480,7 @@ function SortableSetRow({
       className={`flex items-center gap-3 py-4 border-t border-b border-border${!isEditing ? " cursor-pointer" : ""}`}
       onClick={() => {
         if (!isEditing) {
-          router.push(`/programs/${programId}/workout/exercises/${programExerciseId}/sets/${set.id}`);
+          router.push(setEditHref);
         }
       }}
     >

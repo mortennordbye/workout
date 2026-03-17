@@ -51,7 +51,7 @@ export function WorkoutSessionClient({
   return (
     <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
+      <div className="flex items-center justify-between px-4 pt-6 pb-2 shrink-0">
         {isEditing ? (
           <button
             type="button"
@@ -69,7 +69,7 @@ export function WorkoutSessionClient({
             Finished
           </button>
         )}
-        <h1 className="text-xl font-bold">{programName}</h1>
+        <h1 className="text-xl font-bold">Workout</h1>
         <div className="flex items-center gap-3">
           {!isEditing && (
             <button
@@ -88,6 +88,10 @@ export function WorkoutSessionClient({
             <Plus className="w-4 h-4 text-primary" />
           </button>
         </div>
+      </div>
+      {/* Program name subtitle */}
+      <div className="px-4 pb-3 shrink-0">
+        <p className="text-sm text-muted-foreground text-center">{programName}</p>
       </div>
 
       {/* Exercises list + History */}

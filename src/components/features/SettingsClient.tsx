@@ -13,7 +13,7 @@ const accentColors = [
 ] as const;
 
 export function SettingsClient() {
-  const { accentColor, setAccentColor } = useTheme();
+  const { accentColor, setAccentColor, autoSaveToProgram, setAutoSaveToProgram } = useTheme();
 
   return (
     <div className="min-h-screen bg-background flex flex-col px-4 pt-8">
@@ -64,7 +64,36 @@ export function SettingsClient() {
           </div>
         </div>
 
-        {/* Future settings sections can be added here */}
+        {/* Workout section */}
+        <div className="rounded-xl bg-muted overflow-hidden">
+          <div className="p-4">
+            <h2 className="font-semibold mb-1">Workout</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Control how workout changes are saved
+            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">Auto-save to program</p>
+                <p className="text-sm text-muted-foreground">
+                  Immediately save weight and rep changes to the program during a workout
+                </p>
+              </div>
+              <button
+                onClick={() => setAutoSaveToProgram(!autoSaveToProgram)}
+                aria-label="Toggle auto-save to program"
+                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors shrink-0 ml-4 ${
+                  autoSaveToProgram ? "bg-primary" : "bg-muted-foreground/30"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    autoSaveToProgram ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

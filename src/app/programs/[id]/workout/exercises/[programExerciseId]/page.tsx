@@ -32,6 +32,7 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
       programName={program.name}
       exerciseName={pe.exercise.name}
       sets={pe.programSets}
+      isWorkout={true}
     />
   );
 }
