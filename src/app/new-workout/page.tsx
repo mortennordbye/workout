@@ -48,13 +48,6 @@ export default async function NewWorkoutPage() {
           </div>
         )}
 
-        {/* No Program option */}
-        <div className="flex flex-col rounded-xl bg-muted overflow-hidden">
-          <button className="flex items-center justify-between px-5 py-4 active:bg-muted/50 transition-colors w-full text-left">
-            <span className="text-base font-medium">No Program</span>
-            <ChevronRightIcon className="h-5 w-5 text-muted-foreground" />
-          </button>
-        </div>
       </div>
     </div>
   );

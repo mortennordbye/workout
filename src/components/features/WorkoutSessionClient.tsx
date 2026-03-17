@@ -104,14 +104,6 @@ export function WorkoutSessionClient({
           onReorderExercises={handleReorder}
         />
 
-        {!isEditing && (
-          <div className="pt-6 pb-4">
-            <h2 className="text-primary text-base font-medium mb-1">History</h2>
-            <p className="text-sm text-muted-foreground">
-              You have completed this program 0 times...
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Finish Confirmation */}

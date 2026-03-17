@@ -16,11 +16,12 @@ export function SettingsClient() {
   const { accentColor, setAccentColor, autoSaveToProgram, setAutoSaveToProgram } = useTheme();
 
   return (
-    <div className="min-h-screen bg-background flex flex-col px-4 pt-8">
-      <h1 className="text-3xl font-bold tracking-tight mb-8">Settings</h1>
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
+      <h1 className="text-3xl font-bold tracking-tight px-4 pt-8 pb-0 shrink-0">Settings</h1>
 
       {/* Settings sections */}
-      <div className="flex flex-col gap-4">
+      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 pt-8 pb-8">
+        <div className="flex flex-col gap-4">
         {/* Appearance section */}
         <div className="rounded-xl bg-muted overflow-hidden">
           <div className="p-4">
@@ -94,7 +95,9 @@ export function SettingsClient() {
             </div>
           </div>
         </div>
+        </div>
       </div>
     </div>
   );
 }
+
