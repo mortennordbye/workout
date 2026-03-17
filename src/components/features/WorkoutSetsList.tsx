@@ -19,8 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, GripVertical, Minus, Pencil, Play, Plus } from "lucide-react";
-import Link from "next/link";
+import { Check, GripVertical, Minus, Play, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -459,6 +458,8 @@ function SortableSetRow({
     isDragging,
   } = useSortable({ id, disabled: !isEditing });
 
+  const router = useRouter();
+
   return (
     <div
       ref={setNodeRef}
@@ -467,7 +468,12 @@ function SortableSetRow({
         transition,
         opacity: isDragging ? 0.4 : 1,
       }}
-      className="flex items-center gap-3 py-4 border-t border-b border-border"
+      className={`flex items-center gap-3 py-4 border-t border-b border-border${!isEditing ? " cursor-pointer" : ""}`}
+      onClick={() => {
+        if (!isEditing) {
+          router.push(`/programs/${programId}/workout/exercises/${programExerciseId}/sets/${set.id}`);
+        }
+      }}
     >
       {isEditing && (
         <button
@@ -480,7 +486,7 @@ function SortableSetRow({
       )}
 
       <button
-        onClick={() => !isEditing && onToggle()}
+        onClick={(e) => { e.stopPropagation(); if (!isEditing) onToggle(); }}
         className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 ${
           isCompleted
             ? "bg-primary border-primary"
@@ -510,7 +516,7 @@ function SortableSetRow({
         )}
       </div>
 
-      {isEditing ? (
+      {isEditing && (
         <button
           {...attributes}
           {...listeners}
@@ -518,13 +524,6 @@ function SortableSetRow({
         >
           <GripVertical className="w-5 h-5 text-muted-foreground" />
         </button>
-      ) : (
-        <Link
-          href={`/programs/${programId}/workout/exercises/${programExerciseId}/sets/${set.id}`}
-          className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-muted transition-colors"
-        >
-          <Pencil className="w-4 h-4 text-muted-foreground" />
-        </Link>
       )}
     </div>
   );
@@ -593,23 +592,20 @@ function SortableRestRow({
           </button>
         </div>
       ) : (
-        <>
-          <button
-            onClick={onEdit}
-            className="pl-[4.75rem] text-xs text-muted-foreground uppercase tracking-wider active:opacity-60 transition-opacity text-left"
-          >
+        <div onClick={onEdit} className="cursor-pointer active:opacity-60 transition-opacity">
+          <div className="text-xs text-muted-foreground uppercase tracking-wider">
             REST{" "}
             {restRemaining !== undefined
               ? formatTime(restRemaining)
               : formatTime(seconds)}
-          </button>
+          </div>
           <div className="mt-1 h-1 bg-primary/20 rounded-full overflow-hidden">
             <div
               className="h-full bg-primary rounded-full transition-all duration-1000"
               style={{ width: `${restProgress}%` }}
             />
           </div>
-        </>
+        </div>
       )}
     </div>
   );
