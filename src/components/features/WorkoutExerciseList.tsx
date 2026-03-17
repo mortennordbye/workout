@@ -1,5 +1,6 @@
 "use client";
 
+import { buildSetSummary } from "@/lib/utils/format";
 import type { ProgramSet } from "@/types/workout";
 import {
   DndContext,
@@ -36,39 +37,6 @@ type Props = {
   onReorderExercises?: (orderedIds: number[]) => void;
 };
 
-/** Format a single set into a compact summary token */
-function setToken(s: ProgramSet): string {
-  const totalSeconds = Number(s.durationSeconds ?? 0);
-  if (s.durationSeconds != null) {
-    const m = Math.floor(totalSeconds / 60)
-      .toString()
-      .padStart(2, "0");
-    const sec = (totalSeconds % 60).toString().padStart(2, "0");
-    return `${m}:${sec}`;
-  }
-  return `${s.targetReps ?? "?"}x${Number(s.weightKg ?? 0)}kg`;
-}
-
-/** Format rest time */
-function restToken(s: ProgramSet): string {
-  const totalSeconds = Number(s.restTimeSeconds);
-  const m = Math.floor(totalSeconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const sec = (totalSeconds % 60).toString().padStart(2, "0");
-  return `${m}:${sec}`;
-}
-
-/** Build the set summary line */
-function buildSetSummary(sets: ProgramSet[]): string {
-  if (sets.length === 0) return "";
-  const tokens = sets.map((s) => `${setToken(s)}; ${restToken(s)}`);
-  // Show first few sets, then ellipsis if too many
-  if (tokens.length > 3) {
-    return tokens.slice(0, 3).join("; ") + "; ...";
-  }
-  return tokens.join("; ");
-}
 
 export function WorkoutExerciseList({
   programId,

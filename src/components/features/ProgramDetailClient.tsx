@@ -6,6 +6,7 @@ import {
   removeExerciseFromProgram,
   reorderProgramExercises,
 } from "@/lib/actions/programs";
+import { buildSetSummary } from "@/lib/utils/format";
 import type { Exercise, ProgramSet } from "@/types/workout";
 import {
   DndContext,
@@ -42,26 +43,6 @@ type Props = {
   allExercises: Exercise[];
 };
 
-function setToken(s: ProgramSet): string {
-  if (s.durationSeconds != null) {
-    const t = Number(s.durationSeconds);
-    return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
-  }
-  return `${s.targetReps ?? "?"}x${Number(s.weightKg ?? 0)}kg`;
-}
-
-function restToken(s: ProgramSet): string {
-  const t = Number(s.restTimeSeconds);
-  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
-}
-
-function buildSetSummary(sets: ProgramSet[]): string {
-  if (sets.length === 0) return "";
-  const tokens = sets.map((s) => `${setToken(s)}; ${restToken(s)}`);
-  return tokens.length > 3
-    ? tokens.slice(0, 3).join("; ") + "; ..."
-    : tokens.join("; ");
-}
 
 function SortableExerciseRow({
   exercise,

@@ -27,6 +27,7 @@ DOCKER_IMAGE="workout-pwa:dev"
 SKIP_BUILD=false
 LOGS_ONLY=false
 CLEAN=false
+RUN_TESTS=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -47,6 +48,10 @@ while [[ $# -gt 0 ]]; do
       CLEAN=true
       shift
       ;;
+    --test)
+      RUN_TESTS=true
+      shift
+      ;;
     --help)
       echo "Usage: ./scripts/dev.sh [OPTIONS]"
       echo ""
@@ -55,6 +60,7 @@ while [[ $# -gt 0 ]]; do
       echo "  --skip-build    Skip Docker image build"
       echo "  --logs          Only show logs"
       echo "  --clean         Clean build (no cache)"
+      echo "  --test          Run tests before starting containers"
       echo "  --help          Show this help message"
       exit 0
       ;;
@@ -68,6 +74,12 @@ done
 if [ "$LOGS_ONLY" = true ]; then
   docker-compose logs -f
   exit 0
+fi
+
+if [ "$RUN_TESTS" = true ]; then
+  echo -e "${BLUE}🧪 Running tests...${NC}"
+  pnpm test
+  echo -e "${GREEN}✅ All tests passed${NC}"
 fi
 
 echo -e "${YELLOW}🛑 Stopping existing containers...${NC}"
