@@ -166,6 +166,11 @@ export const reorderProgramExercisesSchema = z.object({
   orderedIds: z.array(z.number().int().positive()).min(1),
 });
 
+export const reorderProgramSetsSchema = z.object({
+  programExerciseId: z.number().int().positive(),
+  orderedIds: z.array(z.number().int().positive()).min(1),
+});
+
 export const deleteProgramSetSchema = z.object({
   programSetId: z.number().int().positive(),
 });

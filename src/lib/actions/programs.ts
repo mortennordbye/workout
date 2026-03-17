@@ -15,6 +15,7 @@ import {
   deleteProgramSetSchema,
   removeExerciseFromProgramSchema,
   reorderProgramExercisesSchema,
+  reorderProgramSetsSchema,
   updateProgramSetSchema,
 } from "@/lib/validators/workout";
 import type {
@@ -260,6 +261,43 @@ export async function deleteProgramSet(
       .where(eq(programSets.id, validation.data.programSetId));
     revalidatePath(`/programs/${programId}/workout/exercises/${programExerciseId}`);
     revalidatePath(`/programs/${programId}/workout`);
+    return { success: true, data: undefined };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function reorderProgramSets(
+  programExerciseId: number,
+  orderedIds: number[],
+): Promise<ActionResult<void>> {
+  const validation = reorderProgramSetsSchema.safeParse({
+    programExerciseId,
+    orderedIds,
+  });
+  if (!validation.success) return { success: false, error: "Invalid input" };
+  try {
+    await Promise.all(
+      validation.data.orderedIds.map((id, index) =>
+        db
+          .update(programSets)
+          .set({ setNumber: index + 1 })
+          .where(eq(programSets.id, id)),
+      ),
+    );
+    const [pe] = await db
+      .select({ programId: programExercises.programId })
+      .from(programExercises)
+      .where(eq(programExercises.id, validation.data.programExerciseId))
+      .limit(1);
+    if (pe) {
+      revalidatePath(
+        `/programs/${pe.programId}/workout/exercises/${validation.data.programExerciseId}`,
+      );
+      revalidatePath(
+        `/programs/${pe.programId}/exercises/${validation.data.programExerciseId}`,
+      );
+    }
     return { success: true, data: undefined };
   } catch (err) {
     return { success: false, error: String(err) };

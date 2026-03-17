@@ -1,12 +1,12 @@
 "use client";
 
 import { WorkoutSetsList } from "@/components/features/WorkoutSetsList";
-import { deleteProgramSet } from "@/lib/actions/programs";
+import { deleteProgramSet, reorderProgramSets, updateProgramSet } from "@/lib/actions/programs";
 import type { ProgramSet } from "@/types/workout";
 import { ChevronLeftIcon, Clock, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Props = {
   programId: number;
@@ -15,6 +15,14 @@ type Props = {
   exerciseName: string;
   sets: ProgramSet[];
 };
+
+const REST_OPTIONS = [30, 45, 60, 90, 120, 150, 180, 240, 300];
+
+function formatTime(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+  const s = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
 
 export function WorkoutSetsClient({
   programId,
@@ -27,10 +35,36 @@ export function WorkoutSetsClient({
   const [isEditing, setIsEditing] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [sets, setSets] = useState(initial);
+  const [editingRestSetId, setEditingRestSetId] = useState<number | null>(null);
+  const [restDraft, setRestDraft] = useState(60);
+
+  useEffect(() => {
+    setSets(initial);
+  }, [initial]);
 
   async function handleDeleteSet(setId: number) {
     setSets((prev) => prev.filter((s) => s.id !== setId));
     await deleteProgramSet(setId, programId, programExerciseId);
+    router.refresh();
+  }
+
+  async function handleReorderSets(orderedIds: number[]) {
+    setSets((prev) => orderedIds.map((id) => prev.find((s) => s.id === id)!));
+    await reorderProgramSets(programExerciseId, orderedIds);
+  }
+
+  function openAddRest() {
+    setShowActionSheet(false);
+    const lastSet = sets[sets.length - 1];
+    if (!lastSet) return;
+    setRestDraft(60);
+    setEditingRestSetId(lastSet.id);
+  }
+
+  async function handleSaveRest() {
+    if (editingRestSetId === null) return;
+    await updateProgramSet({ id: editingRestSetId, restTimeSeconds: restDraft });
+    setEditingRestSetId(null);
     router.refresh();
   }
 
@@ -128,6 +162,7 @@ export function WorkoutSetsClient({
               programExerciseId={programExerciseId}
               isEditing={isEditing}
               onDeleteSet={handleDeleteSet}
+              onReorderSets={handleReorderSets}
             />
             <div className="py-4 border-t border-border">
               <button className="text-primary text-sm font-medium">
@@ -156,7 +191,11 @@ export function WorkoutSetsClient({
               >
                 Add Set
               </Link>
-              <button className="w-full flex items-center justify-center py-4 text-base font-medium active:bg-muted/50 transition-colors">
+              <button
+                onClick={openAddRest}
+                disabled={sets.length === 0}
+                className="w-full flex items-center justify-center py-4 text-base font-medium active:bg-muted/50 transition-colors disabled:opacity-40"
+              >
                 Add Rest
               </button>
             </div>
@@ -167,6 +206,63 @@ export function WorkoutSetsClient({
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rest duration picker */}
+      {editingRestSetId !== null && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end">
+          <div className="w-full bg-card rounded-t-3xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <span className="text-sm text-muted-foreground uppercase tracking-wider">
+                Select Rest Time
+              </span>
+              <button
+                onClick={handleSaveRest}
+                className="text-primary text-sm font-medium"
+              >
+                Done
+              </button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-4">
+              {REST_OPTIONS.map((seconds) => (
+                <button
+                  key={seconds}
+                  onClick={() => setRestDraft(seconds)}
+                  className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all active:scale-95 ${
+                    restDraft === seconds
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
+                  }`}
+                >
+                  {seconds < 60 ? (
+                    <>
+                      <span className="text-lg">{seconds}</span>
+                      <span className="text-xs opacity-70">s</span>
+                    </>
+                  ) : seconds % 60 === 0 ? (
+                    <>
+                      <span className="text-lg">{seconds / 60}</span>
+                      <span className="text-xs opacity-70">m</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-lg">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}</span>
+                      <span className="text-xs opacity-70">m</span>
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4">
+              <input
+                type="number"
+                value={restDraft}
+                onChange={(e) => setRestDraft(Number(e.target.value))}
+                className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
+              />
             </div>
           </div>
         </div>
