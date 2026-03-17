@@ -9,7 +9,7 @@ import type { ProgramSet } from "@/types/workout";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 type Exercise = {
   id: number;
@@ -29,8 +29,10 @@ export function WorkoutSessionClient({
   exercises: initial,
 }: Props) {
   const router = useRouter();
+  const startTime = useMemo(() => new Date(), []);
   const [isEditing, setIsEditing] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [exercises, setExercises] = useState(initial);
 
   async function handleDeleteExercise(peId: number) {
@@ -59,12 +61,13 @@ export function WorkoutSessionClient({
             Done
           </button>
         ) : (
-          <Link
-            href="/new-workout"
+          <button
+            type="button"
+            onClick={() => setShowFinishConfirm(true)}
             className="text-primary text-sm font-medium"
           >
             Finished
-          </Link>
+          </button>
         )}
         <h1 className="text-xl font-bold">{programName}</h1>
         <div className="flex items-center gap-3">
@@ -106,6 +109,47 @@ export function WorkoutSessionClient({
           </div>
         )}
       </div>
+
+      {/* Finish Confirmation */}
+      {showFinishConfirm && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-end"
+          onClick={() => setShowFinishConfirm(false)}
+        >
+          <div
+            className="w-full px-4 pb-8 space-y-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-card rounded-2xl overflow-hidden text-center">
+              <div className="px-4 pt-5 pb-4 border-b border-border">
+                <p className="font-semibold text-base">Finish Workout?</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Are you sure you want to finish this workout?
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowFinishConfirm(false);
+                  router.push(
+                    `/programs/${programId}/workout/finish?start=${startTime.toISOString()}`,
+                  );
+                }}
+                className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors"
+              >
+                Yes, Finish
+              </button>
+            </div>
+            <div className="bg-card rounded-2xl overflow-hidden">
+              <button
+                onClick={() => setShowFinishConfirm(false)}
+                className="w-full py-4 text-base font-semibold active:bg-muted/50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Action Sheet */}
       {showActionSheet && (
