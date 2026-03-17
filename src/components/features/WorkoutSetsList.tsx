@@ -36,7 +36,6 @@ type WorkoutSetsListProps = {
   programExerciseId: number;
   isEditing?: boolean;
   onDeleteSet?: (setId: number) => void;
-  onReorderSets?: (orderedIds: number[]) => void;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
