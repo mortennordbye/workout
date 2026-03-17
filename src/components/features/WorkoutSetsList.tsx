@@ -19,7 +19,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, GripVertical, Minus, Pencil, Play } from "lucide-react";
+import { Check, GripVertical, Minus, Pencil, Play, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -27,12 +27,7 @@ import { useEffect, useState } from "react";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type SetFlatItem = { type: "set"; id: string; set: ProgramSet };
-type RestFlatItem = {
-  type: "rest";
-  id: string;
-  originalSetId: number;
-  seconds: number;
-};
+type RestFlatItem = { type: "rest"; id: string; seconds: number };
 type FlatItem = SetFlatItem | RestFlatItem;
 
 type WorkoutSetsListProps = {
@@ -62,7 +57,6 @@ function toFlatItems(sets: ProgramSet[]): FlatItem[] {
       items.push({
         type: "rest",
         id: `rest-${set.id}`,
-        originalSetId: set.id,
         seconds: Number(set.restTimeSeconds),
       });
     }
@@ -70,7 +64,10 @@ function toFlatItems(sets: ProgramSet[]): FlatItem[] {
   return items;
 }
 
-/** Derive ordered set IDs and new rest assignments from a flat item list. */
+/**
+ * Derive ordered set IDs and rest assignments from a flat list.
+ * Each rest is assigned to the nearest preceding set.
+ */
 function computeMapping(items: FlatItem[]): {
   orderedSetIds: number[];
   restAssignments: Map<number, number>;
@@ -87,10 +84,11 @@ function computeMapping(items: FlatItem[]): {
     if (items[i].type === "rest") {
       for (let j = i - 1; j >= 0; j--) {
         if (items[j].type === "set") {
-          restAssignments.set(
-            (items[j] as SetFlatItem).set.id,
-            (items[i] as RestFlatItem).seconds,
-          );
+          const setId = (items[j] as SetFlatItem).set.id;
+          // Only assign if this set doesn't already have a rest (first rest wins)
+          if (restAssignments.get(setId) === 0) {
+            restAssignments.set(setId, (items[i] as RestFlatItem).seconds);
+          }
           break;
         }
       }
@@ -115,15 +113,27 @@ export function WorkoutSetsList({
   );
   const [completedSets, setCompletedSets] = useState<Set<number>>(new Set());
   const [restTimers, setRestTimers] = useState<Map<number, number>>(new Map());
-  const [editingRestItemId, setEditingRestItemId] = useState<string | null>(
-    null,
-  );
+  const [editingRestItemId, setEditingRestItemId] = useState<string | null>(null);
   const [restDraft, setRestDraft] = useState(60);
 
-  // Sync flat items when sets prop changes (after router.refresh)
   useEffect(() => {
     setFlatItems(toFlatItems(sets));
   }, [sets]);
+
+  // ── Persist helpers ─────────────────────────────────────────────────────────
+
+  async function saveCurrentState(items: FlatItem[]) {
+    const { orderedSetIds, restAssignments } = computeMapping(items);
+    if (orderedSetIds.length > 0) {
+      await reorderProgramSets(programExerciseId, orderedSetIds);
+    }
+    await Promise.all(
+      Array.from(restAssignments.entries()).map(([setId, seconds]) =>
+        updateProgramSet({ id: setId, restTimeSeconds: seconds }),
+      ),
+    );
+    router.refresh();
+  }
 
   // ── Set completion ──────────────────────────────────────────────────────────
 
@@ -148,9 +158,8 @@ export function WorkoutSetsList({
       newCompleted.add(setId);
       setCompletedSets(newCompleted);
 
-      // Start timer: use the rest item immediately after this set in the flat list
-      const nextFlatItem =
-        flatIndex >= 0 ? flatItems[flatIndex + 1] : undefined;
+      // Start timer from the rest item immediately after this set in the flat list
+      const nextFlatItem = flatIndex >= 0 ? flatItems[flatIndex + 1] : undefined;
       const restSeconds =
         nextFlatItem?.type === "rest" ? nextFlatItem.seconds : 0;
       if (restSeconds > 0) {
@@ -200,34 +209,33 @@ export function WorkoutSetsList({
 
   // ── Rest editing ────────────────────────────────────────────────────────────
 
+  function insertRest(insertIndex: number) {
+    const newId = `rest-new-${Date.now()}`;
+    const newItem: RestFlatItem = { type: "rest", id: newId, seconds: 60 };
+    const newItems = [
+      ...flatItems.slice(0, insertIndex),
+      newItem,
+      ...flatItems.slice(insertIndex),
+    ];
+    setFlatItems(newItems);
+    setRestDraft(60);
+    setEditingRestItemId(newId);
+  }
+
   async function handleSaveRest() {
     if (!editingRestItemId) return;
-    const item = flatItems.find(
-      (i) => i.id === editingRestItemId,
-    ) as RestFlatItem | undefined;
-    if (!item) return;
-
-    setFlatItems((prev) =>
-      prev.map((i) =>
-        i.id === editingRestItemId ? { ...i, seconds: restDraft } : i,
-      ),
+    const newItems = flatItems.map((i) =>
+      i.id === editingRestItemId ? { ...i, seconds: restDraft } : i,
     );
-    await updateProgramSet({
-      id: item.originalSetId,
-      restTimeSeconds: restDraft,
-    });
+    setFlatItems(newItems);
     setEditingRestItemId(null);
-    router.refresh();
+    await saveCurrentState(newItems);
   }
 
   async function handleDeleteRest(restItemId: string) {
-    const item = flatItems.find((i) => i.id === restItemId) as
-      | RestFlatItem
-      | undefined;
-    if (!item) return;
-    setFlatItems((prev) => prev.filter((i) => i.id !== restItemId));
-    await updateProgramSet({ id: item.originalSetId, restTimeSeconds: 0 });
-    router.refresh();
+    const newItems = flatItems.filter((i) => i.id !== restItemId);
+    setFlatItems(newItems);
+    await saveCurrentState(newItems);
   }
 
   // ── Drag and drop ───────────────────────────────────────────────────────────
@@ -242,20 +250,11 @@ export function WorkoutSetsList({
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-
     const oldIndex = flatItems.findIndex((i) => i.id === active.id);
     const newIndex = flatItems.findIndex((i) => i.id === over.id);
     const reordered = arrayMove(flatItems, oldIndex, newIndex);
     setFlatItems(reordered);
-
-    const { orderedSetIds, restAssignments } = computeMapping(reordered);
-    await reorderProgramSets(programExerciseId, orderedSetIds);
-    await Promise.all(
-      Array.from(restAssignments.entries()).map(([setId, seconds]) =>
-        updateProgramSet({ id: setId, restTimeSeconds: seconds }),
-      ),
-    );
-    router.refresh();
+    await saveCurrentState(reordered);
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -271,45 +270,65 @@ export function WorkoutSetsList({
           items={flatItems.map((i) => i.id)}
           strategy={verticalListSortingStrategy}
         >
+          {/* Top insert button */}
+          {isEditing && (
+            <InsertRestButton onClick={() => insertRest(0)} />
+          )}
+
           {flatItems.map((item, index) => {
             if (item.type === "set") {
               const setNumber =
                 flatItems.slice(0, index).filter((i) => i.type === "set")
                   .length + 1;
               return (
-                <SortableSetRow
-                  key={item.id}
-                  id={item.id}
-                  set={item.set}
-                  setNumber={setNumber}
-                  isEditing={isEditing}
-                  isCompleted={completedSets.has(item.set.id)}
-                  programId={programId}
-                  programExerciseId={programExerciseId}
-                  onToggle={() => toggleSet(item.set.id)}
-                  onDelete={() => onDeleteSet?.(item.set.id)}
-                />
+                <div key={item.id}>
+                  <SortableSetRow
+                    id={item.id}
+                    set={item.set}
+                    setNumber={setNumber}
+                    isEditing={isEditing}
+                    isCompleted={completedSets.has(item.set.id)}
+                    programId={programId}
+                    programExerciseId={programExerciseId}
+                    onToggle={() => toggleSet(item.set.id)}
+                    onDelete={() => onDeleteSet?.(item.set.id)}
+                  />
+                  {isEditing && (
+                    <InsertRestButton onClick={() => insertRest(index + 1)} />
+                  )}
+                </div>
               );
             } else {
-              const restRemaining = restTimers.get(item.originalSetId);
+              // Find preceding set for the rest timer
+              const precedingSet = flatItems
+                .slice(0, index)
+                .reverse()
+                .find((i): i is SetFlatItem => i.type === "set");
+              const restRemaining = precedingSet
+                ? restTimers.get(precedingSet.set.id)
+                : undefined;
               const restProgress =
                 restRemaining !== undefined && item.seconds > 0
                   ? ((item.seconds - restRemaining) / item.seconds) * 100
                   : 0;
               return (
-                <SortableRestRow
-                  key={item.id}
-                  id={item.id}
-                  seconds={item.seconds}
-                  isEditing={isEditing}
-                  restRemaining={restRemaining}
-                  restProgress={restProgress}
-                  onDelete={() => handleDeleteRest(item.id)}
-                  onEdit={() => {
-                    setRestDraft(item.seconds);
-                    setEditingRestItemId(item.id);
-                  }}
-                />
+                <div key={item.id}>
+                  <SortableRestRow
+                    id={item.id}
+                    seconds={item.seconds}
+                    isEditing={isEditing}
+                    restRemaining={restRemaining}
+                    restProgress={restProgress}
+                    onDelete={() => handleDeleteRest(item.id)}
+                    onEdit={() => {
+                      setRestDraft(item.seconds);
+                      setEditingRestItemId(item.id);
+                    }}
+                  />
+                  {isEditing && (
+                    <InsertRestButton onClick={() => insertRest(index + 1)} />
+                  )}
+                </div>
               );
             }
           })}
@@ -379,6 +398,25 @@ export function WorkoutSetsList({
   );
 }
 
+// ─── Insert rest button ───────────────────────────────────────────────────────
+
+function InsertRestButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center gap-2 py-1 text-muted-foreground/50 hover:text-primary transition-colors group"
+    >
+      <div className="flex-1 border-t border-dashed border-border group-hover:border-primary/40 transition-colors" />
+      <span className="flex items-center gap-0.5 text-xs font-medium shrink-0">
+        <Plus className="w-3 h-3" />
+        REST
+      </span>
+      <div className="flex-1 border-t border-dashed border-border group-hover:border-primary/40 transition-colors" />
+    </button>
+  );
+}
+
 // ─── Sortable set row ─────────────────────────────────────────────────────────
 
 function SortableSetRow({
@@ -402,8 +440,14 @@ function SortableSetRow({
   onToggle: () => void;
   onDelete: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id, disabled: !isEditing });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled: !isEditing });
 
   return (
     <div
@@ -495,8 +539,14 @@ function SortableRestRow({
   onDelete: () => void;
   onEdit: () => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id, disabled: !isEditing });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id, disabled: !isEditing });
 
   return (
     <div
