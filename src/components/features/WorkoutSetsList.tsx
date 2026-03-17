@@ -65,7 +65,8 @@ function toFlatItems(sets: ProgramSet[]): FlatItem[] {
 
 /**
  * Derive ordered set IDs and rest assignments from a flat list.
- * Each rest is assigned to the nearest preceding set.
+ * Each rest is assigned to the nearest preceding set (post-rest: rest after that set).
+ * If no preceding set exists, falls back to the nearest following set.
  */
 function computeMapping(items: FlatItem[]): {
   orderedSetIds: number[];
@@ -81,14 +82,29 @@ function computeMapping(items: FlatItem[]): {
 
   for (let i = 0; i < items.length; i++) {
     if (items[i].type === "rest") {
+      const restSeconds = (items[i] as RestFlatItem).seconds;
+      let assigned = false;
+      // Assign to nearest preceding set
       for (let j = i - 1; j >= 0; j--) {
         if (items[j].type === "set") {
           const setId = (items[j] as SetFlatItem).set.id;
-          // Only assign if this set doesn't already have a rest (first rest wins)
           if (restAssignments.get(setId) === 0) {
-            restAssignments.set(setId, (items[i] as RestFlatItem).seconds);
+            restAssignments.set(setId, restSeconds);
           }
+          assigned = true;
           break;
+        }
+      }
+      // No preceding set: fall back to nearest following set
+      if (!assigned) {
+        for (let j = i + 1; j < items.length; j++) {
+          if (items[j].type === "set") {
+            const setId = (items[j] as SetFlatItem).set.id;
+            if (restAssignments.get(setId) === 0) {
+              restAssignments.set(setId, restSeconds);
+            }
+            break;
+          }
         }
       }
     }
@@ -269,8 +285,8 @@ export function WorkoutSetsList({
           items={flatItems.map((i) => i.id)}
           strategy={verticalListSortingStrategy}
         >
-          {/* Top insert button */}
-          {isEditing && (
+          {/* Top insert button — shown when set-1 has no rest yet */}
+          {isEditing && flatItems.length > 0 && flatItems[1]?.type !== "rest" && (
             <InsertRestButton onClick={() => insertRest(0)} />
           )}
 
@@ -292,7 +308,7 @@ export function WorkoutSetsList({
                     onToggle={() => toggleSet(item.set.id)}
                     onDelete={() => onDeleteSet?.(item.set.id)}
                   />
-                  {isEditing && (
+                  {isEditing && flatItems[index + 1]?.type !== "rest" && (
                     <InsertRestButton onClick={() => insertRest(index + 1)} />
                   )}
                 </div>
@@ -324,9 +340,6 @@ export function WorkoutSetsList({
                       setEditingRestItemId(item.id);
                     }}
                   />
-                  {isEditing && (
-                    <InsertRestButton onClick={() => insertRest(index + 1)} />
-                  )}
                 </div>
               );
             }
