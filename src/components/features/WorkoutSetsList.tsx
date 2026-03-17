@@ -95,14 +95,12 @@ function computeMapping(items: FlatItem[]): {
           break;
         }
       }
-      // No preceding set: fall back to nearest following set
+      // No preceding set: fall back to nearest following set (overwrite if needed)
       if (!assigned) {
         for (let j = i + 1; j < items.length; j++) {
           if (items[j].type === "set") {
             const setId = (items[j] as SetFlatItem).set.id;
-            if (restAssignments.get(setId) === 0) {
-              restAssignments.set(setId, restSeconds);
-            }
+            restAssignments.set(setId, restSeconds);
             break;
           }
         }
@@ -285,8 +283,8 @@ export function WorkoutSetsList({
           items={flatItems.map((i) => i.id)}
           strategy={verticalListSortingStrategy}
         >
-          {/* Top insert button — shown when set-1 has no rest yet */}
-          {isEditing && flatItems.length > 0 && flatItems[1]?.type !== "rest" && (
+          {/* Top insert button — always visible in edit mode */}
+          {isEditing && flatItems.length > 0 && (
             <InsertRestButton onClick={() => insertRest(0)} />
           )}
 
