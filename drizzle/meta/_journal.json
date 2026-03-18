@@ -15,6 +15,13 @@
       "when": 1773040393404,
       "tag": "0001_absurd_pyro",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773860164059,
+      "tag": "0002_unique_night_thrasher",
+      "breakpoints": true
     }
   ]
 }

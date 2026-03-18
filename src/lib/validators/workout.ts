@@ -37,6 +37,7 @@ export const createWorkoutSessionSchema = z.object({
     .string()
     .max(1000, "Notes must be 1000 characters or less")
     .optional(),
+  programId: z.number().int().positive().optional(),
 });
 
 /**

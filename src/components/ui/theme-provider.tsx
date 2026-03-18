@@ -12,6 +12,8 @@ interface ThemeContextValue {
   setAccentColor: (color: AccentColor) => void;
   autoSaveToProgram: boolean;
   setAutoSaveToProgram: (v: boolean) => void;
+  weeklyGoal: number;
+  setWeeklyGoal: (n: number) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -40,33 +42,33 @@ const accentColors: Record<AccentColor, { light: string; dark: string }> = {
 };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
-  const [accentColor, setAccentColorState] = useState<AccentColor>("blue");
-  const [autoSaveToProgram, setAutoSaveToProgramState] = useState(false);
-
-  // On mount, read persisted preferences
-  useEffect(() => {
-    const storedTheme = localStorage.getItem("theme") as Theme | null;
-    const preferredTheme =
-      storedTheme ??
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window === "undefined") return "light";
+    return (
+      (localStorage.getItem("theme") as Theme | null) ??
       (window.matchMedia("(prefers-color-scheme: dark)").matches
         ? "dark"
-        : "light");
-    setTheme(preferredTheme);
-    document.documentElement.classList.toggle(
-      "dark",
-      preferredTheme === "dark",
+        : "light")
     );
+  });
 
-    const storedColor =
-      (localStorage.getItem("accentColor") as AccentColor | null) ?? "blue";
-    setAccentColorState(storedColor);
-    applyAccentColor(storedColor, preferredTheme);
-
-    setAutoSaveToProgramState(
-      localStorage.getItem("autoSaveToProgram") === "true",
+  const [accentColor, setAccentColorState] = useState<AccentColor>(() => {
+    if (typeof window === "undefined") return "blue";
+    return (
+      (localStorage.getItem("accentColor") as AccentColor | null) ?? "blue"
     );
-  }, []);
+  });
+
+  const [autoSaveToProgram, setAutoSaveToProgramState] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("autoSaveToProgram") === "true";
+  });
+
+  const [weeklyGoal, setWeeklyGoalState] = useState(() => {
+    if (typeof window === "undefined") return 4;
+    const stored = localStorage.getItem("weeklyGoal");
+    return stored ? Number(stored) : 4;
+  });
 
   const applyAccentColor = (color: AccentColor, currentTheme: Theme) => {
     if (typeof document === "undefined") return;
@@ -83,6 +85,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       foreground,
     );
   };
+
+  // Apply persisted preferences to the DOM on mount
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    applyAccentColor(accentColor, theme);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const toggleTheme = () => {
     setTheme((prev) => {
@@ -111,9 +120,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setWeeklyGoal = (n: number) => {
+    setWeeklyGoalState(n);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("weeklyGoal", String(n));
+    }
+  };
+
   return (
     <ThemeContext.Provider
-      value={{ theme, toggleTheme, accentColor, setAccentColor, autoSaveToProgram, setAutoSaveToProgram }}
+      value={{ theme, toggleTheme, accentColor, setAccentColor, autoSaveToProgram, setAutoSaveToProgram, weeklyGoal, setWeeklyGoal }}
     >
       {children}
     </ThemeContext.Provider>

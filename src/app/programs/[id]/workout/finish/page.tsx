@@ -41,9 +41,10 @@ function toDateString(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function FinishContent({ programId }: { programId: string }) {
+function FinishContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [mountTime] = useState<number>(() => Date.now());
 
   const startTime = useMemo(() => {
     const raw = searchParams.get("start");
@@ -51,8 +52,8 @@ function FinishContent({ programId }: { programId: string }) {
   }, [searchParams]);
 
   const durationMinutes = useMemo(
-    () => Math.max(1, Math.round((Date.now() - startTime.getTime()) / 60000)),
-    [startTime],
+    () => Math.max(1, Math.round((mountTime - startTime.getTime()) / 60000)),
+    [mountTime, startTime],
   );
 
   const [feeling, setFeeling] = useState<Feeling>("Good");
@@ -60,16 +61,19 @@ function FinishContent({ programId }: { programId: string }) {
   const workoutSession = useWorkoutSession();
 
   const saveSession = async () => {
-    const created = await createWorkoutSession({
-      userId: DEMO_USER_ID,
-      date: toDateString(startTime),
-      startTime: startTime.toISOString(),
-    });
-    if (!created.success) return false;
-    await completeWorkoutSession({
-      sessionId: created.data.id,
-      notes: feeling,
-    });
+    const existingSessionId = workoutSession?.sessionId;
+    if (existingSessionId) {
+      await completeWorkoutSession({ sessionId: existingSessionId, notes: feeling });
+    } else {
+      // Fallback if session wasn't pre-created (e.g. direct navigation)
+      const created = await createWorkoutSession({
+        userId: DEMO_USER_ID,
+        date: toDateString(startTime),
+        startTime: startTime.toISOString(),
+      });
+      if (!created.success) return false;
+      await completeWorkoutSession({ sessionId: created.data.id, notes: feeling });
+    }
     workoutSession?.clearOverrides();
     router.push("/new-workout");
     return true;
@@ -188,10 +192,10 @@ export default function WorkoutFinishPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = use(params);
+  void use(params); // params resolved for future use; FinishContent reads from URL search params
   return (
     <Suspense>
-      <FinishContent programId={id} />
+      <FinishContent />
     </Suspense>
   );
 }

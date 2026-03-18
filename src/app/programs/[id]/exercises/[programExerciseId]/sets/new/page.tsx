@@ -65,7 +65,6 @@ export default async function NewSetPage({ params }: Props) {
 
       {/* Add view */}
       <NewSetView
-        programId={programId}
         programExerciseId={peId}
         nextSetNumber={nextSetNumber}
         lastSet={lastSet}

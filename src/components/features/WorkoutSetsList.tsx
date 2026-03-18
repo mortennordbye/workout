@@ -1,6 +1,7 @@
 "use client";
 
 import { reorderProgramSets, updateProgramSet } from "@/lib/actions/programs";
+import { logWorkoutSet } from "@/lib/actions/workout-sets";
 import { formatTime } from "@/lib/utils/format";
 import { computeMapping, toFlatItems } from "@/lib/utils/set-mapping";
 import type { FlatItem, RestFlatItem, SetFlatItem } from "@/lib/utils/set-mapping";
@@ -34,6 +35,8 @@ type WorkoutSetsListProps = {
   programExerciseId: number;
   isEditing?: boolean;
   isWorkout?: boolean;
+  exerciseId?: number;
+  sessionId?: number;
   onDeleteSet?: (setId: number) => void;
 };
 
@@ -49,6 +52,8 @@ export function WorkoutSetsList({
   programExerciseId,
   isEditing = false,
   isWorkout = false,
+  exerciseId,
+  sessionId,
   onDeleteSet,
 }: WorkoutSetsListProps) {
   const router = useRouter();
@@ -112,6 +117,24 @@ export function WorkoutSetsList({
           t.set(setId, restSeconds);
           return t;
         });
+      }
+
+      // Log the completed set to the database
+      if (isWorkout && sessionId != null && exerciseId != null) {
+        const setData = setItems[setIndex]?.set;
+        if (setData) {
+          void logWorkoutSet({
+            sessionId,
+            exerciseId,
+            setNumber: setIndex + 1,
+            targetReps: setData.targetReps ?? undefined,
+            actualReps: setData.targetReps ?? 0,
+            weightKg: Number(setData.weightKg ?? 0),
+            rpe: 7,
+            restTimeSeconds: restSeconds,
+            isCompleted: true,
+          });
+        }
       }
 
       // Auto-carry weight to next set

@@ -39,9 +39,10 @@ async function runMigrations() {
     // Run migrations
     await migrate(db, { migrationsFolder: "./drizzle" });
     console.log("✅ Migrations completed successfully");
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If tables already exist but migrations table doesn't, manually create it
-    if (error?.cause?.code === "42P07") {
+    const err = error as { cause?: { code?: string } };
+    if (err?.cause?.code === "42P07") {
       console.log("ℹ️  Database tables already exist");
 
       try {

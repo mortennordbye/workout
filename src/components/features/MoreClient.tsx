@@ -1,9 +1,15 @@
 "use client";
 
-import { ChevronRight, Settings } from "lucide-react";
+import { ChevronRight, Clock, Settings } from "lucide-react";
 import Link from "next/link";
 
 const moreItems = [
+  {
+    label: "History",
+    href: "/history",
+    icon: Clock,
+    description: "All your workouts",
+  },
   {
     label: "Settings",
     href: "/settings",

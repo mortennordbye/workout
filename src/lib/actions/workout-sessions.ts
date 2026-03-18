@@ -58,7 +58,7 @@ export async function createWorkoutSession(
       };
     }
 
-    const { userId, date, startTime, notes } = validation.data;
+    const { userId, date, startTime, notes, programId } = validation.data;
 
     // Insert session into database
     const [session] = await db
@@ -68,6 +68,7 @@ export async function createWorkoutSession(
         date,
         startTime: startTime ? new Date(startTime) : new Date(),
         notes,
+        programId,
         isCompleted: false,
       })
       .returning();
@@ -151,6 +152,23 @@ export async function completeWorkoutSession(
 }
 
 /**
+ * Delete a workout session (and its sets via cascade)
+ */
+export async function deleteWorkoutSession(
+  sessionId: number,
+): Promise<ActionResult<undefined>> {
+  try {
+    await db.delete(workoutSessions).where(eq(workoutSessions.id, sessionId));
+    revalidatePath("/history");
+    revalidatePath("/");
+    return { success: true, data: undefined };
+  } catch (error) {
+    console.error("Error deleting workout session:", error);
+    return { success: false, error: "Failed to delete workout session" };
+  }
+}
+
+/**
  * Get the active (incomplete) workout session for a user
  *
  * Useful for resuming an ongoing workout when the user returns to the app.
@@ -162,9 +180,9 @@ export async function getActiveSession(
 ): Promise<ActionResult<WorkoutSession | null>> {
   try {
     const session = await db.query.workoutSessions.findFirst({
-      where: (sessions: any, { eq, and }: any) =>
+      where: (sessions, { eq, and }) =>
         and(eq(sessions.userId, userId), eq(sessions.isCompleted, false)),
-      orderBy: (sessions: any, { desc }: any) => [desc(sessions.startTime)],
+      orderBy: (sessions, { desc }) => [desc(sessions.startTime)],
     });
 
     return {

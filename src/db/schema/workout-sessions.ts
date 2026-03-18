@@ -30,6 +30,7 @@ import {
     text,
     timestamp,
 } from "drizzle-orm/pg-core";
+import { programs } from "./programs";
 import { users } from "./users";
 
 export const workoutSessions = pgTable("workout_sessions", {
@@ -37,6 +38,7 @@ export const workoutSessions = pgTable("workout_sessions", {
   userId: integer("user_id")
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
+  programId: integer("program_id").references(() => programs.id),
   date: date("date").notNull(),
   startTime: timestamp("start_time").defaultNow().notNull(),
   endTime: timestamp("end_time"),

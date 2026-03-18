@@ -1,6 +1,8 @@
 "use client";
 
 import { WorkoutExerciseList } from "@/components/features/WorkoutExerciseList";
+import { useWorkoutSession } from "@/contexts/workout-session-context";
+import { createWorkoutSession } from "@/lib/actions/workout-sessions";
 import {
     removeExerciseFromProgram,
     reorderProgramExercises,
@@ -9,7 +11,16 @@ import type { ProgramSet } from "@/types/workout";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+const DEMO_USER_ID = 1;
+
+function toDateString(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 
 type Exercise = {
   id: number;
@@ -31,6 +42,23 @@ export function WorkoutSessionClient({
   const router = useRouter();
   const startTime = useMemo(() => new Date(), []);
   const [isEditing, setIsEditing] = useState(false);
+  const workoutSession = useWorkoutSession();
+
+  useEffect(() => {
+    async function init() {
+      const result = await createWorkoutSession({
+        userId: DEMO_USER_ID,
+        date: toDateString(startTime),
+        startTime: startTime.toISOString(),
+        programId,
+      });
+      if (result.success) {
+        workoutSession?.setSessionId(result.data.id);
+      }
+    }
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [exercises, setExercises] = useState(initial);
@@ -180,3 +208,4 @@ export function WorkoutSessionClient({
     </div>
   );
 }
+

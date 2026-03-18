@@ -1,22 +1,16 @@
-/**
- * Home Page - Workout Statistics Dashboard
- *
- * Displays workout statistics and quick start button
- */
-
+import { WeeklyGoalProgress } from "@/components/features/WeeklyGoalProgress";
+import { getWorkoutStats } from "@/lib/actions/workout-sets";
 import Link from "next/link";
 
-export default function Home() {
-  // TODO: Replace with actual data from database
-  const stats = {
-    totalWorkouts: 0,
-    totalReps: 0,
-    totalSets: 0,
-    workoutsPerWeek: 0,
-    weeklyGoal: 7,
-  };
+export const dynamic = "force-dynamic";
 
-  const weeklyProgress = (stats.workoutsPerWeek / stats.weeklyGoal) * 100;
+const DEMO_USER_ID = 1;
+
+export default async function Home() {
+  const result = await getWorkoutStats(DEMO_USER_ID);
+  const stats = result.success
+    ? result.data
+    : { totalWorkouts: 0, totalReps: 0, totalSets: 0, thisWeekWorkouts: 0 };
 
   return (
     <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
@@ -55,51 +49,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Weekly progress */}
-        <div className="w-full max-w-sm">
-          <div className="text-center">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
-              Workouts Per Week
-            </div>
-            <div className="flex items-center justify-center gap-4">
-              {/* Circular progress indicator */}
-              <div className="relative w-16 h-16 shrink-0">
-                <svg className="w-16 h-16 transform -rotate-90">
-                  <circle
-                    cx="32"
-                    cy="32"
-                    r="26"
-                    stroke="currentColor"
-                    strokeWidth="6"
-                    fill="none"
-                    className="text-muted"
-                  />
-                  <circle
-                    cx="32"
-                    cy="32"
-                    r="26"
-                    stroke="currentColor"
-                    strokeWidth="6"
-                    fill="none"
-                    strokeDasharray={`${2 * Math.PI * 26}`}
-                    strokeDashoffset={`${2 * Math.PI * 26 * (1 - weeklyProgress / 100)}`}
-                    className="text-primary"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </div>
-              <div className="text-left">
-                <div className="text-4xl font-bold">
-                  {stats.workoutsPerWeek}/{stats.weeklyGoal}
-                </div>
-                <div className="text-xs text-muted-foreground max-w-[180px]">
-                  You averaged {stats.workoutsPerWeek} workouts a week over the
-                  last 30 days
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Weekly progress — reads goal from localStorage via client component */}
+        <WeeklyGoalProgress thisWeekWorkouts={stats.thisWeekWorkouts} />
 
         {/* Start Workout Button */}
         <Link href="/new-workout">

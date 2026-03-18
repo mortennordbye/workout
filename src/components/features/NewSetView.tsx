@@ -18,14 +18,12 @@ function gradientColor(index: number, total: number): string {
 }
 
 type Props = {
-  programId: number;
   programExerciseId: number;
   nextSetNumber: number;
   lastSet?: ProgramSet;
 };
 
 export function NewSetView({
-  programId,
   programExerciseId,
   nextSetNumber,
   lastSet,

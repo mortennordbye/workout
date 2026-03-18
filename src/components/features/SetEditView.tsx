@@ -10,12 +10,10 @@ import { useState } from "react";
 
 type Props = {
   set: ProgramSet;
-  programId: number;
-  programExerciseId: number;
   isWorkout?: boolean;
 };
 
-export function SetEditView({ set, programId, programExerciseId, isWorkout = false }: Props) {
+export function SetEditView({ set, isWorkout = false }: Props) {
   const router = useRouter();
   const [showRepsPicker, setShowRepsPicker] = useState(false);
   const [showWeightPicker, setShowWeightPicker] = useState(false);

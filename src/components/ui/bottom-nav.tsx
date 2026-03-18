@@ -40,7 +40,11 @@ export function BottomNav() {
       return pathname === "/";
     }
     if (href === "/more") {
-      return pathname.startsWith("/more") || pathname.startsWith("/settings");
+      return (
+        pathname.startsWith("/more") ||
+        pathname.startsWith("/settings") ||
+        pathname.startsWith("/history")
+      );
     }
     return pathname.startsWith(href);
   };

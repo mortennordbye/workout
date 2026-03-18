@@ -23,7 +23,7 @@ import type { ActionResult, Exercise } from "@/types/workout";
 export async function getAllExercises(): Promise<ActionResult<Exercise[]>> {
   try {
     const allExercises = await db.query.exercises.findMany({
-      orderBy: (exercises: any, { asc }: any) => [asc(exercises.name)],
+      orderBy: (exercises, { asc }) => [asc(exercises.name)],
     });
 
     return {
@@ -65,7 +65,7 @@ export async function createCustomExercise(
 
     // Check if exercise already exists
     const existing = await db.query.exercises.findFirst({
-      where: (exercises: any, { eq }: any) => eq(exercises.name, name),
+      where: (exercises, { eq }) => eq(exercises.name, name),
     });
 
     if (existing) {

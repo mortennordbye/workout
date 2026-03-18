@@ -34,11 +34,12 @@ async function diagnose() {
           `      ${idx + 1}. ${row.hash.substring(0, 12)}... (${date.toISOString()})`,
         );
       });
-    } catch (e: any) {
-      if (e.code === "42P01") {
+    } catch (e: unknown) {
+      const err = e as { code?: string; message?: string };
+      if (err.code === "42P01") {
         console.log("   ⚠️  Migrations table does not exist");
       } else {
-        console.log("   ❌ Error checking migrations:", e.message);
+        console.log("   ❌ Error checking migrations:", err.message);
       }
     }
 
@@ -105,10 +106,11 @@ async function diagnose() {
           .delete(workoutSessions)
           .where(eq(workoutSessions.id, testSession[0].id));
         console.log("   ✅ Cleaned up test session");
-      } catch (e: any) {
-        console.log("   ❌ Failed:", e.message);
-        console.log("      Error code:", e.code);
-        console.log("      Error detail:", e.detail);
+      } catch (e: unknown) {
+        const err = e as { message?: string; code?: string; detail?: string };
+        console.log("   ❌ Failed:", err.message);
+        console.log("      Error code:", err.code);
+        console.log("      Error detail:", err.detail);
       }
     } else {
       console.log("   ⏭️  Skipped (no demo user)");
@@ -118,14 +120,14 @@ async function diagnose() {
     console.log("\n7️⃣  Active Sessions...");
     if (demoUser) {
       const activeSessions = await db.query.workoutSessions.findMany({
-        where: (sessions: any, { eq, and }: any) =>
+        where: (sessions, { eq, and }) =>
           and(
             eq(sessions.userId, demoUser.id),
             eq(sessions.isCompleted, false),
           ),
       });
       console.log(`   Found ${activeSessions.length} active session(s)`);
-      activeSessions.forEach((session: any) => {
+      activeSessions.forEach((session) => {
         console.log(`      Session ${session.id}: ${session.date}`);
       });
     }

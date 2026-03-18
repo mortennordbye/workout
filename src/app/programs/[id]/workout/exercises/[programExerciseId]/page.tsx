@@ -31,6 +31,7 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
       programExerciseId={peId}
       programName={program.name}
       exerciseName={pe.exercise.name}
+      exerciseId={pe.exercise.id}
       sets={pe.programSets}
       isWorkout={true}
     />

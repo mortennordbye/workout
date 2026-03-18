@@ -94,6 +94,10 @@ export const workoutSessionsRelations = relations(
       fields: [workoutSessions.userId],
       references: [users.id],
     }),
+    program: one(programs, {
+      fields: [workoutSessions.programId],
+      references: [programs.id],
+    }),
     workoutSets: many(workoutSets),
   }),
 );

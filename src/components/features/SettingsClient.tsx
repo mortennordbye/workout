@@ -13,7 +13,7 @@ const accentColors = [
 ] as const;
 
 export function SettingsClient() {
-  const { accentColor, setAccentColor, autoSaveToProgram, setAutoSaveToProgram } = useTheme();
+  const { accentColor, setAccentColor, autoSaveToProgram, setAutoSaveToProgram, weeklyGoal, setWeeklyGoal } = useTheme();
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
@@ -48,7 +48,7 @@ export function SettingsClient() {
                 {accentColors.map((color) => (
                   <button
                     key={color.value}
-                    onClick={() => setAccentColor(color.value as any)}
+                    onClick={() => setAccentColor(color.value)}
                     className="relative w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                     style={{ backgroundColor: color.color }}
                   >
@@ -72,6 +72,30 @@ export function SettingsClient() {
             <p className="text-sm text-muted-foreground mb-4">
               Control how workout changes are saved
             </p>
+
+            {/* Weekly goal */}
+            <div className="mb-6">
+              <p className="font-medium mb-1">Weekly goal</p>
+              <p className="text-sm text-muted-foreground mb-3">
+                How many workouts you aim to do per week
+              </p>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setWeeklyGoal(n)}
+                    className={`flex-1 h-11 rounded-xl text-sm font-semibold transition-colors active:scale-95 ${
+                      weeklyGoal === n
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-foreground"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">Auto-save to program</p>

@@ -25,15 +25,19 @@
  */
 
 import { db } from "@/db";
-import { exercises, workoutSessions, workoutSets } from "@/db/schema";
+import { exercises, programs, workoutSessions, workoutSets } from "@/db/schema";
 import {
     logWorkoutSetSchema,
     workoutHistoryQuerySchema,
 } from "@/lib/validators/workout";
 import type {
     ActionResult,
+    SessionDetail,
+    SessionWithStats,
     WorkoutHistoryResult,
     WorkoutSet,
+    WorkoutSetWithExercise,
+    WorkoutStats,
 } from "@/types/workout";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -118,6 +122,60 @@ export async function logWorkoutSet(
       success: false,
       error: "Failed to log workout set. Please try again.",
     };
+  }
+}
+
+/**
+ * Get aggregate workout stats for the home page dashboard.
+ *
+ * - totalWorkouts: all completed sessions (lifetime)
+ * - totalReps / totalSets: lifetime totals across all logged sets
+ * - thisWeekWorkouts: completed sessions in the current Mon–Sun week
+ */
+export async function getWorkoutStats(
+  userId: number,
+): Promise<ActionResult<WorkoutStats>> {
+  try {
+    // Lifetime totals
+    const [totals] = await db
+      .select({
+        totalWorkouts: sql<number>`COUNT(DISTINCT ${workoutSessions.id})`,
+        totalReps: sql<number>`COALESCE(SUM(${workoutSets.actualReps}), 0)`,
+        totalSets: sql<number>`COUNT(${workoutSets.id})`,
+      })
+      .from(workoutSessions)
+      .leftJoin(workoutSets, eq(workoutSets.sessionId, workoutSessions.id))
+      .where(
+        and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.isCompleted, true),
+        ),
+      );
+
+    // This week's session count (Monday 00:00 UTC to now)
+    const [thisWeek] = await db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(workoutSessions)
+      .where(
+        and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.isCompleted, true),
+          sql`${workoutSessions.startTime} >= date_trunc('week', NOW())`,
+        ),
+      );
+
+    return {
+      success: true,
+      data: {
+        totalWorkouts: Number(totals.totalWorkouts),
+        totalReps: Number(totals.totalReps),
+        totalSets: Number(totals.totalSets),
+        thisWeekWorkouts: Number(thisWeek.count),
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching workout stats:", error);
+    return { success: false, error: "Failed to fetch workout stats" };
   }
 }
 
@@ -209,7 +267,7 @@ export async function getWorkoutHistory(
     return {
       success: true,
       data: {
-        sets: resultSets as any, // Type assertion needed due to joined data structure
+        sets: resultSets as unknown as WorkoutSetWithExercise[],
         totalCount: Number(count),
         hasMore,
       },
@@ -220,6 +278,139 @@ export async function getWorkoutHistory(
       success: false,
       error: "Failed to fetch workout history. Please try again.",
     };
+  }
+}
+
+/**
+ * Get all completed sessions for a user with aggregate stats.
+ * Used for the history list view.
+ */
+export async function getCompletedSessions(
+  userId: number,
+): Promise<ActionResult<SessionWithStats[]>> {
+  try {
+    const rows = await db
+      .select({
+        id: workoutSessions.id,
+        userId: workoutSessions.userId,
+        programId: workoutSessions.programId,
+        date: workoutSessions.date,
+        startTime: workoutSessions.startTime,
+        endTime: workoutSessions.endTime,
+        notes: workoutSessions.notes,
+        isCompleted: workoutSessions.isCompleted,
+        programName: programs.name,
+        setCount: sql<number>`COUNT(${workoutSets.id})`,
+        exerciseCount: sql<number>`COUNT(DISTINCT ${workoutSets.exerciseId})`,
+        totalVolumeKg: sql<string>`COALESCE(SUM(CAST(${workoutSets.weightKg} AS numeric) * ${workoutSets.actualReps}), 0)`,
+      })
+      .from(workoutSessions)
+      .leftJoin(programs, eq(workoutSessions.programId, programs.id))
+      .leftJoin(workoutSets, eq(workoutSets.sessionId, workoutSessions.id))
+      .where(
+        and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.isCompleted, true),
+        ),
+      )
+      .groupBy(
+        workoutSessions.id,
+        workoutSessions.userId,
+        workoutSessions.programId,
+        workoutSessions.date,
+        workoutSessions.startTime,
+        workoutSessions.endTime,
+        workoutSessions.notes,
+        workoutSessions.isCompleted,
+        programs.name,
+      )
+      .orderBy(desc(workoutSessions.startTime));
+
+    return {
+      success: true,
+      data: rows.map((row) => ({
+        ...row,
+        programName: row.programName ?? null,
+        setCount: Number(row.setCount),
+        exerciseCount: Number(row.exerciseCount),
+        totalVolumeKg: Number(row.totalVolumeKg),
+        durationMinutes:
+          row.endTime && row.startTime
+            ? Math.max(
+                1,
+                Math.round(
+                  (row.endTime.getTime() - row.startTime.getTime()) / 60000,
+                ),
+              )
+            : 0,
+      })),
+    };
+  } catch (error) {
+    console.error("Error fetching completed sessions:", error);
+    return { success: false, error: "Failed to fetch workout history" };
+  }
+}
+
+/**
+ * Get full detail for a single session, with sets grouped by exercise.
+ */
+export async function getSessionDetail(
+  sessionId: number,
+): Promise<ActionResult<SessionDetail>> {
+  try {
+    const [sessionRow] = await db
+      .select({
+        id: workoutSessions.id,
+        userId: workoutSessions.userId,
+        programId: workoutSessions.programId,
+        date: workoutSessions.date,
+        startTime: workoutSessions.startTime,
+        endTime: workoutSessions.endTime,
+        notes: workoutSessions.notes,
+        isCompleted: workoutSessions.isCompleted,
+        programName: programs.name,
+      })
+      .from(workoutSessions)
+      .leftJoin(programs, eq(workoutSessions.programId, programs.id))
+      .where(eq(workoutSessions.id, sessionId));
+
+    if (!sessionRow) {
+      return { success: false, error: "Session not found" };
+    }
+
+    const setsRows = await db
+      .select({ set: workoutSets, exerciseName: exercises.name })
+      .from(workoutSets)
+      .innerJoin(exercises, eq(workoutSets.exerciseId, exercises.id))
+      .where(eq(workoutSets.sessionId, sessionId))
+      .orderBy(workoutSets.exerciseId, workoutSets.setNumber);
+
+    // Group by exercise name
+    const exerciseMap = new Map<
+      string,
+      { exerciseName: string; sets: WorkoutSet[] }
+    >();
+    for (const row of setsRows) {
+      if (!exerciseMap.has(row.exerciseName)) {
+        exerciseMap.set(row.exerciseName, {
+          exerciseName: row.exerciseName,
+          sets: [],
+        });
+      }
+      exerciseMap.get(row.exerciseName)!.sets.push(row.set);
+    }
+
+    return {
+      success: true,
+      data: {
+        ...sessionRow,
+        programName: sessionRow.programName ?? null,
+        setsByExercise: Array.from(exerciseMap.values()),
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching session detail:", error);
+    return { success: false, error: "Failed to fetch session detail" };
   }
 }
 
@@ -245,7 +436,7 @@ export async function getSessionSets(
 
     return {
       success: true,
-      data: sets as any,
+      data: sets as unknown as WorkoutSetWithExercise[],
     };
   } catch (error) {
     console.error("Error fetching session sets:", error);

@@ -1,20 +1,18 @@
 "use client";
 
 import { MoonIcon, SunIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "./button";
 
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false);
-
-  useEffect(() => {
+  const [dark, setDark] = useState(() => {
+    if (typeof window === "undefined") return false;
     const stored = localStorage.getItem("theme");
-    const prefersDark =
+    return (
       stored === "dark" ||
-      (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    setDark(prefersDark);
-    document.documentElement.classList.toggle("dark", prefersDark);
-  }, []);
+      (!stored && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    );
+  });
 
   const toggle = () => {
     const next = !dark;

@@ -14,6 +14,7 @@ type Props = {
   programExerciseId: number;
   programName: string;
   exerciseName: string;
+  exerciseId?: number;
   sets: ProgramSet[];
   isWorkout?: boolean;
 };
@@ -23,6 +24,7 @@ export function WorkoutSetsClient({
   programExerciseId,
   programName,
   exerciseName,
+  exerciseId,
   sets: initial,
   isWorkout = false,
 }: Props) {
@@ -148,6 +150,8 @@ export function WorkoutSetsClient({
               programExerciseId={programExerciseId}
               isEditing={isEditing}
               isWorkout={isWorkout}
+              exerciseId={exerciseId}
+              sessionId={workoutSession?.sessionId ?? undefined}
               onDeleteSet={handleDeleteSet}
             />
             <div className="py-4 border-t border-border">

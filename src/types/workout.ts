@@ -126,6 +126,35 @@ export type WorkoutHistoryResult = {
   hasMore: boolean;
 };
 
+/**
+ * Aggregate workout statistics for the home page dashboard.
+ */
+export type WorkoutStats = {
+  totalWorkouts: number;
+  totalReps: number;
+  totalSets: number;
+  thisWeekWorkouts: number;
+};
+
+/**
+ * Session with aggregate stats for the history list view.
+ */
+export type SessionWithStats = WorkoutSession & {
+  programName: string | null;
+  setCount: number;
+  exerciseCount: number;
+  totalVolumeKg: number;
+  durationMinutes: number;
+};
+
+/**
+ * Session detail with sets grouped by exercise.
+ */
+export type SessionDetail = WorkoutSession & {
+  programName: string | null;
+  setsByExercise: Array<{ exerciseName: string; sets: WorkoutSet[] }>;
+};
+
 // ============================================================================
 // UI Component Props Types
 // ============================================================================

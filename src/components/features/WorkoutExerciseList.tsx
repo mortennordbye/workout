@@ -68,7 +68,11 @@ export function WorkoutExerciseList({
   const toggleExercise = (exerciseId: number) => {
     setCompletedExercises((prev) => {
       const next = new Set(prev);
-      next.has(exerciseId) ? next.delete(exerciseId) : next.add(exerciseId);
+      if (next.has(exerciseId)) {
+        next.delete(exerciseId);
+      } else {
+        next.add(exerciseId);
+      }
       return next;
     });
   };

@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Docker local volumes (if ever mounted as directories)
+postgres_data/
+
+# OS & editor
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+.idea/
+
+# Claude Code project memory (local only)
+.claude/
