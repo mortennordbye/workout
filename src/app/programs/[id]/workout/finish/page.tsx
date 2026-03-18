@@ -6,8 +6,7 @@ import {
 } from "@/lib/actions/workout-sessions";
 import { updateProgramSet } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { useTheme } from "@/components/ui/theme-provider";
-import { Check, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useMemo, useState } from "react";
 
@@ -25,7 +24,7 @@ function formatDate(d: Date): string {
 }
 
 function formatTime(d: Date): string {
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function formatDuration(minutes: number): string {
@@ -59,13 +58,32 @@ function FinishContent({ programId }: { programId: string }) {
   const [feeling, setFeeling] = useState<Feeling>("Good");
   const [saving, setSaving] = useState(false);
   const workoutSession = useWorkoutSession();
-  const { autoSaveToProgram } = useTheme();
-  const showSaveToProgram = !autoSaveToProgram && (workoutSession?.hasOverrides ?? false);
-  const [saveToProgram, setSaveToProgram] = useState(true);
+
+  const saveSession = async () => {
+    const created = await createWorkoutSession({
+      userId: DEMO_USER_ID,
+      date: toDateString(startTime),
+      startTime: startTime.toISOString(),
+    });
+    if (!created.success) return false;
+    await completeWorkoutSession({
+      sessionId: created.data.id,
+      notes: feeling,
+    });
+    workoutSession?.clearOverrides();
+    router.push("/new-workout");
+    return true;
+  };
 
   const handleSave = async () => {
     setSaving(true);
-    if (showSaveToProgram && saveToProgram && workoutSession) {
+    await saveSession();
+    setSaving(false);
+  };
+
+  const handleSaveAndUpdateProgram = async () => {
+    setSaving(true);
+    if (workoutSession) {
       for (const [setIdStr, override] of Object.entries(workoutSession.overrides)) {
         await updateProgramSet({
           id: Number(setIdStr),
@@ -74,21 +92,8 @@ function FinishContent({ programId }: { programId: string }) {
         });
       }
     }
-    const created = await createWorkoutSession({
-      userId: DEMO_USER_ID,
-      date: toDateString(startTime),
-      startTime: startTime.toISOString(),
-    });
-    if (!created.success) {
-      setSaving(false);
-      return;
-    }
-    await completeWorkoutSession({
-      sessionId: created.data.id,
-      notes: feeling,
-    });
-    workoutSession?.clearOverrides();
-    router.push("/new-workout");
+    await saveSession();
+    setSaving(false);
   };
 
   return (
@@ -140,31 +145,24 @@ function FinishContent({ programId }: { programId: string }) {
             </div>
           </div>
 
-          {/* Save to program card — only shown when there are pending overrides */}
-          {showSaveToProgram && (
-            <button
-              onClick={() => setSaveToProgram((v) => !v)}
-              className="w-full bg-card rounded-2xl p-5 flex items-start gap-3 text-left active:bg-muted/50 transition-colors"
-            >
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-colors ${
-                  saveToProgram ? "bg-primary" : "bg-muted"
-                }`}
-              >
-                {saveToProgram && <Check className="w-4 h-4 text-primary-foreground" />}
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Save changes to program</p>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Your weights and reps have been modified — save them for next time?
-                </p>
-              </div>
-            </button>
-          )}
         </div>
 
-        {/* Save button */}
-        <div className="pt-6 pb-2">
+        {/* Save buttons */}
+        <div className="pt-6 pb-2 space-y-3">
+          <button
+            onClick={handleSaveAndUpdateProgram}
+            disabled={saving}
+            className="w-full rounded-xl bg-card py-4 text-base font-semibold text-foreground disabled:opacity-50 transition-all active:scale-95"
+          >
+            {saving ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Saving...
+              </span>
+            ) : (
+              "Save & Update Program"
+            )}
+          </button>
           <button
             onClick={handleSave}
             disabled={saving}
