@@ -4,6 +4,7 @@
 
 import { WorkoutSetsClient } from "@/components/features/WorkoutSetsClient";
 import { getProgramWithExercises } from "@/lib/actions/programs";
+import { getExerciseLoggedCount } from "@/lib/actions/workout-sets";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,8 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
   const pe = program.programExercises.find((e) => e.id === peId);
   if (!pe) notFound();
 
+  const loggedCount = await getExerciseLoggedCount(pe.exercise.id);
+
   return (
     <WorkoutSetsClient
       programId={programId}
@@ -34,6 +37,7 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
       exerciseId={pe.exercise.id}
       sets={pe.programSets}
       isWorkout={true}
+      loggedCount={loggedCount}
     />
   );
 }

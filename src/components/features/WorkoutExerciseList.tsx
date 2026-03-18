@@ -1,5 +1,6 @@
 "use client";
 
+import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { buildSetSummary } from "@/lib/utils/format";
 import type { ProgramSet } from "@/types/workout";
 import {
@@ -21,7 +22,6 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Check, ChevronRightIcon, GripVertical, Minus } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
 
 type Exercise = {
   id: number;
@@ -45,9 +45,7 @@ export function WorkoutExerciseList({
   onDeleteExercise,
   onReorderExercises,
 }: Props) {
-  const [completedExercises, setCompletedExercises] = useState<Set<number>>(
-    new Set(),
-  );
+  const workoutSession = useWorkoutSession();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -65,17 +63,19 @@ export function WorkoutExerciseList({
     onReorderExercises?.(reordered.map((e) => e.id));
   }
 
-  const toggleExercise = (exerciseId: number) => {
-    setCompletedExercises((prev) => {
-      const next = new Set(prev);
-      if (next.has(exerciseId)) {
-        next.delete(exerciseId);
-      } else {
-        next.add(exerciseId);
-      }
-      return next;
-    });
-  };
+  function isExerciseCompleted(exercise: Exercise): boolean {
+    if (!workoutSession || exercise.sets.length === 0) return false;
+    return exercise.sets.every((s) => workoutSession.completedSetIds.has(s.id));
+  }
+
+  function toggleExercise(exercise: Exercise) {
+    if (!workoutSession) return;
+    if (isExerciseCompleted(exercise)) {
+      exercise.sets.forEach((s) => workoutSession.removeCompletedSet(s.id));
+    } else {
+      exercise.sets.forEach((s) => workoutSession.addCompletedSet(s.id));
+    }
+  }
 
   return (
     <DndContext
@@ -93,9 +93,9 @@ export function WorkoutExerciseList({
             exercise={exercise}
             programId={programId}
             isEditing={isEditing}
-            isCompleted={completedExercises.has(exercise.id)}
+            isCompleted={isExerciseCompleted(exercise)}
             summary={buildSetSummary(exercise.sets)}
-            onToggle={() => toggleExercise(exercise.id)}
+            onToggle={() => toggleExercise(exercise)}
             onDelete={() => onDeleteExercise?.(exercise.id)}
           />
         ))}

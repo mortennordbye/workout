@@ -2,6 +2,7 @@
 
 import { reorderProgramSets, updateProgramSet } from "@/lib/actions/programs";
 import { logWorkoutSet } from "@/lib/actions/workout-sets";
+import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { formatTime } from "@/lib/utils/format";
 import { computeMapping, toFlatItems } from "@/lib/utils/set-mapping";
 import type { FlatItem, RestFlatItem, SetFlatItem } from "@/lib/utils/set-mapping";
@@ -57,10 +58,17 @@ export function WorkoutSetsList({
   onDeleteSet,
 }: WorkoutSetsListProps) {
   const router = useRouter();
+  const workoutSession = useWorkoutSession();
   const [flatItems, setFlatItems] = useState<FlatItem[]>(() =>
     toFlatItems(sets),
   );
-  const [completedSets, setCompletedSets] = useState<Set<number>>(new Set());
+  // In workout mode, completedSets is backed by the session context so it
+  // survives navigation away and back within the workout layout.
+  const completedSets = isWorkout && workoutSession
+    ? workoutSession.completedSetIds
+    : undefined;
+  const [localCompletedSets, setLocalCompletedSets] = useState<Set<number>>(new Set());
+  const activeCompletedSets = completedSets ?? localCompletedSets;
   const [restTimers, setRestTimers] = useState<Map<number, number>>(new Map());
   const [editingRestItemId, setEditingRestItemId] = useState<string | null>(null);
   const [restDraft, setRestDraft] = useState(60);
@@ -68,6 +76,29 @@ export function WorkoutSetsList({
   useEffect(() => {
     setFlatItems(toFlatItems(sets));
   }, [sets]);
+
+  // When sets are pre-completed (e.g. marked via exercise checkmark), show their
+  // rest timers as already finished (0) rather than showing the configured duration.
+  useEffect(() => {
+    if (!isWorkout) return;
+    setRestTimers((prev) => {
+      const next = new Map(prev);
+      let changed = false;
+      flatItems.forEach((item, i) => {
+        if (
+          item.type === "set" &&
+          activeCompletedSets.has(item.set.id) &&
+          flatItems[i + 1]?.type === "rest" &&
+          !next.has(item.set.id)
+        ) {
+          next.set(item.set.id, 0);
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompletedSets, flatItems]);
 
   // ── Persist helpers ─────────────────────────────────────────────────────────
 
@@ -93,31 +124,44 @@ export function WorkoutSetsList({
     );
     const setIndex = setItems.findIndex((s) => s.set.id === setId);
 
-    if (completedSets.has(setId)) {
-      const newCompleted = new Set(completedSets);
-      newCompleted.delete(setId);
-      setCompletedSets(newCompleted);
+    if (activeCompletedSets.has(setId)) {
+      if (completedSets) {
+        workoutSession!.removeCompletedSet(setId);
+      } else {
+        setLocalCompletedSets((prev) => { const s = new Set(prev); s.delete(setId); return s; });
+      }
       setRestTimers((timers) => {
         const t = new Map(timers);
         t.delete(setId);
         return t;
       });
     } else {
-      const newCompleted = new Set(completedSets);
-      newCompleted.add(setId);
-      setCompletedSets(newCompleted);
+      if (completedSets) {
+        workoutSession!.addCompletedSet(setId);
+      } else {
+        setLocalCompletedSets((prev) => new Set(prev).add(setId));
+      }
+      const newCompleted = new Set(activeCompletedSets).add(setId);
 
       // Start timer from the rest item immediately after this set in the flat list
       const nextFlatItem = flatIndex >= 0 ? flatItems[flatIndex + 1] : undefined;
       const restSeconds =
         nextFlatItem?.type === "rest" ? nextFlatItem.seconds : 0;
-      if (restSeconds > 0) {
-        setRestTimers((timers) => {
-          const t = new Map(timers);
+
+      // Auto-complete rest timers for all preceding sets (catch-up scenario)
+      setRestTimers((timers) => {
+        const t = new Map(timers);
+        for (let i = 0; i < flatIndex; i++) {
+          const item = flatItems[i];
+          if (item.type === "set" && (t.get(item.set.id) ?? 0) > 0) {
+            t.set(item.set.id, 0);
+          }
+        }
+        if (restSeconds > 0) {
           t.set(setId, restSeconds);
-          return t;
-        });
-      }
+        }
+        return t;
+      });
 
       // Log the completed set to the database
       if (isWorkout && sessionId != null && exerciseId != null) {
@@ -144,7 +188,7 @@ export function WorkoutSetsList({
         currentSet &&
         nextSet &&
         currentSet.weightKg != null &&
-        !newCompleted.has(nextSet.id)
+        !activeCompletedSets.has(nextSet.id)
       ) {
         await updateProgramSet({
           id: nextSet.id,
@@ -255,7 +299,7 @@ export function WorkoutSetsList({
                     setNumber={setNumber}
                     isEditing={isEditing}
                     isWorkout={isWorkout}
-                    isCompleted={completedSets.has(item.set.id)}
+                    isCompleted={activeCompletedSets.has(item.set.id)}
                     programId={programId}
                     programExerciseId={programExerciseId}
                     onToggle={() => toggleSet(item.set.id)}

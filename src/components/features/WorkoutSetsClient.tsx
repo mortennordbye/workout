@@ -17,6 +17,7 @@ type Props = {
   exerciseId?: number;
   sets: ProgramSet[];
   isWorkout?: boolean;
+  loggedCount?: number;
 };
 
 export function WorkoutSetsClient({
@@ -27,6 +28,7 @@ export function WorkoutSetsClient({
   exerciseId,
   sets: initial,
   isWorkout = false,
+  loggedCount = 0,
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -106,7 +108,7 @@ export function WorkoutSetsClient({
           <div className="text-xs text-muted-foreground uppercase tracking-wider">
             Logged
           </div>
-          <div className="text-base font-bold">0 times</div>
+          <div className="text-base font-bold">{loggedCount} {loggedCount === 1 ? "time" : "times"}</div>
         </div>
         <button className="w-12 h-12 rounded-full border-2 border-primary/30 flex items-center justify-center">
           <Clock className="w-6 h-6 text-primary" />

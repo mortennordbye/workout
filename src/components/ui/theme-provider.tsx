@@ -42,54 +42,38 @@ const accentColors: Record<AccentColor, { light: string; dark: string }> = {
 };
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light";
-    return (
-      (localStorage.getItem("theme") as Theme | null) ??
-      (window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light")
-    );
-  });
-
-  const [accentColor, setAccentColorState] = useState<AccentColor>(() => {
-    if (typeof window === "undefined") return "blue";
-    return (
-      (localStorage.getItem("accentColor") as AccentColor | null) ?? "blue"
-    );
-  });
-
-  const [autoSaveToProgram, setAutoSaveToProgramState] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem("autoSaveToProgram") === "true";
-  });
-
-  const [weeklyGoal, setWeeklyGoalState] = useState(() => {
-    if (typeof window === "undefined") return 4;
-    const stored = localStorage.getItem("weeklyGoal");
-    return stored ? Number(stored) : 4;
-  });
+  // Start with server-safe defaults — localStorage is loaded after hydration in useEffect
+  const [theme, setTheme] = useState<Theme>("light");
+  const [accentColor, setAccentColorState] = useState<AccentColor>("blue");
+  const [autoSaveToProgram, setAutoSaveToProgramState] = useState(false);
+  const [weeklyGoal, setWeeklyGoalState] = useState(4);
 
   const applyAccentColor = (color: AccentColor, currentTheme: Theme) => {
-    if (typeof document === "undefined") return;
     const colorValue =
       currentTheme === "dark"
         ? accentColors[color].dark
         : accentColors[color].light;
     const foreground =
       currentTheme === "dark" ? "oklch(0.205 0 0)" : "oklch(0.985 0 0)";
-
     document.documentElement.style.setProperty("--primary", colorValue);
-    document.documentElement.style.setProperty(
-      "--primary-foreground",
-      foreground,
-    );
+    document.documentElement.style.setProperty("--primary-foreground", foreground);
   };
 
-  // Apply persisted preferences to the DOM on mount
+  // Load persisted preferences and apply to DOM after hydration
   useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    applyAccentColor(accentColor, theme);
+    const storedTheme = (localStorage.getItem("theme") as Theme | null) ??
+      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const storedAccent = (localStorage.getItem("accentColor") as AccentColor | null) ?? "blue";
+    const storedAutoSave = localStorage.getItem("autoSaveToProgram") === "true";
+    const storedGoal = localStorage.getItem("weeklyGoal");
+
+    setTheme(storedTheme);
+    setAccentColorState(storedAccent);
+    setAutoSaveToProgramState(storedAutoSave);
+    setWeeklyGoalState(storedGoal ? Number(storedGoal) : 4);
+
+    document.documentElement.classList.toggle("dark", storedTheme === "dark");
+    applyAccentColor(storedAccent, storedTheme);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

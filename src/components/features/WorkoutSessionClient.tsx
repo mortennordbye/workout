@@ -45,6 +45,7 @@ export function WorkoutSessionClient({
   const workoutSession = useWorkoutSession();
 
   useEffect(() => {
+    if (workoutSession?.sessionId != null) return; // Session already created on a previous visit to this page
     async function init() {
       const result = await createWorkoutSession({
         userId: DEMO_USER_ID,
