@@ -56,7 +56,7 @@ export function NewSetView({
 
   return (
     <>
-      <div className="flex-1 px-4 animate-in fade-in duration-300">
+      <div className="flex-1 px-4 animate-in fade-in duration-150">
         {/* Reps */}
         <button
           onClick={() => setShowRepsPicker(true)}
@@ -106,11 +106,11 @@ export function NewSetView({
       {/* Reps Picker Modal */}
       {showRepsPicker && (
         <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-200"
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-150"
           onClick={() => setShowRepsPicker(false)}
         >
           <div
-            className="w-full bg-card rounded-t-3xl pb-10 animate-in slide-in-from-bottom duration-300 ease-out"
+            className="w-full bg-card rounded-t-3xl pb-10 animate-in slide-in-from-bottom duration-200 ease-spring"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -175,11 +175,11 @@ export function NewSetView({
       {/* Weight Picker Modal */}
       {showWeightPicker && (
         <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-200"
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-150"
           onClick={() => setShowWeightPicker(false)}
         >
           <div
-            className="w-full bg-card rounded-t-3xl pb-10 animate-in slide-in-from-bottom duration-300 ease-out"
+            className="w-full bg-card rounded-t-3xl pb-10 animate-in slide-in-from-bottom duration-200 ease-spring"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}

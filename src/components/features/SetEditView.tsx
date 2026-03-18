@@ -41,7 +41,7 @@ export function SetEditView({ set, programId, programExerciseId, isWorkout = fal
 
   return (
     <>
-      <div className="flex-1 px-4 animate-in fade-in duration-300">
+      <div className="flex-1 px-4 animate-in fade-in duration-150">
         {/* Reps */}
         <button
           onClick={() => setShowRepsPicker(true)}
@@ -88,8 +88,8 @@ export function SetEditView({ set, programId, programExerciseId, isWorkout = fal
 
       {/* Reps Picker Modal */}
       {showRepsPicker && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-200">
-          <div className="w-full bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-300 ease-out">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-150">
+          <div className="w-full bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-200 ease-spring">
             <div className="flex items-center justify-between mb-6">
               <span className="text-sm text-muted-foreground uppercase tracking-wider">
                 Select Reps
@@ -137,8 +137,8 @@ export function SetEditView({ set, programId, programExerciseId, isWorkout = fal
 
       {/* Weight Picker Modal */}
       {showWeightPicker && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-200">
-          <div className="w-full bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-300 ease-out">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-150">
+          <div className="w-full bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-200 ease-spring">
             <div className="flex items-center justify-between mb-6">
               <span className="text-sm text-muted-foreground uppercase tracking-wider">
                 Select Weight
