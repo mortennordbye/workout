@@ -1,6 +1,6 @@
 "use client";
 
-import { Dumbbell, Library, ListChecks, Settings } from "lucide-react";
+import { Dumbbell, Library, ListChecks, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -21,9 +21,9 @@ const navItems = [
     icon: Library,
   },
   {
-    label: "Settings",
-    href: "/settings",
-    icon: Settings,
+    label: "More",
+    href: "/more",
+    icon: MoreHorizontal,
   },
 ];
 
@@ -38,6 +38,9 @@ export function BottomNav() {
     }
     if (href === "/") {
       return pathname === "/";
+    }
+    if (href === "/more") {
+      return pathname.startsWith("/more") || pathname.startsWith("/settings");
     }
     return pathname.startsWith(href);
   };
