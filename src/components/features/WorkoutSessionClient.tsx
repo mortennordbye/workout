@@ -40,26 +40,52 @@ export function WorkoutSessionClient({
   exercises: initial,
 }: Props) {
   const router = useRouter();
-  const startTime = useMemo(() => new Date(), []);
   const [isEditing, setIsEditing] = useState(false);
   const workoutSession = useWorkoutSession();
 
   useEffect(() => {
-    if (workoutSession?.sessionId != null) return; // Session already created on a previous visit to this page
+    // Read localStorage directly — context may not be hydrated yet (child effects run before parent effects)
+    const raw = localStorage.getItem("activeWorkout");
+    let persistedStart: string | null = null;
+    let persistedSessionId: number | null = null;
+    if (raw) {
+      try {
+        const stored = JSON.parse(raw) as { programId: number; startTime: string; sessionId: number | null };
+        if (stored.programId === programId) {
+          persistedStart = stored.startTime;
+          persistedSessionId = stored.sessionId;
+        }
+      } catch {
+        // fall through to create new session
+      }
+    }
+
+    // If there's a persisted session for this program, restore it without creating a new DB session
+    if (persistedSessionId != null && persistedStart != null) {
+      workoutSession?.setActiveWorkout(programId, persistedStart, persistedSessionId);
+      return;
+    }
+
+    if (workoutSession?.sessionId != null) return; // already initialized in this browser session
+
+    const effectiveStart = persistedStart ? new Date(persistedStart) : new Date();
+
     async function init() {
       const result = await createWorkoutSession({
         userId: DEMO_USER_ID,
-        date: toDateString(startTime),
-        startTime: startTime.toISOString(),
+        date: toDateString(effectiveStart),
+        startTime: effectiveStart.toISOString(),
         programId,
       });
       if (result.success) {
-        workoutSession?.setSessionId(result.data.id);
+        workoutSession?.setActiveWorkout(programId, effectiveStart.toISOString(), result.data.id);
       }
     }
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const startTime = useMemo(() => new Date(), []);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [exercises, setExercises] = useState(initial);

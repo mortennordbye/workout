@@ -45,11 +45,15 @@ function FinishContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mountTime] = useState<number>(() => Date.now());
+  const workoutSession = useWorkoutSession();
 
   const startTime = useMemo(() => {
+    const contextStart = workoutSession?.startTime;
+    if (contextStart) return new Date(contextStart);
     const raw = searchParams.get("start");
     return raw ? new Date(raw) : new Date();
-  }, [searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const durationMinutes = useMemo(
     () => Math.max(1, Math.round((mountTime - startTime.getTime()) / 60000)),
@@ -58,7 +62,6 @@ function FinishContent() {
 
   const [feeling, setFeeling] = useState<Feeling>("Good");
   const [saving, setSaving] = useState(false);
-  const workoutSession = useWorkoutSession();
 
   const saveSession = async () => {
     const existingSessionId = workoutSession?.sessionId;
@@ -74,7 +77,7 @@ function FinishContent() {
       if (!created.success) return false;
       await completeWorkoutSession({ sessionId: created.data.id, notes: feeling });
     }
-    workoutSession?.clearOverrides();
+    workoutSession?.clearActiveWorkout();
     router.push("/new-workout");
     return true;
   };

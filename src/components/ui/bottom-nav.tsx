@@ -1,13 +1,14 @@
 "use client";
 
+import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { Dumbbell, Library, ListChecks, MoreHorizontal } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const navItems = [
+const staticNavItems = [
   {
     label: "Workout",
-    href: "/",
+    defaultHref: "/",
     icon: Dumbbell,
   },
   {
@@ -29,15 +30,17 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const workoutSession = useWorkoutSession();
+  const workoutPath = workoutSession?.workoutPath ?? null;
 
   const isWorkoutRoute = pathname.includes("/workout");
 
-  const isActive = (href: string) => {
-    if (isWorkoutRoute) {
-      return href === "/";
+  const isActive = (label: string, href: string) => {
+    if (label === "Workout") {
+      return isWorkoutRoute || pathname === "/" || pathname.startsWith("/new-workout");
     }
-    if (href === "/") {
-      return pathname === "/";
+    if (isWorkoutRoute) {
+      return false; // on workout routes only the Workout tab is active
     }
     if (href === "/more") {
       return (
@@ -52,14 +55,17 @@ export function BottomNav() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
-        {navItems.map((item) => {
+        {staticNavItems.map((item) => {
           const Icon = item.icon;
-          const active = isActive(item.href);
+          const href = item.label === "Workout" ? (workoutPath ?? item.defaultHref) : item.href!;
+          const active = isActive(item.label, href);
+          const showDot = item.label === "Workout" && workoutPath !== null;
 
           return (
             <Link
-              key={item.href}
-              href={item.href}
+              key={item.label}
+              href={href}
+              suppressHydrationWarning
               className={`
                 flex flex-col items-center justify-center gap-1 flex-1 h-full
                 transition-colors
@@ -70,7 +76,12 @@ export function BottomNav() {
                 }
               `}
             >
-              <Icon className="w-5 h-5" />
+              <div className="relative">
+                <Icon className="w-5 h-5" />
+                {showDot && (
+                  <span className="absolute -top-0.5 -right-1 w-1.5 h-1.5 bg-primary rounded-full" />
+                )}
+              </div>
               <span className="text-xs font-medium">{item.label}</span>
             </Link>
           );

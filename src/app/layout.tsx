@@ -1,5 +1,6 @@
 import { BottomNav } from "@/components/ui/bottom-nav";
 import { ThemeProvider } from "@/components/ui/theme-provider";
+import { WorkoutSessionProvider } from "@/contexts/workout-session-context";
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -38,8 +39,10 @@ export default function RootLayout({
         className={`${inter.variable} ${geistMono.variable} antialiased pb-16`}
       >
         <ThemeProvider>
-          {children}
-          <BottomNav />
+          <WorkoutSessionProvider>
+            {children}
+            <BottomNav />
+          </WorkoutSessionProvider>
         </ThemeProvider>
       </body>
     </html>
