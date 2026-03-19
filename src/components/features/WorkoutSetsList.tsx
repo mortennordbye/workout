@@ -36,6 +36,7 @@ type WorkoutSetsListProps = {
   programExerciseId: number;
   isEditing?: boolean;
   isWorkout?: boolean;
+  isTimed?: boolean;
   exerciseId?: number;
   sessionId?: number;
   onDeleteSet?: (setId: number) => void;
@@ -53,6 +54,7 @@ export function WorkoutSetsList({
   programExerciseId,
   isEditing = false,
   isWorkout = false,
+  isTimed = false,
   exerciseId,
   sessionId,
   onDeleteSet,
@@ -70,6 +72,11 @@ export function WorkoutSetsList({
   const [localCompletedSets, setLocalCompletedSets] = useState<Set<number>>(new Set());
   const activeCompletedSets = completedSets ?? localCompletedSets;
   const [restTimers, setRestTimers] = useState<Map<number, number>>(new Map());
+  const [exerciseTimer, setExerciseTimer] = useState<{
+    setId: number;
+    remaining: number;
+    total: number;
+  } | null>(null);
   const [editingRestItemId, setEditingRestItemId] = useState<string | null>(null);
   const [restDraft, setRestDraft] = useState(60);
 
@@ -218,6 +225,28 @@ export function WorkoutSetsList({
     return () => clearInterval(interval);
   }, []);
 
+  // ── Exercise timer countdown ─────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!exerciseTimer) return;
+    if (exerciseTimer.remaining === 0) {
+      void toggleSet(exerciseTimer.setId);
+      setExerciseTimer(null);
+      return;
+    }
+    const id = setTimeout(() => {
+      setExerciseTimer((prev) =>
+        prev ? { ...prev, remaining: prev.remaining - 1 } : null,
+      );
+    }, 1000);
+    return () => clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exerciseTimer?.remaining, exerciseTimer?.setId]);
+
+  function startExerciseTimer(setId: number, durationSeconds: number) {
+    setExerciseTimer({ setId, remaining: durationSeconds, total: durationSeconds });
+  }
+
   // ── Rest editing ────────────────────────────────────────────────────────────
 
   function insertRest(insertIndex: number) {
@@ -299,11 +328,13 @@ export function WorkoutSetsList({
                     setNumber={setNumber}
                     isEditing={isEditing}
                     isWorkout={isWorkout}
+                    isTimed={isTimed}
                     isCompleted={activeCompletedSets.has(item.set.id)}
                     programId={programId}
                     programExerciseId={programExerciseId}
                     onToggle={() => toggleSet(item.set.id)}
                     onDelete={() => onDeleteSet?.(item.set.id)}
+                    onStartTimer={startExerciseTimer}
                   />
                   {isEditing && flatItems[index + 1]?.type !== "rest" && (
                     <InsertRestButton onClick={() => insertRest(index + 1)} />
@@ -343,6 +374,64 @@ export function WorkoutSetsList({
           })}
         </SortableContext>
       </DndContext>
+
+      {/* Exercise timer overlay */}
+      {exerciseTimer !== null && (
+        <div className="fixed inset-0 bg-background z-50 flex flex-col items-center justify-center gap-8">
+          <div className="flex flex-col items-center gap-6">
+            {/* Circular progress ring */}
+            <div className="relative w-56 h-56">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="44"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  className="text-primary/20"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="44"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  className="text-primary transition-all duration-1000"
+                  strokeDasharray={`${2 * Math.PI * 44}`}
+                  strokeDashoffset={`${2 * Math.PI * 44 * (1 - exerciseTimer.remaining / exerciseTimer.total)}`}
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-7xl font-bold tabular-nums">
+                  {formatTime(exerciseTimer.remaining)}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-6">
+            <button
+              onClick={() => setExerciseTimer(null)}
+              className="px-8 py-4 rounded-2xl bg-muted text-foreground text-base font-semibold active:scale-95 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                void toggleSet(exerciseTimer.setId);
+                setExerciseTimer(null);
+              }}
+              className="px-8 py-4 rounded-2xl bg-primary text-primary-foreground text-base font-semibold active:scale-95 transition-all flex items-center gap-2"
+            >
+              <Check className="w-5 h-5" />
+              Done
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Rest duration picker */}
       {editingRestItemId !== null && (
@@ -434,22 +523,26 @@ function SortableSetRow({
   setNumber,
   isEditing,
   isWorkout,
+  isTimed,
   isCompleted,
   programId,
   programExerciseId,
   onToggle,
   onDelete,
+  onStartTimer,
 }: {
   id: string;
   set: ProgramSet;
   setNumber: number;
   isEditing: boolean;
   isWorkout: boolean;
+  isTimed: boolean;
   isCompleted: boolean;
   programId: number;
   programExerciseId: number;
   onToggle: () => void;
   onDelete: () => void;
+  onStartTimer?: (setId: number, duration: number) => void;
 }) {
   const {
     attributes,
@@ -466,6 +559,21 @@ function SortableSetRow({
     ? `/programs/${programId}/workout/exercises/${programExerciseId}/sets/${set.id}`
     : `/programs/${programId}/exercises/${programExerciseId}/sets/${set.id}`;
 
+  const handleRowClick = () => {
+    if (isEditing) return;
+    router.push(setEditHref);
+  };
+
+  const handlePlayClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isEditing) return;
+    if (isTimed && isWorkout && !isCompleted) {
+      onStartTimer?.(set.id, set.durationSeconds ?? 60);
+    } else {
+      onToggle();
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -475,11 +583,7 @@ function SortableSetRow({
         opacity: isDragging ? 0.4 : 1,
       }}
       className={`flex items-center gap-3 py-4 border-t border-b border-border${!isEditing ? " cursor-pointer" : ""}`}
-      onClick={() => {
-        if (!isEditing) {
-          router.push(setEditHref);
-        }
-      }}
+      onClick={handleRowClick}
     >
       {isEditing && (
         <button
@@ -491,29 +595,47 @@ function SortableSetRow({
         </button>
       )}
 
-      <button
-        onClick={(e) => { e.stopPropagation(); if (!isEditing) onToggle(); }}
-        className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 ${
-          isCompleted
-            ? "bg-primary border-primary"
-            : "border-primary bg-transparent"
-        }`}
-      >
-        {isCompleted ? (
-          <Check className="w-4 h-4 text-primary-foreground" />
-        ) : (
-          <Play className="w-3 h-3 text-primary fill-primary" />
-        )}
-      </button>
+      {isTimed && isWorkout && !isCompleted ? (
+        /* Timed incomplete: play starts timer, check circle marks complete directly */
+        <>
+          <button
+            onClick={handlePlayClick}
+            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 border-primary bg-transparent"
+          >
+            <Play className="w-3 h-3 text-primary fill-primary" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 border-primary/40 bg-transparent"
+          >
+            <Check className="w-4 h-4 text-primary/40" />
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={handlePlayClick}
+          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 ${
+            isCompleted
+              ? "bg-primary border-primary"
+              : "border-primary bg-transparent"
+          }`}
+        >
+          {isCompleted ? (
+            <Check className="w-4 h-4 text-primary-foreground" />
+          ) : (
+            <Play className="w-3 h-3 text-primary fill-primary" />
+          )}
+        </button>
+      )}
 
       <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
         <span className="text-xs font-bold">{setNumber}</span>
       </div>
 
       <div className="flex-1">
-        {set.durationSeconds != null ? (
+        {isTimed || set.durationSeconds != null ? (
           <p className="text-lg font-medium">
-            {formatTime(Number(set.durationSeconds))}
+            {formatTime(Number(set.durationSeconds ?? 60))}
           </p>
         ) : (
           <p className="text-lg font-medium">

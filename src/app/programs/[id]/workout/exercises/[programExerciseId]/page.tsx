@@ -38,6 +38,7 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
       sets={pe.programSets}
       isWorkout={true}
       loggedCount={loggedCount}
+      exerciseCategory={pe.exercise.category ?? undefined}
     />
   );
 }

@@ -11,12 +11,16 @@ import { useState } from "react";
 type Props = {
   set: ProgramSet;
   isWorkout?: boolean;
+  isTimed?: boolean;
 };
 
-export function SetEditView({ set, isWorkout = false }: Props) {
+const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 300, 600];
+
+export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) {
   const router = useRouter();
   const [showRepsPicker, setShowRepsPicker] = useState(false);
   const [showWeightPicker, setShowWeightPicker] = useState(false);
+  const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const workoutSession = useWorkoutSession();
@@ -25,13 +29,15 @@ export function SetEditView({ set, isWorkout = false }: Props) {
 
   const [reps, setReps] = useState(override?.targetReps ?? set.targetReps ?? 10);
   const [weight, setWeight] = useState(override?.weightKg ?? Number(set.weightKg ?? 0));
+  const [duration, setDuration] = useState(Number(set.durationSeconds ?? 60));
 
   const handleSave = async () => {
     setSaving(true);
-    if (!isWorkout || autoSaveToProgram) {
+    if (isTimed) {
+      await updateProgramSet({ id: set.id, durationSeconds: duration });
+    } else if (!isWorkout || autoSaveToProgram) {
       await updateProgramSet({ id: set.id, targetReps: reps, weightKg: weight });
-    }
-    if (isWorkout && !autoSaveToProgram) {
+    } else if (isWorkout && !autoSaveToProgram) {
       workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight });
     }
     router.back();
@@ -40,23 +46,42 @@ export function SetEditView({ set, isWorkout = false }: Props) {
   return (
     <>
       <div className="flex-1 px-4 animate-in fade-in duration-150">
-        {/* Reps */}
-        <button
-          onClick={() => setShowRepsPicker(true)}
-          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
-        >
-          <span className="text-base font-medium">Reps</span>
-          <span className="text-base text-muted-foreground">{reps}</span>
-        </button>
+        {isTimed ? (
+          /* Duration row for timed exercises */
+          <button
+            onClick={() => setShowDurationPicker(true)}
+            className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
+          >
+            <span className="text-base font-medium">Duration</span>
+            <span className="text-base text-muted-foreground">
+              {duration < 60
+                ? `${duration}s`
+                : duration % 60 === 0
+                  ? `${duration / 60}m`
+                  : `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, "0")}`}
+            </span>
+          </button>
+        ) : (
+          <>
+            {/* Reps */}
+            <button
+              onClick={() => setShowRepsPicker(true)}
+              className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
+            >
+              <span className="text-base font-medium">Reps</span>
+              <span className="text-base text-muted-foreground">{reps}</span>
+            </button>
 
-        {/* Weight */}
-        <button
-          onClick={() => setShowWeightPicker(true)}
-          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
-        >
-          <span className="text-base font-medium">Weight (kg)</span>
-          <span className="text-base text-muted-foreground">{weight}</span>
-        </button>
+            {/* Weight */}
+            <button
+              onClick={() => setShowWeightPicker(true)}
+              className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
+            >
+              <span className="text-base font-medium">Weight (kg)</span>
+              <span className="text-base text-muted-foreground">{weight}</span>
+            </button>
+          </>
+        )}
 
         {/* Base on previous workout suggestion */}
         <div className="mt-6">
@@ -126,6 +151,68 @@ export function SetEditView({ set, isWorkout = false }: Props) {
                 type="number"
                 value={reps}
                 onChange={(e) => setReps(Number(e.target.value))}
+                className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Duration Picker Modal */}
+      {showDurationPicker && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-150">
+          <div className="w-full bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-200 ease-spring">
+            <div className="flex items-center justify-between mb-6">
+              <span className="text-sm text-muted-foreground uppercase tracking-wider">
+                Select Duration
+              </span>
+              <button
+                onClick={() => setShowDurationPicker(false)}
+                className="text-primary text-sm font-medium"
+              >
+                Done
+              </button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-4">
+              {DURATION_OPTIONS.map((seconds) => (
+                <button
+                  key={seconds}
+                  onClick={() => {
+                    setDuration(seconds);
+                    setShowDurationPicker(false);
+                  }}
+                  className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all active:scale-95 ${
+                    duration === seconds
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
+                  }`}
+                >
+                  {seconds < 60 ? (
+                    <>
+                      <span className="text-lg">{seconds}</span>
+                      <span className="text-xs opacity-70">s</span>
+                    </>
+                  ) : seconds % 60 === 0 ? (
+                    <>
+                      <span className="text-lg">{seconds / 60}</span>
+                      <span className="text-xs opacity-70">m</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-lg">
+                        {Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}
+                      </span>
+                      <span className="text-xs opacity-70">m</span>
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4">
+              <input
+                type="number"
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
                 className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
               />
             </div>

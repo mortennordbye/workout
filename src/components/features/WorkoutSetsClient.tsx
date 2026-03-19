@@ -18,6 +18,7 @@ type Props = {
   sets: ProgramSet[];
   isWorkout?: boolean;
   loggedCount?: number;
+  exerciseCategory?: string;
 };
 
 export function WorkoutSetsClient({
@@ -29,6 +30,7 @@ export function WorkoutSetsClient({
   sets: initial,
   isWorkout = false,
   loggedCount = 0,
+  exerciseCategory,
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -152,6 +154,7 @@ export function WorkoutSetsClient({
               programExerciseId={programExerciseId}
               isEditing={isEditing}
               isWorkout={isWorkout}
+              isTimed={exerciseCategory === "cardio"}
               exerciseId={exerciseId}
               sessionId={workoutSession?.sessionId ?? undefined}
               onDeleteSet={handleDeleteSet}
