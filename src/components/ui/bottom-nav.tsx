@@ -1,7 +1,7 @@
 "use client";
 
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { Dumbbell, Library, ListChecks, MoreHorizontal } from "lucide-react";
+import { Dumbbell, Library, MoreHorizontal, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -12,9 +12,9 @@ const staticNavItems = [
     icon: Dumbbell,
   },
   {
-    label: "Programs",
-    href: "/programs",
-    icon: ListChecks,
+    label: "Cycles",
+    href: "/cycles",
+    icon: RefreshCw,
   },
   {
     label: "Exercises",
@@ -57,7 +57,7 @@ export function BottomNav() {
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
         {staticNavItems.map((item) => {
           const Icon = item.icon;
-          const href = item.label === "Workout" ? (workoutPath ?? item.defaultHref) : item.href!;
+          const href = item.label === "Workout" ? (workoutPath ?? item.defaultHref ?? "/") : (item.href ?? "/");
           const active = isActive(item.label, href);
           const showDot = item.label === "Workout" && workoutPath !== null;
 

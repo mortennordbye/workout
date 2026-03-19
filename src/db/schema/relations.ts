@@ -37,6 +37,7 @@
 import { relations } from "drizzle-orm";
 import { exercises } from "./exercises";
 import { programExercises, programSets, programs } from "./programs";
+import { trainingCycleSlots, trainingCycles } from "./training-cycles";
 import { users } from "./users";
 import { workoutSessions } from "./workout-sessions";
 import { workoutSets } from "./workout-sets";
@@ -45,6 +46,7 @@ import { workoutSets } from "./workout-sets";
 export const usersRelations = relations(users, ({ many }) => ({
   workoutSessions: many(workoutSessions),
   programs: many(programs),
+  trainingCycles: many(trainingCycles),
 }));
 
 // Exercise relations
@@ -60,6 +62,7 @@ export const programsRelations = relations(programs, ({ one, many }) => ({
     references: [users.id],
   }),
   programExercises: many(programExercises),
+  trainingCycleSlots: many(trainingCycleSlots),
 }));
 
 // ProgramExercise relations
@@ -113,3 +116,30 @@ export const workoutSetsRelations = relations(workoutSets, ({ one }) => ({
     references: [exercises.id],
   }),
 }));
+
+// Training Cycle relations
+export const trainingCyclesRelations = relations(
+  trainingCycles,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [trainingCycles.userId],
+      references: [users.id],
+    }),
+    slots: many(trainingCycleSlots),
+  }),
+);
+
+// Training Cycle Slot relations
+export const trainingCycleSlotsRelations = relations(
+  trainingCycleSlots,
+  ({ one }) => ({
+    trainingCycle: one(trainingCycles, {
+      fields: [trainingCycleSlots.trainingCycleId],
+      references: [trainingCycles.id],
+    }),
+    program: one(programs, {
+      fields: [trainingCycleSlots.programId],
+      references: [programs.id],
+    }),
+  }),
+);

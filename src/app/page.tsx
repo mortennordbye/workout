@@ -1,4 +1,6 @@
+import { TodayBanner } from "@/components/features/TodayBanner";
 import { WeeklyGoalProgress } from "@/components/features/WeeklyGoalProgress";
+import { getActiveCycleForUser } from "@/lib/actions/training-cycles";
 import { getWorkoutStats } from "@/lib/actions/workout-sets";
 import Link from "next/link";
 
@@ -7,10 +9,14 @@ export const dynamic = "force-dynamic";
 const DEMO_USER_ID = 1;
 
 export default async function Home() {
-  const result = await getWorkoutStats(DEMO_USER_ID);
-  const stats = result.success
-    ? result.data
+  const [statsResult, cycleResult] = await Promise.all([
+    getWorkoutStats(DEMO_USER_ID),
+    getActiveCycleForUser(DEMO_USER_ID),
+  ]);
+  const stats = statsResult.success
+    ? statsResult.data
     : { totalWorkouts: 0, totalReps: 0, totalSets: 0, thisWeekWorkouts: 0 };
+  const activeCycleInfo = cycleResult.success ? cycleResult.data : null;
 
   return (
     <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
@@ -48,6 +54,9 @@ export default async function Home() {
             </div>
           </div>
         </div>
+
+        {/* Active cycle — today's program */}
+        {activeCycleInfo && <TodayBanner info={activeCycleInfo} />}
 
         {/* Weekly progress — reads goal from localStorage via client component */}
         <WeeklyGoalProgress thisWeekWorkouts={stats.thisWeekWorkouts} />

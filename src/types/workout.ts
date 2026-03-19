@@ -21,6 +21,8 @@ import {
   programExercises,
   programSets,
   programs,
+  trainingCycleSlots,
+  trainingCycles,
   users,
   workoutSessions,
   workoutSets,
@@ -153,6 +155,29 @@ export type SessionWithStats = WorkoutSession & {
 export type SessionDetail = WorkoutSession & {
   programName: string | null;
   setsByExercise: Array<{ exerciseName: string; sets: WorkoutSet[] }>;
+};
+
+// Training Cycles
+export type TrainingCycle = typeof trainingCycles.$inferSelect;
+export type NewTrainingCycle = typeof trainingCycles.$inferInsert;
+
+export type TrainingCycleSlot = typeof trainingCycleSlots.$inferSelect;
+export type NewTrainingCycleSlot = typeof trainingCycleSlots.$inferInsert;
+
+export type TrainingCycleSlotWithProgram = TrainingCycleSlot & {
+  program: Program | null;
+};
+
+export type TrainingCycleWithSlots = TrainingCycle & {
+  slots: TrainingCycleSlotWithProgram[];
+};
+
+// The active cycle with today's slot resolved
+export type ActiveCycleInfo = {
+  cycle: TrainingCycle;
+  todaySlot: TrainingCycleSlotWithProgram | null;
+  currentWeek: number;
+  endDate: string; // ISO date string
 };
 
 // ============================================================================
