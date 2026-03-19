@@ -2,6 +2,233 @@ import { eq } from "drizzle-orm";
 import { db } from "../src/db";
 import { exercises, users } from "../src/db/schema";
 
+const EXERCISES = [
+  // ── Chest ──────────────────────────────────────────────────────────────────
+  { name: "Bench Press",           category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "barbell",    movementPattern: "push" },
+  { name: "Incline Bench Press",   category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "barbell",    movementPattern: "push" },
+  { name: "Decline Bench Press",   category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "barbell",    movementPattern: "push" },
+  { name: "Dumbbell Bench Press",  category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "dumbbell",   movementPattern: "push" },
+  { name: "Incline Dumbbell Press",category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "dumbbell",   movementPattern: "push" },
+  { name: "Dumbbell Fly",          category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "dumbbell",   movementPattern: "push" },
+  { name: "Cable Crossover",       category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "cable",      movementPattern: "push" },
+  { name: "Cable Fly",             category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "cable",      movementPattern: "push" },
+  { name: "Pec Deck Machine",      category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "machine",    movementPattern: "push" },
+  { name: "Dip",                   category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "bodyweight", movementPattern: "push" },
+  { name: "Push-up",               category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "bodyweight", movementPattern: "push" },
+  { name: "Incline Push-up",       category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "bodyweight", movementPattern: "push" },
+  { name: "Close-Grip Bench Press",category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "barbell",    movementPattern: "push" },
+  { name: "Landmine Press",        category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "barbell",    movementPattern: "push" },
+  { name: "Push-up Plus",          category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "bodyweight", movementPattern: "push" },
+
+  // ── Back ───────────────────────────────────────────────────────────────────
+  { name: "Deadlift",              category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "back",       equipment: "barbell",    movementPattern: "hinge" },
+  { name: "Barbell Row",           category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "barbell",    movementPattern: "pull" },
+  { name: "Pendlay Row",           category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "barbell",    movementPattern: "pull" },
+  { name: "T-Bar Row",             category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "barbell",    movementPattern: "pull" },
+  { name: "Dumbbell Row",          category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "dumbbell",   movementPattern: "pull" },
+  { name: "Seal Row",              category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "barbell",    movementPattern: "pull" },
+  { name: "Pull-up",               category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Chin-up",               category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Inverted Row",          category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Lat Pulldown",          category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "cable",      movementPattern: "pull" },
+  { name: "Seated Cable Row",      category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "cable",      movementPattern: "pull" },
+  { name: "Single-Arm Cable Row",  category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "cable",      movementPattern: "pull" },
+  { name: "Face Pull",             category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "cable",      movementPattern: "pull" },
+  { name: "Straight-Arm Pulldown", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "cable",      movementPattern: "pull" },
+  { name: "Renegade Row",          category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "dumbbell",   movementPattern: "pull" },
+  { name: "Hyperextension",        category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "lower_back", equipment: "bodyweight", movementPattern: "hinge" },
+
+  // ── Shoulders ──────────────────────────────────────────────────────────────
+  { name: "Overhead Press",        category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "barbell",    movementPattern: "push" },
+  { name: "Dumbbell Shoulder Press",category:"strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "dumbbell",   movementPattern: "push" },
+  { name: "Arnold Press",          category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "dumbbell",   movementPattern: "push" },
+  { name: "Machine Shoulder Press",category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "machine",    movementPattern: "push" },
+  { name: "Dumbbell Lateral Raise",category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "dumbbell",   movementPattern: "push" },
+  { name: "Cable Lateral Raise",   category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "cable",      movementPattern: "push" },
+  { name: "Front Raise",           category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "dumbbell",   movementPattern: "push" },
+  { name: "Plate Front Raise",     category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "other",      movementPattern: "push" },
+  { name: "Rear Delt Fly",         category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "dumbbell",   movementPattern: "pull" },
+  { name: "Bent-Over Lateral Raise",category:"strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "dumbbell",   movementPattern: "pull" },
+  { name: "Upright Row",           category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "barbell",    movementPattern: "pull" },
+  { name: "Shrugs",                category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "barbell",    movementPattern: "pull" },
+  { name: "Landmine Lateral Raise",category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "barbell",    movementPattern: "push" },
+
+  // ── Biceps ─────────────────────────────────────────────────────────────────
+  { name: "Barbell Curl",          category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "biceps",     equipment: "barbell",    movementPattern: "pull" },
+  { name: "EZ Bar Curl",           category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "biceps",     equipment: "barbell",    movementPattern: "pull" },
+  { name: "Dumbbell Curl",         category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "biceps",     equipment: "dumbbell",   movementPattern: "pull" },
+  { name: "Hammer Curl",           category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "biceps",     equipment: "dumbbell",   movementPattern: "pull" },
+  { name: "Incline Dumbbell Curl", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "biceps",     equipment: "dumbbell",   movementPattern: "pull" },
+  { name: "Concentration Curl",    category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "biceps",     equipment: "dumbbell",   movementPattern: "pull" },
+  { name: "Spider Curl",           category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "biceps",     equipment: "dumbbell",   movementPattern: "pull" },
+  { name: "Preacher Curl",         category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "biceps",     equipment: "barbell",    movementPattern: "pull" },
+  { name: "Cable Curl",            category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "biceps",     equipment: "cable",      movementPattern: "pull" },
+  { name: "Reverse Curl",          category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "biceps",     equipment: "barbell",    movementPattern: "pull" },
+
+  // ── Triceps ────────────────────────────────────────────────────────────────
+  { name: "Tricep Pushdown",       category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps",    equipment: "cable",      movementPattern: "push" },
+  { name: "Skull Crusher",         category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps",    equipment: "barbell",    movementPattern: "push" },
+  { name: "Overhead Tricep Extension",category:"strength",isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps",    equipment: "dumbbell",   movementPattern: "push" },
+  { name: "Cable Overhead Extension",category:"strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps",    equipment: "cable",      movementPattern: "push" },
+  { name: "Tricep Dip",            category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps",    equipment: "bodyweight", movementPattern: "push" },
+  { name: "Kickback",              category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps",    equipment: "dumbbell",   movementPattern: "push" },
+  { name: "Close-Grip Push-up",    category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps",    equipment: "bodyweight", movementPattern: "push" },
+  { name: "Diamond Push-up",       category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps",    equipment: "bodyweight", movementPattern: "push" },
+
+  // ── Forearms ───────────────────────────────────────────────────────────────
+  { name: "Wrist Curl",            category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "forearms",   equipment: "dumbbell",   movementPattern: "pull" },
+  { name: "Reverse Wrist Curl",    category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "forearms",   equipment: "dumbbell",   movementPattern: "pull" },
+  { name: "Dead Hang",             category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "forearms",   equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Plate Pinch",           category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "forearms",   equipment: "other",      movementPattern: "isometric" },
+
+  // ── Quads ──────────────────────────────────────────────────────────────────
+  { name: "Squat",                 category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "barbell",    movementPattern: "squat" },
+  { name: "Front Squat",           category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "barbell",    movementPattern: "squat" },
+  { name: "Box Squat",             category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "barbell",    movementPattern: "squat" },
+  { name: "Hack Squat",            category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "machine",    movementPattern: "squat" },
+  { name: "Leg Press",             category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "machine",    movementPattern: "squat" },
+  { name: "Leg Extension",         category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "machine",    movementPattern: "pull" },
+  { name: "Goblet Squat",          category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "kettlebell", movementPattern: "squat" },
+  { name: "Bulgarian Split Squat", category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "dumbbell",   movementPattern: "squat" },
+  { name: "Lunge",                 category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "bodyweight", movementPattern: "squat" },
+  { name: "Step-up",               category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "bodyweight", movementPattern: "squat" },
+  { name: "Jump Squat",            category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "bodyweight", movementPattern: "squat" },
+
+  // ── Hamstrings ─────────────────────────────────────────────────────────────
+  { name: "Romanian Deadlift",     category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "barbell",    movementPattern: "hinge" },
+  { name: "Stiff-Leg Deadlift",    category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "barbell",    movementPattern: "hinge" },
+  { name: "Good Morning",          category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "barbell",    movementPattern: "hinge" },
+  { name: "Leg Curl",              category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "machine",    movementPattern: "pull" },
+  { name: "Lying Leg Curl",        category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "machine",    movementPattern: "pull" },
+  { name: "Seated Leg Curl",       category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "machine",    movementPattern: "pull" },
+  { name: "Nordic Curl",           category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "bodyweight", movementPattern: "pull" },
+
+  // ── Glutes ─────────────────────────────────────────────────────────────────
+  { name: "Hip Thrust",            category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "glutes",     equipment: "barbell",    movementPattern: "hinge" },
+  { name: "Glute Bridge",          category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "glutes",     equipment: "bodyweight", movementPattern: "hinge" },
+  { name: "Sumo Deadlift",         category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "glutes",     equipment: "barbell",    movementPattern: "hinge" },
+  { name: "Cable Kickback",        category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "glutes",     equipment: "cable",      movementPattern: "pull" },
+  { name: "Donkey Kick",           category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "glutes",     equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Lateral Band Walk",     category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "glutes",     equipment: "bands",      movementPattern: "isometric" },
+  { name: "Hip Abduction Machine", category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "glutes",     equipment: "machine",    movementPattern: "pull" },
+  { name: "Reverse Lunge",         category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "glutes",     equipment: "bodyweight", movementPattern: "squat" },
+
+  // ── Calves ─────────────────────────────────────────────────────────────────
+  { name: "Calf Raise",            category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "calves",     equipment: "machine",    movementPattern: "push" },
+  { name: "Seated Calf Raise",     category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "calves",     equipment: "machine",    movementPattern: "push" },
+  { name: "Donkey Calf Raise",     category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "calves",     equipment: "machine",    movementPattern: "push" },
+  { name: "Single-Leg Calf Raise", category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "calves",     equipment: "bodyweight", movementPattern: "push" },
+
+  // ── Abs / Core ─────────────────────────────────────────────────────────────
+  { name: "Plank",                 category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Side Plank",            category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Hollow Hold",           category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Dead Bug",              category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Pallof Press",          category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "cable",      movementPattern: "isometric" },
+  { name: "Ab Wheel Rollout",      category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "other",      movementPattern: "isometric" },
+  { name: "Hanging Leg Raise",     category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Leg Raise",             category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "pull" },
+  { name: "V-Up",                  category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Crunch",                category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Decline Sit-up",        category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Sit-up",                category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Cable Crunch",          category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "cable",      movementPattern: "pull" },
+  { name: "Russian Twist",         category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "rotation" },
+  { name: "Bicycle Crunch",        category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "rotation" },
+  { name: "Windshield Wiper",      category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "rotation" },
+  { name: "Mountain Climbers",     category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "push" },
+
+  // ── Lower Back ─────────────────────────────────────────────────────────────
+  { name: "Back Extension",        category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "lower_back", equipment: "bodyweight", movementPattern: "hinge" },
+  { name: "Superman",              category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "lower_back", equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Reverse Hyper",         category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "lower_back", equipment: "machine",    movementPattern: "hinge" },
+
+  // ── Full Body ──────────────────────────────────────────────────────────────
+  { name: "Farmer's Carry",        category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "dumbbell",   movementPattern: "carry" },
+  { name: "Kettlebell Swing",      category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "kettlebell", movementPattern: "hinge" },
+  { name: "Power Clean",           category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "barbell",    movementPattern: "hinge" },
+  { name: "Clean and Press",       category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "barbell",    movementPattern: "push" },
+  { name: "Push Press",            category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "barbell",    movementPattern: "push" },
+  { name: "Thruster",              category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "barbell",    movementPattern: "push" },
+  { name: "Snatch",                category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "barbell",    movementPattern: "hinge" },
+  { name: "Turkish Get-Up",        category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "kettlebell", movementPattern: "carry" },
+  { name: "Burpee",                category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "push" },
+  { name: "Sled Push",             category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "other",      movementPattern: "push" },
+  { name: "Wall Ball",             category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "other",      movementPattern: "push" },
+
+  // ── Cardio ─────────────────────────────────────────────────────────────────
+  { name: "Running",               category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Walking",               category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Sprint",                category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "High Knees",            category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Jump Rope",             category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "other",      movementPattern: "cardio" },
+  { name: "Box Jump",              category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Cycling",               category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
+  { name: "Stair Climber",         category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
+  { name: "Elliptical",            category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
+  { name: "Rowing Machine",        category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
+  { name: "Assault Bike",          category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
+  { name: "Ski Erg",               category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
+  { name: "Swimming",              category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Battle Ropes",          category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "other",      movementPattern: "cardio" },
+
+  // ── Calisthenics — Push ────────────────────────────────────────────────────
+  { name: "Wide Push-up",              category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "bodyweight", movementPattern: "push" },
+  { name: "Decline Push-up",           category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "bodyweight", movementPattern: "push" },
+  { name: "Archer Push-up",            category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "bodyweight", movementPattern: "push" },
+  { name: "Pseudo Planche Push-up",    category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "bodyweight", movementPattern: "push" },
+  { name: "Hindu Push-up",             category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "bodyweight", movementPattern: "push" },
+  { name: "Ring Push-up",              category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "other",      movementPattern: "push" },
+  { name: "Pike Push-up",              category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "push" },
+  { name: "Handstand Push-up",         category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "push" },
+  { name: "Handstand Hold",            category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Handstand",                 category: "cardio",      isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Ring Dip",                  category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps",    equipment: "other",      movementPattern: "push" },
+
+  // ── Calisthenics — Pull ────────────────────────────────────────────────────
+  { name: "Muscle-up",                 category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Negative Pull-up",          category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Wide-Grip Pull-up",         category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "bodyweight", movementPattern: "pull" },
+  { name: "L-sit Pull-up",             category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Typewriter Pull-up",        category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "bodyweight", movementPattern: "pull" },
+  { name: "Ring Row",                  category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "other",      movementPattern: "pull" },
+  { name: "Front Lever",               category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Back Lever",                category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "bodyweight", movementPattern: "isometric" },
+
+  // ── Calisthenics — Core / Skill ────────────────────────────────────────────
+  { name: "L-sit",                     category: "strength",    isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Dragon Flag",               category: "strength",    isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Copenhagen Plank",          category: "strength",    isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Tuck Planche",              category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Human Flag",                category: "strength",    isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Arch Hold",                 category: "strength",    isCustom: false, bodyArea: "lower_body", muscleGroup: "lower_back", equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Crow Pose",                 category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "bodyweight", movementPattern: "isometric" },
+
+  // ── Calisthenics — Legs ────────────────────────────────────────────────────
+  { name: "Pistol Squat",              category: "strength",    isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "bodyweight", movementPattern: "squat" },
+  { name: "Shrimp Squat",              category: "strength",    isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "bodyweight", movementPattern: "squat" },
+  { name: "Wall Sit",                  category: "strength",    isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Jump Lunge",                category: "strength",    isCustom: false, bodyArea: "lower_body", muscleGroup: "quads",      equipment: "bodyweight", movementPattern: "squat" },
+  { name: "Single-Leg Glute Bridge",   category: "strength",    isCustom: false, bodyArea: "lower_body", muscleGroup: "glutes",     equipment: "bodyweight", movementPattern: "hinge" },
+
+  // ── Calisthenics — Full Body / Locomotion ──────────────────────────────────
+  { name: "Bear Crawl",                category: "strength",    isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "carry" },
+  { name: "Inchworm",                  category: "strength",    isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "push" },
+  { name: "Tuck Jump",                 category: "cardio",      isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Jumping Jack",              category: "cardio",      isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+
+  // ── Flexibility ────────────────────────────────────────────────────────────
+  { name: "Static Stretching",     category: "flexibility", isCustom: false, bodyArea: "full_body", muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Dynamic Stretching",    category: "flexibility", isCustom: false, bodyArea: "full_body", muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Yoga",                  category: "flexibility", isCustom: false, bodyArea: "full_body", muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Foam Rolling",          category: "flexibility", isCustom: false, bodyArea: "full_body", muscleGroup: "full_body",  equipment: "other",      movementPattern: "isometric" },
+  { name: "Hip Flexor Stretch",    category: "flexibility", isCustom: false, bodyArea: "lower_body",muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Child's Pose",          category: "flexibility", isCustom: false, bodyArea: "full_body", muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Pigeon Pose",           category: "flexibility", isCustom: false, bodyArea: "lower_body",muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Neck Stretch",          category: "flexibility", isCustom: false, bodyArea: "upper_body",muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Wrist Mobility",        category: "flexibility", isCustom: false, bodyArea: "upper_body",muscleGroup: "forearms",   equipment: "bodyweight", movementPattern: "isometric" },
+] as const;
+
 async function seed() {
   console.log("🌱 Seeding database...");
 
@@ -12,74 +239,16 @@ async function seed() {
     });
 
     if (!existingUser) {
-      await db.insert(users).values({
-        email: "demo@example.com",
-      });
+      await db.insert(users).values({ email: "demo@example.com" });
       console.log("✅ Created demo user");
     } else {
       console.log("ℹ️  Demo user already exists");
     }
 
-    // Seed exercises
-    const existingExercises = await db.query.exercises.findMany();
-
-    if (existingExercises.length === 0) {
-      await db.insert(exercises).values([
-        // Upper Body — Chest
-        { name: "Bench Press", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest", equipment: "barbell", movementPattern: "push" },
-        { name: "Incline Bench Press", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest", equipment: "barbell", movementPattern: "push" },
-        { name: "Dumbbell Fly", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest", equipment: "dumbbell", movementPattern: "push" },
-        { name: "Dip", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest", equipment: "bodyweight", movementPattern: "push" },
-        { name: "Cable Crossover", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "chest", equipment: "cable", movementPattern: "push" },
-
-        // Upper Body — Back
-        { name: "Deadlift", category: "strength", isCustom: false, bodyArea: "full_body", muscleGroup: "back", equipment: "barbell", movementPattern: "hinge" },
-        { name: "Barbell Row", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "barbell", movementPattern: "pull" },
-        { name: "Pull-up", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "bodyweight", movementPattern: "pull" },
-        { name: "Lat Pulldown", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "cable", movementPattern: "pull" },
-        { name: "Seated Cable Row", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "cable", movementPattern: "pull" },
-
-        // Upper Body — Shoulders
-        { name: "Overhead Press", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders", equipment: "barbell", movementPattern: "push" },
-        { name: "Dumbbell Lateral Raise", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders", equipment: "dumbbell", movementPattern: "push" },
-
-        // Upper Body — Arms
-        { name: "Barbell Curl", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "biceps", equipment: "barbell", movementPattern: "pull" },
-        { name: "Tricep Pushdown", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps", equipment: "cable", movementPattern: "push" },
-        { name: "Skull Crusher", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps", equipment: "barbell", movementPattern: "push" },
-
-        // Lower Body
-        { name: "Squat", category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads", equipment: "barbell", movementPattern: "squat" },
-        { name: "Front Squat", category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads", equipment: "barbell", movementPattern: "squat" },
-        { name: "Leg Press", category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "quads", equipment: "machine", movementPattern: "squat" },
-        { name: "Romanian Deadlift", category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "barbell", movementPattern: "hinge" },
-        { name: "Hip Thrust", category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "glutes", equipment: "barbell", movementPattern: "hinge" },
-        { name: "Leg Curl", category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "machine", movementPattern: "pull" },
-        { name: "Calf Raise", category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "calves", equipment: "machine", movementPattern: "push" },
-
-        // Core
-        { name: "Plank", category: "strength", isCustom: false, bodyArea: "core", muscleGroup: "abs", equipment: "bodyweight", movementPattern: "isometric" },
-        { name: "Ab Wheel Rollout", category: "strength", isCustom: false, bodyArea: "core", muscleGroup: "abs", equipment: "other", movementPattern: "isometric" },
-        { name: "Hanging Leg Raise", category: "strength", isCustom: false, bodyArea: "core", muscleGroup: "abs", equipment: "bodyweight", movementPattern: "pull" },
-        { name: "Russian Twist", category: "strength", isCustom: false, bodyArea: "core", muscleGroup: "abs", equipment: "bodyweight", movementPattern: "rotation" },
-        { name: "Farmer's Carry", category: "strength", isCustom: false, bodyArea: "full_body", muscleGroup: "full_body", equipment: "dumbbell", movementPattern: "carry" },
-
-        // Cardio
-        { name: "Running", category: "cardio", isCustom: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio" },
-        { name: "Cycling", category: "cardio", isCustom: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "machine", movementPattern: "cardio" },
-        { name: "Rowing Machine", category: "cardio", isCustom: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "machine", movementPattern: "cardio" },
-        { name: "Jump Rope", category: "cardio", isCustom: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "other", movementPattern: "cardio" },
-        { name: "Swimming", category: "cardio", isCustom: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio" },
-
-        // Flexibility
-        { name: "Static Stretching", category: "flexibility", isCustom: false, bodyArea: "full_body", muscleGroup: "full_body", equipment: "bodyweight", movementPattern: "isometric" },
-        { name: "Dynamic Stretching", category: "flexibility", isCustom: false, bodyArea: "full_body", muscleGroup: "full_body", equipment: "bodyweight", movementPattern: "isometric" },
-        { name: "Yoga", category: "flexibility", isCustom: false, bodyArea: "full_body", muscleGroup: "full_body", equipment: "bodyweight", movementPattern: "isometric" },
-      ]);
-      console.log("✅ Seeded exercises");
-    } else {
-      console.log("ℹ️  Exercises already seeded");
-    }
+    // Seed exercises — skips any that already exist by name
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await db.insert(exercises).values(EXERCISES as any[]).onConflictDoNothing();
+    console.log(`✅ Seeded ${EXERCISES.length} exercises (skipped duplicates)`);
 
     console.log("✅ Seeding completed successfully");
     process.exit(0);

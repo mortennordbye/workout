@@ -4,11 +4,12 @@ import { createCustomExercise } from "@/lib/actions/exercises";
 import type { Exercise } from "@/types/workout";
 import {
   Activity,
-  ArrowLeft,
+  ChevronLeft,
   ChevronRight,
   Dumbbell,
   PersonStanding,
   Plus,
+  Search,
   Timer,
   Wrench,
   X,
@@ -59,6 +60,13 @@ const MENU_ITEMS: { id: ViewId; label: string; Icon: React.ElementType }[] = [
   { id: "function", label: "Function", Icon: Activity },
 ];
 
+const GROUP_CONFIG = {
+  bodyArea: { key: "bodyArea" as keyof Exercise, order: BODY_AREA_ORDER as string[], labels: BODY_AREA_LABELS as Record<string, string> },
+  muscles: { key: "muscleGroup" as keyof Exercise, order: MUSCLE_ORDER as string[], labels: MUSCLE_LABELS as Record<string, string> },
+  equipment: { key: "equipment" as keyof Exercise, order: EQUIPMENT_ORDER as string[], labels: EQUIPMENT_LABELS as Record<string, string> },
+  function: { key: "movementPattern" as keyof Exercise, order: MOVEMENT_ORDER as string[], labels: MOVEMENT_LABELS as Record<string, string> },
+} as const;
+
 function capitalize(s: string) {
   return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -69,7 +77,38 @@ function exerciseType(category: string) {
   return "Reps Based";
 }
 
-// ─── Detail View ─────────────────────────────────────────────────────────────
+// ─── Search Bar ───────────────────────────────────────────────────────────────
+
+function SearchBar({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search"
+        className="w-full rounded-xl bg-muted/60 pl-9 pr-4 py-2.5 text-base outline-none placeholder:text-muted-foreground"
+      />
+    </div>
+  );
+}
+
+// ─── Back Button ──────────────────────────────────────────────────────────────
+
+function BackButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-0.5 min-h-[44px] text-primary active:opacity-70 -ml-1"
+    >
+      <ChevronLeft className="w-5 h-5" />
+      <span className="text-base">{label}</span>
+    </button>
+  );
+}
+
+// ─── Detail View ──────────────────────────────────────────────────────────────
 
 function DetailView({
   exercise,
@@ -91,20 +130,8 @@ function DetailView({
 
   return (
     <>
-      {/* Nav bar */}
-      <div className="flex items-center justify-between mb-4 -mx-1">
-        <button
-          onClick={onBack}
-          className="flex items-center gap-1 min-h-[44px] px-1 text-primary active:opacity-70"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm font-medium">{backLabel}</span>
-        </button>
-        <span className="text-sm font-medium text-primary">Add to…</span>
-      </div>
-
-      {/* Title */}
-      <h1 className="text-3xl font-bold tracking-tight mb-6">
+      <BackButton label={backLabel} onClick={onBack} />
+      <h1 className="text-3xl font-bold tracking-tight mt-1 mb-6">
         {exercise.name}
         {exercise.isCustom && (
           <span className="ml-2 text-sm font-medium text-primary bg-primary/10 px-2 py-0.5 rounded align-middle">
@@ -112,8 +139,6 @@ function DetailView({
           </span>
         )}
       </h1>
-
-      {/* Metadata table */}
       <div className="bg-card rounded-2xl overflow-hidden">
         {rows.map(({ label, value }, i) => (
           <div
@@ -146,7 +171,7 @@ function ExerciseRow({
   return (
     <button
       onClick={() => onOpen(exercise)}
-      className="flex items-center gap-3 w-full px-4 py-3.5 border-b border-border/50 last:border-0 active:bg-muted/50 transition-colors text-left"
+      className="flex items-center justify-between w-full px-4 py-3.5 min-h-[54px] border-b border-border/50 last:border-0 active:bg-muted/50 transition-colors text-left"
     >
       <div className="flex-1 min-w-0">
         <p className="font-medium">{exercise.name}</p>
@@ -163,106 +188,79 @@ function ExerciseRow({
   );
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
+// ─── Flat Exercise List ────────────────────────────────────────────────────────
 
-function SectionHeader({ label }: { label: string }) {
-  return (
-    <p className="px-4 pt-5 pb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-      {label}
-    </p>
-  );
-}
-
-// ─── Group builder ────────────────────────────────────────────────────────────
-
-function buildGroups<K extends string>(
-  exercises: Exercise[],
-  key: keyof Exercise,
-  order: K[],
-  labels: Record<K, string>,
-): { label: string; exercises: Exercise[] }[] {
-  const map = new Map<K, Exercise[]>();
-  for (const ex of exercises) {
-    const val = ex[key] as K | null;
-    if (!val) continue;
-    if (!map.has(val)) map.set(val, []);
-    map.get(val)!.push(ex);
-  }
-  const ungrouped = exercises.filter((ex) => !ex[key]);
-  const groups = order
-    .filter((k) => map.has(k))
-    .map((k) => ({ label: labels[k], exercises: map.get(k)! }));
-  if (ungrouped.length > 0) groups.push({ label: "Other", exercises: ungrouped });
-  return groups;
-}
-
-// ─── List View ────────────────────────────────────────────────────────────────
-
-function ListView({
-  view,
+function FlatExerciseList({
+  title,
+  backLabel,
   exercises,
   onBack,
   onOpen,
 }: {
-  view: ViewId;
+  title: string;
+  backLabel: string;
   exercises: Exercise[];
   onBack: () => void;
   onOpen: (exercise: Exercise) => void;
 }) {
-  const title = MENU_ITEMS.find((m) => m.id === view)?.label ?? "My Exercises";
-
-  function rows(list: Exercise[]) {
-    return list.map((ex) => <ExerciseRow key={ex.id} exercise={ex} onOpen={onOpen} />);
-  }
-
-  let content: React.ReactNode;
-
-  if (view === "all") {
-    content = <div className="bg-card rounded-2xl overflow-hidden">{rows(exercises)}</div>;
-  } else if (view === "custom") {
-    const custom = exercises.filter((ex) => ex.isCustom);
-    content = custom.length === 0 ? (
-      <p className="text-muted-foreground text-center mt-12">No custom exercises yet.</p>
-    ) : (
-      <div className="bg-card rounded-2xl overflow-hidden">{rows(custom)}</div>
-    );
-  } else if (view === "timed") {
-    const timed = exercises.filter((ex) => ex.category === "cardio");
-    content = <div className="bg-card rounded-2xl overflow-hidden">{rows(timed)}</div>;
-  } else {
-    const groupConfig = {
-      bodyArea: { key: "bodyArea" as keyof Exercise, order: BODY_AREA_ORDER, labels: BODY_AREA_LABELS },
-      muscles: { key: "muscleGroup" as keyof Exercise, order: MUSCLE_ORDER, labels: MUSCLE_LABELS },
-      equipment: { key: "equipment" as keyof Exercise, order: EQUIPMENT_ORDER, labels: EQUIPMENT_LABELS },
-      function: { key: "movementPattern" as keyof Exercise, order: MOVEMENT_ORDER, labels: MOVEMENT_LABELS },
-    }[view as "bodyArea" | "muscles" | "equipment" | "function"];
-
-    if (!groupConfig) return null;
-    const groups = buildGroups(exercises, groupConfig.key, groupConfig.order as string[], groupConfig.labels as Record<string, string>);
-    content = (
-      <>
-        {groups.map(({ label, exercises: grp }) => (
-          <div key={label}>
-            <SectionHeader label={label} />
-            <div className="bg-card rounded-2xl overflow-hidden">{rows(grp)}</div>
-          </div>
-        ))}
-      </>
-    );
-  }
+  const [search, setSearch] = useState("");
+  const filtered = exercises.filter((ex) =>
+    ex.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <>
-      <div className="flex items-center gap-2 mb-6">
-        <button
-          onClick={onBack}
-          className="flex items-center justify-center min-h-[44px] min-w-[44px] -ml-2 text-primary active:opacity-70"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <h1 className="text-xl font-bold tracking-tight">{title}</h1>
+      <BackButton label={backLabel} onClick={onBack} />
+      <h1 className="text-3xl font-bold tracking-tight mt-1 mb-4">{title}</h1>
+      <SearchBar value={search} onChange={setSearch} />
+      <div className="bg-card rounded-2xl overflow-hidden mt-4">
+        {filtered.length === 0 ? (
+          <p className="text-muted-foreground text-center py-8">No exercises found.</p>
+        ) : (
+          filtered.map((ex) => <ExerciseRow key={ex.id} exercise={ex} onOpen={onOpen} />)
+        )}
       </div>
-      {content}
+    </>
+  );
+}
+
+// ─── Category List ────────────────────────────────────────────────────────────
+
+function CategoryList({
+  title,
+  backLabel,
+  items,
+  onBack,
+  onSelect,
+}: {
+  title: string;
+  backLabel: string;
+  items: { key: string; label: string }[];
+  onBack: () => void;
+  onSelect: (key: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const filtered = items.filter((item) =>
+    item.label.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <>
+      <BackButton label={backLabel} onClick={onBack} />
+      <h1 className="text-3xl font-bold tracking-tight mt-1 mb-4">{title}</h1>
+      <SearchBar value={search} onChange={setSearch} />
+      <div className="bg-card rounded-2xl overflow-hidden mt-4">
+        {filtered.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => onSelect(item.key)}
+            className="flex items-center justify-between w-full px-4 py-3.5 min-h-[54px] border-b border-border/50 last:border-0 active:bg-muted/50 transition-colors"
+          >
+            <span className="font-medium">{item.label}</span>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </button>
+        ))}
+      </div>
     </>
   );
 }
@@ -272,6 +270,7 @@ function ListView({
 export function ExercisesClient({ exercises }: { exercises: Exercise[] }) {
   const router = useRouter();
   const [view, setView] = useState<ViewId | "menu">("menu");
+  const [subCategory, setSubCategory] = useState<string | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
@@ -308,11 +307,13 @@ export function ExercisesClient({ exercises }: { exercises: Exercise[] }) {
     router.refresh();
   }
 
-  // Detail view — shown over the list
+  const viewLabel = MENU_ITEMS.find((m) => m.id === view)?.label ?? "My Exercises";
+
+  // Detail view
   if (selectedExercise) {
-    const backLabel = view === "menu"
-      ? "Exercises"
-      : (MENU_ITEMS.find((m) => m.id === view)?.label ?? "My Exercises");
+    const backLabel = subCategory
+      ? capitalize(subCategory)
+      : view === "menu" ? "Exercises" : viewLabel;
     return (
       <DetailView
         exercise={selectedExercise}
@@ -322,12 +323,55 @@ export function ExercisesClient({ exercises }: { exercises: Exercise[] }) {
     );
   }
 
-  // List view
-  if (view !== "menu") {
+  // Sub-category drill-down (exercises filtered by a specific category value)
+  if (view !== "menu" && subCategory !== null) {
+    const config = GROUP_CONFIG[view as keyof typeof GROUP_CONFIG];
+    const filtered = config
+      ? exercises.filter((ex) => ex[config.key] === subCategory)
+      : [];
+    const subLabel = config?.labels[subCategory] ?? capitalize(subCategory);
     return (
-      <ListView
-        view={view}
-        exercises={exercises}
+      <FlatExerciseList
+        title={subLabel}
+        backLabel={viewLabel}
+        exercises={filtered}
+        onBack={() => setSubCategory(null)}
+        onOpen={setSelectedExercise}
+      />
+    );
+  }
+
+  // Category list views (bodyArea, muscles, equipment, function)
+  if (view !== "menu" && view in GROUP_CONFIG) {
+    const config = GROUP_CONFIG[view as keyof typeof GROUP_CONFIG];
+    const present = new Set(exercises.map((ex) => ex[config.key] as string).filter(Boolean));
+    const items = config.order
+      .filter((k) => present.has(k))
+      .map((k) => ({ key: k, label: config.labels[k] }));
+    return (
+      <CategoryList
+        title={viewLabel}
+        backLabel="Exercises"
+        items={items}
+        onBack={() => setView("menu")}
+        onSelect={(key) => setSubCategory(key)}
+      />
+    );
+  }
+
+  // Flat list views (all, timed, custom)
+  if (view !== "menu") {
+    const filtered =
+      view === "timed"
+        ? exercises.filter((ex) => ex.category === "cardio")
+        : view === "custom"
+        ? exercises.filter((ex) => ex.isCustom)
+        : exercises;
+    return (
+      <FlatExerciseList
+        title={viewLabel}
+        backLabel="Exercises"
+        exercises={filtered}
         onBack={() => setView("menu")}
         onOpen={setSelectedExercise}
       />
