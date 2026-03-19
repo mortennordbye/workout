@@ -25,9 +25,60 @@ export const exerciseCategoryEnum = [
   "flexibility",
 ] as const;
 
+export const bodyAreaEnum = [
+  "upper_body",
+  "lower_body",
+  "core",
+  "full_body",
+  "cardio",
+] as const;
+
+export const muscleGroupEnum = [
+  "chest",
+  "back",
+  "shoulders",
+  "biceps",
+  "triceps",
+  "forearms",
+  "quads",
+  "hamstrings",
+  "glutes",
+  "calves",
+  "abs",
+  "lower_back",
+  "full_body",
+  "cardio",
+] as const;
+
+export const equipmentEnum = [
+  "barbell",
+  "dumbbell",
+  "machine",
+  "cable",
+  "bodyweight",
+  "kettlebell",
+  "bands",
+  "other",
+] as const;
+
+export const movementPatternEnum = [
+  "push",
+  "pull",
+  "hinge",
+  "squat",
+  "carry",
+  "rotation",
+  "isometric",
+  "cardio",
+] as const;
+
 export const exercises = pgTable("exercises", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
   category: text("category", { enum: exerciseCategoryEnum }).notNull(),
   isCustom: boolean("is_custom").default(false).notNull(),
+  bodyArea: text("body_area", { enum: bodyAreaEnum }),
+  muscleGroup: text("muscle_group", { enum: muscleGroupEnum }),
+  equipment: text("equipment", { enum: equipmentEnum }),
+  movementPattern: text("movement_pattern", { enum: movementPatternEnum }),
 });

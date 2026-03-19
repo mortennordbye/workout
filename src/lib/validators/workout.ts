@@ -127,6 +127,10 @@ export const createExerciseSchema = z.object({
     message: "Category must be strength, cardio, or flexibility",
   }),
   isCustom: z.boolean().default(true),
+  bodyArea: z.enum(["upper_body", "lower_body", "core", "full_body", "cardio"]).optional(),
+  muscleGroup: z.enum(["chest", "back", "shoulders", "biceps", "triceps", "forearms", "quads", "hamstrings", "glutes", "calves", "abs", "lower_back", "full_body", "cardio"]).optional(),
+  equipment: z.enum(["barbell", "dumbbell", "machine", "cable", "bodyweight", "kettlebell", "bands", "other"]).optional(),
+  movementPattern: z.enum(["push", "pull", "hinge", "squat", "carry", "rotation", "isometric", "cardio"]).optional(),
 });
 
 /**

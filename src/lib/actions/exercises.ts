@@ -61,7 +61,7 @@ export async function createCustomExercise(
       };
     }
 
-    const { name, category, isCustom } = validation.data;
+    const { name, category, isCustom, bodyArea, muscleGroup, equipment, movementPattern } = validation.data;
 
     // Check if exercise already exists
     const existing = await db.query.exercises.findFirst({
@@ -82,6 +82,10 @@ export async function createCustomExercise(
         name,
         category,
         isCustom,
+        bodyArea,
+        muscleGroup,
+        equipment,
+        movementPattern,
       })
       .returning();
 
