@@ -2,10 +2,13 @@
  * New Workout Page
  *
  * Program picker shown when starting a new workout from the home screen.
+ * If the user has an active training cycle with a program scheduled for today,
+ * a cycle card is shown at the top with quick Start / Skip / Different program actions.
  */
 
+import { getActiveCycleForUser } from "@/lib/actions/training-cycles";
 import { getPrograms } from "@/lib/actions/programs";
-import { ChevronRightIcon } from "lucide-react";
+import NewWorkoutClient from "@/components/features/NewWorkoutClient";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +16,13 @@ export const dynamic = "force-dynamic";
 const DEMO_USER_ID = 1;
 
 export default async function NewWorkoutPage() {
-  const result = await getPrograms(DEMO_USER_ID);
-  const programList = result.success ? result.data : [];
+  const [cycleResult, programsResult] = await Promise.all([
+    getActiveCycleForUser(DEMO_USER_ID),
+    getPrograms(DEMO_USER_ID),
+  ]);
+
+  const activeCycleInfo = cycleResult.success ? cycleResult.data : null;
+  const programs = programsResult.success ? programsResult.data : [];
 
   return (
     <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
@@ -31,24 +39,7 @@ export default async function NewWorkoutPage() {
         <h1 className="text-3xl font-bold tracking-tight">New Workout</h1>
       </div>
 
-      {/* Program list */}
-      <div className="flex-1 overflow-y-auto px-4">
-        {programList.length > 0 && (
-          <div className="flex flex-col divide-y divide-border rounded-xl bg-muted overflow-hidden mb-4">
-            {programList.map((program) => (
-              <Link
-                key={program.id}
-                href={`/programs/${program.id}/workout`}
-                className="flex items-center justify-between px-5 py-4 active:bg-muted/50 transition-colors"
-              >
-                <span className="text-base font-medium">{program.name}</span>
-                <ChevronRightIcon className="h-5 w-5 text-muted-foreground" />
-              </Link>
-            ))}
-          </div>
-        )}
-
-      </div>
+      <NewWorkoutClient activeCycleInfo={activeCycleInfo} programs={programs} />
     </div>
   );
 }

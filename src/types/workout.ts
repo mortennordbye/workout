@@ -174,7 +174,7 @@ export type TrainingCycleWithSlots = TrainingCycle & {
 
 // The active cycle with today's slot resolved
 export type ActiveCycleInfo = {
-  cycle: TrainingCycle;
+  cycle: TrainingCycleWithSlots;
   todaySlot: TrainingCycleSlotWithProgram | null;
   currentWeek: number;
   endDate: string; // ISO date string

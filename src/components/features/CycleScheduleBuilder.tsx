@@ -33,7 +33,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, PlusIcon, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -247,11 +247,18 @@ function RotationBuilder({
 }) {
   const router = useRouter();
   const [editingSlot, setEditingSlot] = useState<Slot | null>(null);
-  const [localSlots, setLocalSlots] = useState(
-    [...cycle.slots].sort(
-      (a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0),
-    ),
+  const sortedSlots = [...cycle.slots].sort(
+    (a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0),
   );
+  const [localSlots, setLocalSlots] = useState(sortedSlots);
+
+  // Sync local state when server returns updated props (add/remove/refresh)
+  const prevSlotIds = useRef(cycle.slots.map((s) => s.id).join(","));
+  const incomingIds = cycle.slots.map((s) => s.id).join(",");
+  if (prevSlotIds.current !== incomingIds) {
+    prevSlotIds.current = incomingIds;
+    setLocalSlots(sortedSlots);
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor),

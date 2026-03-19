@@ -2,7 +2,6 @@
 
 import { AddExerciseForm } from "@/components/features/AddExerciseForm";
 import {
-  deleteProgram,
   removeExerciseFromProgram,
   reorderProgramExercises,
 } from "@/lib/actions/programs";
@@ -129,7 +128,6 @@ export function ProgramDetailClient({
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [exercises, setExercises] = useState(initial);
-  const [deletingProgram, setDeletingProgram] = useState(false);
 
   // Sync local state when server refreshes with new data
   useEffect(() => {
@@ -163,15 +161,7 @@ export function ProgramDetailClient({
     router.refresh();
   }
 
-  async function handleDeleteProgram() {
-    if (!confirm(`Delete "${programName}"? This cannot be undone.`)) return;
-    setDeletingProgram(true);
-    await deleteProgram(programId);
-    router.push("/programs");
-    router.refresh();
-  }
-
-  return (
+return (
     <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
@@ -250,16 +240,6 @@ export function ProgramDetailClient({
           </div>
         )}
 
-        {isEditing && (
-          <button
-            type="button"
-            onClick={handleDeleteProgram}
-            disabled={deletingProgram}
-            className="w-full mt-8 mb-6 py-4 rounded-xl text-destructive text-sm font-semibold border border-destructive/30 disabled:opacity-50"
-          >
-            {deletingProgram ? "Deleting…" : "Delete Program"}
-          </button>
-        )}
       </div>
 
     </div>

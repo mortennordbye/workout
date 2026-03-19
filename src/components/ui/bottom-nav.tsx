@@ -1,7 +1,7 @@
 "use client";
 
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { Dumbbell, Library, MoreHorizontal, RefreshCw } from "lucide-react";
+import { Dumbbell, MoreHorizontal, RefreshCw, LayoutList } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -17,9 +17,9 @@ const staticNavItems = [
     icon: RefreshCw,
   },
   {
-    label: "Exercises",
-    href: "/exercises",
-    icon: Library,
+    label: "Programs",
+    href: "/programs",
+    icon: LayoutList,
   },
   {
     label: "More",
@@ -46,7 +46,8 @@ export function BottomNav() {
       return (
         pathname.startsWith("/more") ||
         pathname.startsWith("/settings") ||
-        pathname.startsWith("/history")
+        pathname.startsWith("/history") ||
+        pathname.startsWith("/exercises")
       );
     }
     return pathname.startsWith(href);

@@ -1,9 +1,21 @@
 "use client";
 
-import { ChevronRight, Clock, Settings } from "lucide-react";
+import { CalendarDays, ChevronRight, Clock, Library, Settings } from "lucide-react";
 import Link from "next/link";
 
 const moreItems = [
+  {
+    label: "Calendar",
+    href: "/more/calendar",
+    icon: CalendarDays,
+    description: "Visualise your training cycles",
+  },
+  {
+    label: "Exercises",
+    href: "/exercises",
+    icon: Library,
+    description: "Browse and manage exercises",
+  },
   {
     label: "History",
     href: "/history",

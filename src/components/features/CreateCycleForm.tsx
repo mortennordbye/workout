@@ -88,11 +88,9 @@ export function CreateCycleForm() {
               onClick={() => setDurationWeeks(w)}
               className={`
                 px-4 py-2 rounded-full text-sm font-semibold border-2 transition-colors
-                ${
-                  durationWeeks === w
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border text-muted-foreground"
-                }
+                ${durationWeeks === w
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground"}
               `}
             >
               {w}w

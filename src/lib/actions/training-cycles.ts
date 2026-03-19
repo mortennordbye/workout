@@ -69,6 +69,26 @@ export async function getTrainingCycleWithSlots(
   }
 }
 
+export async function getAllCyclesWithSlots(
+  userId: number,
+): Promise<ActionResult<TrainingCycleWithSlots[]>> {
+  try {
+    const rows = await db.query.trainingCycles.findMany({
+      where: eq(trainingCycles.userId, userId),
+      orderBy: [asc(trainingCycles.startDate)],
+      with: {
+        slots: {
+          orderBy: (s, { asc }) => [asc(s.dayOfWeek), asc(s.orderIndex)],
+          with: { program: true },
+        },
+      },
+    });
+    return { success: true, data: rows as TrainingCycleWithSlots[] };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
 export async function getActiveCycleForUser(
   userId: number,
 ): Promise<ActionResult<ActiveCycleInfo | null>> {
@@ -151,7 +171,7 @@ export async function getActiveCycleForUser(
     return {
       success: true,
       data: {
-        cycle,
+        cycle: cycle as unknown as TrainingCycleWithSlots,
         todaySlot,
         currentWeek,
         endDate: endDateStr,
