@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ChevronRight, Clock, Library, Settings } from "lucide-react";
+import { CalendarDays, ChevronRight, Clock, Library, Settings, Terminal } from "lucide-react";
 import Link from "next/link";
 
 const moreItems = [
@@ -27,6 +27,12 @@ const moreItems = [
     href: "/settings",
     icon: Settings,
     description: "Appearance and preferences",
+  },
+  {
+    label: "Developer Tools",
+    href: "/more/admin",
+    icon: Terminal,
+    description: "Seed and reset test data",
   },
 ];
 

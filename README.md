@@ -22,7 +22,9 @@ Designed to feel like a native iOS app. Runs in Docker containers for environmen
 ```bash
 # Database
 docker-compose exec app pnpm db:push       # Push schema changes
-docker-compose exec app pnpm db:seed       # Seed database
+docker-compose exec app pnpm db:seed       # Seed exercise library + demo user
+docker-compose exec app pnpm db:seed-fake  # Populate demo user with realistic test data
+docker-compose exec app pnpm db:reset-user # Wipe all user data (keeps exercises + user record)
 docker-compose exec app pnpm db:studio     # Open Drizzle Studio
 docker-compose exec app pnpm db:migrate    # Run migrations (prod)
 
@@ -33,6 +35,24 @@ docker-compose exec app pnpm build         # Production build check
 # Tests (run locally — no Docker needed)
 pnpm test                                  # Run all tests once
 pnpm test:watch                            # Watch mode
+```
+
+### Test data
+
+`db:seed-fake` populates the demo user (id=1) with:
+- 2 programs ("Push Pull Legs A" and "Upper Body") with planned exercises and sets
+- An active 12-week training cycle with Mon/Wed/Fri slots
+- ~12 completed workout sessions spread over the past 4 weeks
+
+```bash
+# Populate
+docker-compose exec app pnpm db:seed-fake
+
+# Overwrite existing data
+docker-compose exec app pnpm db:seed-fake --force
+
+# Wipe everything and start fresh
+docker-compose exec app pnpm db:reset-user
 ```
 
 ### Dev Script Options
