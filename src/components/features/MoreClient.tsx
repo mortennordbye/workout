@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ChevronRight, Clock, Library, Settings, Terminal } from "lucide-react";
+import { BarChart2, CalendarDays, ChevronRight, Clock, Library, Settings, Terminal } from "lucide-react";
 import Link from "next/link";
 
 const moreItems = [
@@ -21,6 +21,12 @@ const moreItems = [
     href: "/history",
     icon: Clock,
     description: "All your workouts",
+  },
+  {
+    label: "Metrics",
+    href: "/more/metrics",
+    icon: BarChart2,
+    description: "Volume, records, and muscle balance",
   },
   {
     label: "Settings",
