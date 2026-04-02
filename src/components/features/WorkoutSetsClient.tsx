@@ -9,6 +9,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+export type SetSuggestionDisplay = {
+  basedOnWeightKg: number;
+  basedOnReps: number;
+  basedOnFeeling: string;
+};
+
 type Props = {
   programId: number;
   programExerciseId: number;
@@ -19,6 +25,7 @@ type Props = {
   isWorkout?: boolean;
   loggedCount?: number;
   exerciseCategory?: string;
+  suggestions?: Record<number, SetSuggestionDisplay>;
 };
 
 export function WorkoutSetsClient({
@@ -31,6 +38,7 @@ export function WorkoutSetsClient({
   isWorkout = false,
   loggedCount = 0,
   exerciseCategory,
+  suggestions,
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -150,6 +158,7 @@ export function WorkoutSetsClient({
               exerciseId={exerciseId}
               sessionId={workoutSession?.sessionId ?? undefined}
               onDeleteSet={handleDeleteSet}
+              suggestions={suggestions}
             />
           </>
         )}

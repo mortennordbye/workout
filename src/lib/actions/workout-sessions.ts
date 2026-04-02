@@ -113,7 +113,7 @@ export async function completeWorkoutSession(
       };
     }
 
-    const { sessionId, endTime, notes } = validation.data;
+    const { sessionId, endTime, notes, feeling } = validation.data;
 
     // Update session
     const [session] = await db
@@ -121,6 +121,7 @@ export async function completeWorkoutSession(
       .set({
         endTime: endTime ? new Date(endTime) : new Date(),
         notes,
+        feeling,
         isCompleted: true,
       })
       .where(eq(workoutSessions.id, sessionId))

@@ -6,14 +6,15 @@ import {
 } from "@/lib/actions/workout-sessions";
 import { updateProgramSet } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
+import { WORKOUT_FEELINGS, type WorkoutFeeling } from "@/lib/validators/workout";
 import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useMemo, useState } from "react";
 
 const DEMO_USER_ID = 1;
 
-type Feeling = "Tired" | "OK" | "Good" | "Awesome";
-const FEELINGS: Feeling[] = ["Tired", "OK", "Good", "Awesome"];
+type Feeling = WorkoutFeeling;
+const FEELINGS: Feeling[] = [...WORKOUT_FEELINGS];
 
 function formatDate(d: Date): string {
   return d.toLocaleDateString("en-US", {
@@ -66,7 +67,7 @@ function FinishContent() {
   const saveSession = async () => {
     const existingSessionId = workoutSession?.sessionId;
     if (existingSessionId) {
-      await completeWorkoutSession({ sessionId: existingSessionId, notes: feeling });
+      await completeWorkoutSession({ sessionId: existingSessionId, feeling });
     } else {
       // Fallback if session wasn't pre-created (e.g. direct navigation)
       const created = await createWorkoutSession({
@@ -75,7 +76,7 @@ function FinishContent() {
         startTime: startTime.toISOString(),
       });
       if (!created.success) return false;
-      await completeWorkoutSession({ sessionId: created.data.id, notes: feeling });
+      await completeWorkoutSession({ sessionId: created.data.id, feeling });
     }
     workoutSession?.clearActiveWorkout();
     router.push("/new-workout");

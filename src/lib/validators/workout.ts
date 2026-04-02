@@ -22,6 +22,11 @@
 
 import { z } from "zod";
 
+export const WORKOUT_FEELINGS = ["Tired", "OK", "Good", "Awesome"] as const;
+export type WorkoutFeeling = (typeof WORKOUT_FEELINGS)[number];
+
+const feelingSchema = z.enum(WORKOUT_FEELINGS).optional();
+
 /**
  * Create Workout Session Schema
  *
@@ -111,6 +116,7 @@ export const completeWorkoutSessionSchema = z.object({
     .string()
     .max(1000, "Notes must be 1000 characters or less")
     .optional(),
+  feeling: feelingSchema,
 });
 
 /**

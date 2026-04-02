@@ -247,7 +247,7 @@ async function seed() {
 
     // Seed exercises — skips any that already exist by name
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await db.insert(exercises).values(EXERCISES as any[]).onConflictDoNothing();
+    await db.insert(exercises).values([...EXERCISES]).onConflictDoNothing();
     console.log(`✅ Seeded ${EXERCISES.length} exercises (skipped duplicates)`);
 
     console.log("✅ Seeding completed successfully");

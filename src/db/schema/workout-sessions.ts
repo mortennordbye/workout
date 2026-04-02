@@ -25,6 +25,7 @@ import {
     boolean,
     date,
     integer,
+    pgEnum,
     pgTable,
     serial,
     text,
@@ -32,6 +33,13 @@ import {
 } from "drizzle-orm/pg-core";
 import { programs } from "./programs";
 import { users } from "./users";
+
+export const workoutFeelingEnum = pgEnum("workout_feeling", [
+  "Tired",
+  "OK",
+  "Good",
+  "Awesome",
+]);
 
 export const workoutSessions = pgTable("workout_sessions", {
   id: serial("id").primaryKey(),
@@ -43,5 +51,6 @@ export const workoutSessions = pgTable("workout_sessions", {
   startTime: timestamp("start_time").defaultNow().notNull(),
   endTime: timestamp("end_time"),
   notes: text("notes"),
+  feeling: workoutFeelingEnum("feeling"),
   isCompleted: boolean("is_completed").default(false).notNull(),
 });

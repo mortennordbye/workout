@@ -22,7 +22,7 @@ export function AddSetForm({ programId, programExerciseId, sets }: Props) {
   const router = useRouter();
 
   async function handleDelete(setId: number) {
-    await deleteProgramSet(setId);
+    await deleteProgramSet(setId, programId, programExerciseId);
     router.refresh();
   }
 

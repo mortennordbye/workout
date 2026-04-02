@@ -2,6 +2,7 @@
 
 import { reorderProgramSets, updateProgramSet } from "@/lib/actions/programs";
 import { logWorkoutSet } from "@/lib/actions/workout-sets";
+import type { SetSuggestionDisplay } from "@/components/features/WorkoutSetsClient";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { formatTime } from "@/lib/utils/format";
 import { computeMapping, toFlatItems } from "@/lib/utils/set-mapping";
@@ -40,6 +41,7 @@ type WorkoutSetsListProps = {
   exerciseId?: number;
   sessionId?: number;
   onDeleteSet?: (setId: number) => void;
+  suggestions?: Record<number, SetSuggestionDisplay>;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -58,6 +60,7 @@ export function WorkoutSetsList({
   exerciseId,
   sessionId,
   onDeleteSet,
+  suggestions,
 }: WorkoutSetsListProps) {
   const router = useRouter();
   const workoutSession = useWorkoutSession();
@@ -335,6 +338,7 @@ export function WorkoutSetsList({
                     onToggle={() => toggleSet(item.set.id)}
                     onDelete={() => onDeleteSet?.(item.set.id)}
                     onStartTimer={startExerciseTimer}
+                    suggestion={suggestions?.[item.set.id]}
                   />
                   {isEditing && flatItems[index + 1]?.type !== "rest" && (
                     <InsertRestButton onClick={() => insertRest(index + 1)} />
@@ -530,6 +534,7 @@ function SortableSetRow({
   onToggle,
   onDelete,
   onStartTimer,
+  suggestion,
 }: {
   id: string;
   set: ProgramSet;
@@ -543,6 +548,7 @@ function SortableSetRow({
   onToggle: () => void;
   onDelete: () => void;
   onStartTimer?: (setId: number, duration: number) => void;
+  suggestion?: SetSuggestionDisplay;
 }) {
   const {
     attributes,
@@ -640,6 +646,11 @@ function SortableSetRow({
         ) : (
           <p className="text-lg font-medium">
             {set.targetReps ?? "?"} x {Number(set.weightKg ?? 0)}kg
+          </p>
+        )}
+        {isWorkout && suggestion && (
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Last: {suggestion.basedOnWeightKg}kg &times; {suggestion.basedOnReps} ({suggestion.basedOnFeeling})
           </p>
         )}
       </div>

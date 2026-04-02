@@ -25,7 +25,7 @@
  */
 
 import { db } from "@/db";
-import { exercises, programs, workoutSessions, workoutSets } from "@/db/schema";
+import { exercises, programExercises, programSets, programs, workoutSessions, workoutSets } from "@/db/schema";
 import {
     logWorkoutSetSchema,
     workoutHistoryQuerySchema,
@@ -39,7 +39,7 @@ import type {
     WorkoutSetWithExercise,
     WorkoutStats,
 } from "@/types/workout";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -298,6 +298,7 @@ export async function getCompletedSessions(
         startTime: workoutSessions.startTime,
         endTime: workoutSessions.endTime,
         notes: workoutSessions.notes,
+        feeling: workoutSessions.feeling,
         isCompleted: workoutSessions.isCompleted,
         programName: programs.name,
         setCount: sql<number>`COUNT(${workoutSets.id})`,
@@ -321,6 +322,7 @@ export async function getCompletedSessions(
         workoutSessions.startTime,
         workoutSessions.endTime,
         workoutSessions.notes,
+        workoutSessions.feeling,
         workoutSessions.isCompleted,
         programs.name,
       )
@@ -367,6 +369,7 @@ export async function getSessionDetail(
         startTime: workoutSessions.startTime,
         endTime: workoutSessions.endTime,
         notes: workoutSessions.notes,
+        feeling: workoutSessions.feeling,
         isCompleted: workoutSessions.isCompleted,
         programName: programs.name,
       })
@@ -467,5 +470,144 @@ export async function getSessionSets(
       success: false,
       error: "Failed to fetch session sets",
     };
+  }
+}
+
+/**
+ * The shape of one progressive overload suggestion for a program set.
+ */
+export type SetSuggestion = {
+  suggestedWeightKg: number;
+  basedOnWeightKg: number;
+  basedOnReps: number;
+  basedOnFeeling: string;
+  basedOnDate: string;
+  reason: "progressed" | "held";
+};
+
+/**
+ * Calculate progressive overload suggestions for every set in a program.
+ *
+ * For each program_set we look at previous sessions of the same program
+ * (excluding "Tired" sessions) and find the best logged performance:
+ * - If the best session hit the target reps → suggest weight + 2.5 kg
+ * - If not → hold the weight
+ * - If no history → the set is omitted from the result (caller uses the
+ *   program's default weight)
+ *
+ * NULL feeling (old sessions recorded before the column existed) is treated
+ * as valid — only explicit "Tired" entries are excluded.
+ */
+export async function getProgressiveSuggestions(
+  programId: number,
+  userId: number,
+): Promise<ActionResult<Record<number, SetSuggestion>>> {
+  try {
+    // Step 1: get all program sets for this program with their exercise ids
+    const programData = await db
+      .select({
+        programSetId: programSets.id,
+        setNumber: programSets.setNumber,
+        targetReps: programSets.targetReps,
+        exerciseId: programExercises.exerciseId,
+      })
+      .from(programSets)
+      .innerJoin(
+        programExercises,
+        eq(programSets.programExerciseId, programExercises.id),
+      )
+      .where(eq(programExercises.programId, programId));
+
+    if (programData.length === 0) {
+      return { success: true, data: {} };
+    }
+
+    const exerciseIds = [...new Set(programData.map((r) => r.exerciseId))];
+
+    // Step 2: fetch history, excluding Tired sessions
+    // NULL feeling (pre-feature sessions) is kept via IS DISTINCT FROM
+    const history = await db
+      .select({
+        exerciseId: workoutSets.exerciseId,
+        setNumber: workoutSets.setNumber,
+        actualReps: workoutSets.actualReps,
+        targetReps: workoutSets.targetReps,
+        weightKg: workoutSets.weightKg,
+        feeling: workoutSessions.feeling,
+        date: workoutSessions.date,
+      })
+      .from(workoutSets)
+      .innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id))
+      .where(
+        and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.programId, programId),
+          eq(workoutSessions.isCompleted, true),
+          sql`${workoutSessions.feeling} IS DISTINCT FROM 'Tired'`,
+          inArray(workoutSets.exerciseId, exerciseIds),
+        ),
+      )
+      .orderBy(desc(workoutSessions.date), desc(workoutSets.weightKg));
+
+    // Step 3: find best row per exerciseId+setNumber
+    // "Best" = hit target reps at highest weight; tiebreak by most recent date
+    type HistoryRow = (typeof history)[number];
+    const bestMap = new Map<string, HistoryRow>();
+
+    for (const row of history) {
+      const key = `${row.exerciseId}-${row.setNumber}`;
+      const existing = bestMap.get(key);
+      if (!existing) {
+        bestMap.set(key, row);
+        continue;
+      }
+      const rowHit =
+        row.actualReps != null &&
+        row.targetReps != null &&
+        row.actualReps >= row.targetReps;
+      const existHit =
+        existing.actualReps != null &&
+        existing.targetReps != null &&
+        existing.actualReps >= existing.targetReps;
+
+      if (rowHit && !existHit) {
+        bestMap.set(key, row);
+      } else if (
+        rowHit &&
+        existHit &&
+        Number(row.weightKg) > Number(existing.weightKg)
+      ) {
+        bestMap.set(key, row);
+      }
+    }
+
+    // Step 4: build suggestion for each program set
+    const suggestions: Record<number, SetSuggestion> = {};
+
+    for (const ps of programData) {
+      const key = `${ps.exerciseId}-${ps.setNumber}`;
+      const best = bestMap.get(key);
+      if (!best) continue; // no history — skip, caller uses program default
+
+      const baseWeight = Number(best.weightKg);
+      const hitTarget =
+        best.actualReps != null &&
+        best.targetReps != null &&
+        best.actualReps >= best.targetReps;
+
+      suggestions[ps.programSetId] = {
+        suggestedWeightKg: hitTarget ? baseWeight + 2.5 : baseWeight,
+        basedOnWeightKg: baseWeight,
+        basedOnReps: best.actualReps ?? 0,
+        basedOnFeeling: best.feeling ?? "OK",
+        basedOnDate: best.date,
+        reason: hitTarget ? "progressed" : "held",
+      };
+    }
+
+    return { success: true, data: suggestions };
+  } catch (error) {
+    console.error("Error calculating progressive suggestions:", error);
+    return { success: false, error: "Failed to calculate suggestions" };
   }
 }
