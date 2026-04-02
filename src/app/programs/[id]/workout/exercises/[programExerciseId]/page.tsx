@@ -46,6 +46,7 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
       loggedCount={loggedCount}
       exerciseCategory={pe.exercise.category ?? undefined}
       suggestions={suggestions}
+      overloadIncrementKg={Number(pe.overloadIncrementKg ?? 2.5)}
     />
   );
 }

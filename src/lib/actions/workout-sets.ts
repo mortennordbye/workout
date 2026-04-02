@@ -482,7 +482,7 @@ export type SetSuggestion = {
   basedOnReps: number;
   basedOnFeeling: string;
   basedOnDate: string;
-  reason: "progressed" | "held";
+  reason: "progressed" | "held" | "manual";
 };
 
 /**
@@ -503,13 +503,14 @@ export async function getProgressiveSuggestions(
   userId: number,
 ): Promise<ActionResult<Record<number, SetSuggestion>>> {
   try {
-    // Step 1: get all program sets for this program with their exercise ids
+    // Step 1: get all program sets for this program with their exercise ids and increment
     const programData = await db
       .select({
         programSetId: programSets.id,
         setNumber: programSets.setNumber,
         targetReps: programSets.targetReps,
         exerciseId: programExercises.exerciseId,
+        overloadIncrementKg: programExercises.overloadIncrementKg,
       })
       .from(programSets)
       .innerJoin(
@@ -595,13 +596,31 @@ export async function getProgressiveSuggestions(
         best.targetReps != null &&
         best.actualReps >= best.targetReps;
 
+      const incrementKg = Number(ps.overloadIncrementKg ?? 2.5);
+      const roundToIncrement = (kg: number) =>
+        incrementKg > 0 ? Math.round(kg / incrementKg) * incrementKg : kg;
+
+      let suggestedWeightKg: number;
+      let reason: SetSuggestion["reason"];
+
+      if (incrementKg === 0) {
+        suggestedWeightKg = baseWeight;
+        reason = "manual";
+      } else if (hitTarget) {
+        suggestedWeightKg = roundToIncrement(baseWeight + incrementKg);
+        reason = "progressed";
+      } else {
+        suggestedWeightKg = baseWeight;
+        reason = "held";
+      }
+
       suggestions[ps.programSetId] = {
-        suggestedWeightKg: hitTarget ? baseWeight + 2.5 : baseWeight,
+        suggestedWeightKg,
         basedOnWeightKg: baseWeight,
         basedOnReps: best.actualReps ?? 0,
         basedOnFeeling: best.feeling ?? "OK",
         basedOnDate: best.date,
-        reason: hitTarget ? "progressed" : "held",
+        reason,
       };
     }
 

@@ -164,6 +164,28 @@ export async function removeExerciseFromProgram(
   }
 }
 
+export async function updateProgramExerciseIncrement(
+  programExerciseId: number,
+  incrementKg: number,
+): Promise<ActionResult<void>> {
+  if (incrementKg < 0 || incrementKg > 100) {
+    return { success: false, error: "Increment must be between 0 and 100 kg" };
+  }
+  try {
+    const [pe] = await db
+      .update(programExercises)
+      .set({ overloadIncrementKg: incrementKg.toString() })
+      .where(eq(programExercises.id, programExerciseId))
+      .returning({ programId: programExercises.programId });
+    if (pe) {
+      revalidatePath(`/programs/${pe.programId}/workout/exercises/${programExerciseId}`);
+    }
+    return { success: true, data: undefined };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
 export async function reorderProgramExercises(
   programId: number,
   orderedIds: number[],

@@ -1,7 +1,7 @@
 "use client";
 
 import { WorkoutSetsList } from "@/components/features/WorkoutSetsList";
-import { deleteProgramSet } from "@/lib/actions/programs";
+import { deleteProgramSet, updateProgramExerciseIncrement } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import type { ProgramSet } from "@/types/workout";
 import { ChevronLeftIcon, Plus } from "lucide-react";
@@ -10,10 +10,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export type SetSuggestionDisplay = {
+  suggestedWeightKg: number;
   basedOnWeightKg: number;
   basedOnReps: number;
   basedOnFeeling: string;
+  reason: "progressed" | "held" | "manual";
 };
+
+const INCREMENT_PRESETS = [0, 1, 2.5, 5, 10] as const;
 
 type Props = {
   programId: number;
@@ -26,6 +30,7 @@ type Props = {
   loggedCount?: number;
   exerciseCategory?: string;
   suggestions?: Record<number, SetSuggestionDisplay>;
+  overloadIncrementKg?: number;
 };
 
 export function WorkoutSetsClient({
@@ -39,11 +44,13 @@ export function WorkoutSetsClient({
   loggedCount = 0,
   exerciseCategory,
   suggestions,
+  overloadIncrementKg: initialIncrement = 2.5,
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [sets, setSets] = useState(initial);
+  const [increment, setIncrement] = useState(initialIncrement);
   const workoutSession = useWorkoutSession();
 
   useEffect(() => {
@@ -59,6 +66,45 @@ export function WorkoutSetsClient({
       weightKg: String(ov.weightKg) as typeof s.weightKg,
     };
   });
+
+  // How many sets still have a pending suggestion (not yet applied via override)
+  const pendingCount = isWorkout
+    ? sets.filter((s) => {
+        const sug = suggestions?.[s.id];
+        if (!sug || sug.reason === "manual") return false;
+        const current = workoutSession?.overrides[s.id]?.weightKg ?? Number(s.weightKg ?? 0);
+        return current !== sug.suggestedWeightKg;
+      }).length
+    : 0;
+
+  function applySuggestion(setId: number, suggestedWeightKg: number) {
+    if (!workoutSession) return;
+    const set = sets.find((s) => s.id === setId);
+    workoutSession.setOverride(setId, {
+      weightKg: suggestedWeightKg,
+      targetReps: workoutSession.overrides[setId]?.targetReps ?? set?.targetReps ?? 0,
+    });
+  }
+
+  function applyAllSuggestions() {
+    if (!workoutSession || !suggestions) return;
+    for (const set of sets) {
+      const sug = suggestions[set.id];
+      if (!sug) continue;
+      const current = workoutSession.overrides[set.id]?.weightKg ?? Number(set.weightKg ?? 0);
+      if (current === sug.suggestedWeightKg) continue; // already applied
+      workoutSession.setOverride(set.id, {
+        weightKg: sug.suggestedWeightKg,
+        targetReps: workoutSession.overrides[set.id]?.targetReps ?? set.targetReps ?? 0,
+      });
+    }
+  }
+
+  async function handleIncrementChange(newIncrement: number) {
+    setIncrement(newIncrement);
+    await updateProgramExerciseIncrement(programExerciseId, newIncrement);
+    router.refresh();
+  }
 
   async function handleDeleteSet(setId: number) {
     setSets((prev) => prev.filter((s) => s.id !== setId));
@@ -120,6 +166,52 @@ export function WorkoutSetsClient({
         <div className="text-base font-bold">{loggedCount} {loggedCount === 1 ? "time" : "times"}</div>
       </div>
 
+      {/* Overload increment selector */}
+      {isWorkout && (
+        <div className="px-4 pb-4 shrink-0">
+          <div className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+            Progression
+          </div>
+          <div className="flex gap-2">
+            {INCREMENT_PRESETS.map((preset) => (
+              <button
+                key={preset}
+                onClick={() => handleIncrementChange(preset)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 ${
+                  increment === preset
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {preset === 0 ? "Manual" : `+${preset}kg`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Progressive overload banner */}
+      {isWorkout && pendingCount > 0 && !isEditing && (
+        <div className="px-4 pb-3 shrink-0">
+          <div className="flex items-center justify-between bg-primary/10 rounded-xl px-4 py-3">
+            <div>
+              <p className="text-sm font-semibold text-primary">
+                ↑ Progressive overload ready
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Based on your last session
+              </p>
+            </div>
+            <button
+              onClick={applyAllSuggestions}
+              className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold active:scale-95 transition-all"
+            >
+              Apply all
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Sets list or empty state */}
       <div className="flex-1 px-4 overflow-y-auto">
         {sets.length === 0 ? (
@@ -159,6 +251,7 @@ export function WorkoutSetsClient({
               sessionId={workoutSession?.sessionId ?? undefined}
               onDeleteSet={handleDeleteSet}
               suggestions={suggestions}
+              onApplySuggestion={isWorkout ? applySuggestion : undefined}
             />
           </>
         )}

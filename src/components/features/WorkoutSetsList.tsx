@@ -42,6 +42,7 @@ type WorkoutSetsListProps = {
   sessionId?: number;
   onDeleteSet?: (setId: number) => void;
   suggestions?: Record<number, SetSuggestionDisplay>;
+  onApplySuggestion?: (setId: number, weightKg: number) => void;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -61,6 +62,7 @@ export function WorkoutSetsList({
   sessionId,
   onDeleteSet,
   suggestions,
+  onApplySuggestion,
 }: WorkoutSetsListProps) {
   const router = useRouter();
   const workoutSession = useWorkoutSession();
@@ -339,6 +341,7 @@ export function WorkoutSetsList({
                     onDelete={() => onDeleteSet?.(item.set.id)}
                     onStartTimer={startExerciseTimer}
                     suggestion={suggestions?.[item.set.id]}
+                    onApplySuggestion={onApplySuggestion}
                   />
                   {isEditing && flatItems[index + 1]?.type !== "rest" && (
                     <InsertRestButton onClick={() => insertRest(index + 1)} />
@@ -535,6 +538,7 @@ function SortableSetRow({
   onDelete,
   onStartTimer,
   suggestion,
+  onApplySuggestion,
 }: {
   id: string;
   set: ProgramSet;
@@ -549,6 +553,7 @@ function SortableSetRow({
   onDelete: () => void;
   onStartTimer?: (setId: number, duration: number) => void;
   suggestion?: SetSuggestionDisplay;
+  onApplySuggestion?: (setId: number, weightKg: number) => void;
 }) {
   const {
     attributes,
@@ -648,11 +653,28 @@ function SortableSetRow({
             {set.targetReps ?? "?"} x {Number(set.weightKg ?? 0)}kg
           </p>
         )}
-        {isWorkout && suggestion && (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Last: {suggestion.basedOnWeightKg}kg &times; {suggestion.basedOnReps} ({suggestion.basedOnFeeling})
-          </p>
-        )}
+        {isWorkout && suggestion && (() => {
+          const currentWeight = Number(set.weightKg ?? 0);
+          const isPending = suggestion.reason !== "manual" && currentWeight !== suggestion.suggestedWeightKg;
+          return (
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <span className="text-xs text-muted-foreground">
+                Last: {suggestion.basedOnWeightKg}kg ({suggestion.basedOnFeeling})
+              </span>
+              {isPending && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onApplySuggestion?.(set.id, suggestion.suggestedWeightKg);
+                  }}
+                  className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
+                >
+                  {suggestion.reason === "progressed" ? "↑" : "="} {suggestion.suggestedWeightKg}kg
+                </button>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {isEditing && (
