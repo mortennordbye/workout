@@ -4,16 +4,6 @@
  * Central location for all workout-related TypeScript types.
  * These types are inferred from Drizzle schemas to maintain perfect sync
  * between database structure and TypeScript types.
- *
- * Two type variants per table:
- * - Select types: Data as it comes from the database (includes defaults, auto-generated fields)
- * - Insert types: Data needed to insert a new row (excludes auto-generated fields)
- *
- * Usage:
- * ```typescript
- * const session: WorkoutSession = await db.query.workoutSessions.findFirst(...);
- * const newSet: NewWorkoutSet = { sessionId, exerciseId, ... };
- * ```
  */
 
 import {
@@ -23,7 +13,6 @@ import {
   programs,
   trainingCycleSlots,
   trainingCycles,
-  users,
   workoutSessions,
   workoutSets,
 } from "@/db/schema";
@@ -32,34 +21,14 @@ import {
 // Database Table Types (Inferred from Drizzle Schemas)
 // ============================================================================
 
-// Users
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-
-// Exercises
 export type Exercise = typeof exercises.$inferSelect;
-export type NewExercise = typeof exercises.$inferInsert;
-
-// Workout Sessions
 export type WorkoutSession = typeof workoutSessions.$inferSelect;
-export type NewWorkoutSession = typeof workoutSessions.$inferInsert;
-
-// Workout Sets
 export type WorkoutSet = typeof workoutSets.$inferSelect;
-export type NewWorkoutSet = typeof workoutSets.$inferInsert;
-
-// Programs
 export type Program = typeof programs.$inferSelect;
-export type NewProgram = typeof programs.$inferInsert;
-
 export type ProgramExercise = typeof programExercises.$inferSelect;
-export type NewProgramExercise = typeof programExercises.$inferInsert;
-
 export type ProgramSet = typeof programSets.$inferSelect;
-export type NewProgramSet = typeof programSets.$inferInsert;
 
 // Program with nested exercises and sets
-export type ProgramSetRow = ProgramSet;
 export type ProgramExerciseWithSets = ProgramExercise & {
   exercise: Exercise;
   programSets: ProgramSet[];
@@ -78,25 +47,6 @@ export type ProgramWithExercises = Program & {
  */
 export type WorkoutSetWithExercise = WorkoutSet & {
   exercise: Exercise;
-};
-
-/**
- * Workout session with all its sets and exercise details.
- * Used for displaying complete workout details.
- */
-export type WorkoutSessionWithSets = WorkoutSession & {
-  workoutSets: WorkoutSetWithExercise[];
-};
-
-/**
- * Exercise performance history for tracking progress.
- * Includes all sets for a specific exercise across sessions.
- */
-export type ExerciseHistory = {
-  exercise: Exercise;
-  sets: (WorkoutSet & {
-    workoutSession: Pick<WorkoutSession, "date" | "startTime">;
-  })[];
 };
 
 // ============================================================================
@@ -159,10 +109,7 @@ export type SessionDetail = WorkoutSession & {
 
 // Training Cycles
 export type TrainingCycle = typeof trainingCycles.$inferSelect;
-export type NewTrainingCycle = typeof trainingCycles.$inferInsert;
-
 export type TrainingCycleSlot = typeof trainingCycleSlots.$inferSelect;
-export type NewTrainingCycleSlot = typeof trainingCycleSlots.$inferInsert;
 
 export type TrainingCycleSlotWithProgram = TrainingCycleSlot & {
   program: Program | null;
@@ -190,12 +137,4 @@ export type ActiveCycleInfo = {
 export type SessionContextProps = {
   sessionId: number;
   userId: number;
-};
-
-/**
- * Props for the set logger form.
- */
-export type SetLoggerProps = SessionContextProps & {
-  exercises: Exercise[];
-  onSetLogged?: (set: WorkoutSet) => void;
 };

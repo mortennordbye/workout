@@ -83,12 +83,6 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
           </>
         )}
 
-        {/* Base on previous workout suggestion */}
-        <div className="mt-6">
-          <button className="text-primary text-sm">
-            Base on previous workout
-          </button>
-        </div>
       </div>
 
       {/* Save button */}

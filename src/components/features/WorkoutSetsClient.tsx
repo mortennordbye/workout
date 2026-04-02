@@ -4,7 +4,7 @@ import { WorkoutSetsList } from "@/components/features/WorkoutSetsList";
 import { deleteProgramSet } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import type { ProgramSet } from "@/types/workout";
-import { ChevronLeftIcon, Clock, Plus } from "lucide-react";
+import { ChevronLeftIcon, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -104,17 +104,12 @@ export function WorkoutSetsClient({
         <h1 className="text-3xl font-bold text-center">{exerciseName}</h1>
       </div>
 
-      {/* Logged count and timer */}
-      <div className="px-4 pb-4 flex items-center justify-between shrink-0">
-        <div>
-          <div className="text-xs text-muted-foreground uppercase tracking-wider">
-            Logged
-          </div>
-          <div className="text-base font-bold">{loggedCount} {loggedCount === 1 ? "time" : "times"}</div>
+      {/* Logged count */}
+      <div className="px-4 pb-4 shrink-0">
+        <div className="text-xs text-muted-foreground uppercase tracking-wider">
+          Logged
         </div>
-        <button className="w-12 h-12 rounded-full border-2 border-primary/30 flex items-center justify-center">
-          <Clock className="w-6 h-6 text-primary" />
-        </button>
+        <div className="text-base font-bold">{loggedCount} {loggedCount === 1 ? "time" : "times"}</div>
       </div>
 
       {/* Sets list or empty state */}
@@ -142,9 +137,6 @@ export function WorkoutSetsClient({
               Tap the add button (+) at the top of the screen to add sets and
               rests
             </p>
-            <button className="text-primary text-sm font-medium mt-2">
-              Base on previous workout
-            </button>
           </div>
         ) : (
           <>
@@ -159,11 +151,6 @@ export function WorkoutSetsClient({
               sessionId={workoutSession?.sessionId ?? undefined}
               onDeleteSet={handleDeleteSet}
             />
-            <div className="py-4 border-t border-border">
-              <button className="text-primary text-sm font-medium">
-                Base on previous workout
-              </button>
-            </div>
           </>
         )}
       </div>

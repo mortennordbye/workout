@@ -36,6 +36,18 @@ describe("formatTime", () => {
   it("pads single-digit seconds", () => {
     expect(formatTime(61)).toBe("01:01");
   });
+
+  it("formats large values (1 hour)", () => {
+    expect(formatTime(3600)).toBe("60:00");
+  });
+
+  it("formats very large values", () => {
+    expect(formatTime(7261)).toBe("121:01");
+  });
+
+  it("formats value with no remainder", () => {
+    expect(formatTime(3661)).toBe("61:01");
+  });
 });
 
 describe("setToken", () => {
@@ -63,6 +75,10 @@ describe("restToken", () => {
 
   it("formats zero rest", () => {
     expect(restToken(makeSet({ restTimeSeconds: 0 }))).toBe("00:00");
+  });
+
+  it("formats null restTimeSeconds as 00:00", () => {
+    expect(restToken(makeSet({ restTimeSeconds: null }))).toBe("00:00");
   });
 });
 
@@ -94,5 +110,36 @@ describe("buildSetSummary", () => {
     ];
     expect(buildSetSummary(sets)).toContain("...");
     expect(buildSetSummary(sets).split(";").length).toBeLessThanOrEqual(7); // 3 pairs + ellipsis
+  });
+
+  it("formats two sets without ellipsis", () => {
+    const sets = [
+      makeSet({ id: 1, setNumber: 1, targetReps: 10, weightKg: "50.00", restTimeSeconds: 60 }),
+      makeSet({ id: 2, setNumber: 2, targetReps: 8, weightKg: "60.00", restTimeSeconds: 90 }),
+    ];
+    const result = buildSetSummary(sets);
+    expect(result).not.toContain("...");
+    expect(result).toBe("10x50kg; 01:00; 8x60kg; 01:30");
+  });
+
+  it("formats mixed timed and strength sets", () => {
+    const sets = [
+      makeSet({ id: 1, setNumber: 1, durationSeconds: 60, targetReps: null, weightKg: null, restTimeSeconds: 30 }),
+      makeSet({ id: 2, setNumber: 2, targetReps: 10, weightKg: "50.00", restTimeSeconds: 60 }),
+    ];
+    const result = buildSetSummary(sets);
+    expect(result).toContain("01:00");
+    expect(result).toContain("10x50kg");
+  });
+
+  it("formats all timed sets without weight", () => {
+    const sets = [
+      makeSet({ id: 1, setNumber: 1, durationSeconds: 30, targetReps: null, weightKg: null, restTimeSeconds: 15 }),
+      makeSet({ id: 2, setNumber: 2, durationSeconds: 60, targetReps: null, weightKg: null, restTimeSeconds: 15 }),
+    ];
+    const result = buildSetSummary(sets);
+    expect(result).not.toContain("kg");
+    expect(result).toContain("00:30");
+    expect(result).toContain("01:00");
   });
 });

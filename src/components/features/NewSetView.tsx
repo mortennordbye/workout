@@ -73,14 +73,6 @@ export function NewSetView({
           <span className="text-base text-muted-foreground">{weight}</span>
         </button>
 
-        {/* Base on previous workout suggestion */}
-        {lastSet && (
-          <div className="mt-6">
-            <button className="text-primary text-sm">
-              Base on previous workout
-            </button>
-          </div>
-        )}
       </div>
 
       {/* Save button */}

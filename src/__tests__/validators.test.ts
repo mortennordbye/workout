@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import {
+  addExerciseToProgramSchema,
   addProgramSetSchema,
   completeWorkoutSessionSchema,
   createExerciseSchema,
   createProgramSchema,
   createWorkoutSessionSchema,
+  deleteProgramSetSchema,
   logWorkoutSetSchema,
+  removeExerciseFromProgramSchema,
   reorderProgramExercisesSchema,
   reorderProgramSetsSchema,
+  updateProgramSetSchema,
+  workoutHistoryQuerySchema,
 } from "@/lib/validators/workout";
 
 // ─── createWorkoutSessionSchema ───────────────────────────────────────────────
@@ -232,5 +237,217 @@ describe("reorderProgramSetsSchema", () => {
 
   it("rejects empty orderedIds array", () => {
     expect(reorderProgramSetsSchema.safeParse({ programExerciseId: 1, orderedIds: [] }).success).toBe(false);
+  });
+});
+
+// ─── workoutHistoryQuerySchema ─────────────────────────────────────────────────
+
+describe("workoutHistoryQuerySchema", () => {
+  it("accepts valid input with only userId", () => {
+    expect(workoutHistoryQuerySchema.safeParse({ userId: 1 }).success).toBe(true);
+  });
+
+  it("rejects non-positive userId", () => {
+    expect(workoutHistoryQuerySchema.safeParse({ userId: 0 }).success).toBe(false);
+    expect(workoutHistoryQuerySchema.safeParse({ userId: -1 }).success).toBe(false);
+  });
+
+  it("accepts optional exerciseId", () => {
+    expect(workoutHistoryQuerySchema.safeParse({ userId: 1, exerciseId: 5 }).success).toBe(true);
+  });
+
+  it("rejects non-positive exerciseId", () => {
+    expect(workoutHistoryQuerySchema.safeParse({ userId: 1, exerciseId: 0 }).success).toBe(false);
+  });
+
+  it("defaults limit to 50", () => {
+    const result = workoutHistoryQuerySchema.safeParse({ userId: 1 });
+    expect(result.success && result.data.limit).toBe(50);
+  });
+
+  it("rejects limit over 100", () => {
+    expect(workoutHistoryQuerySchema.safeParse({ userId: 1, limit: 101 }).success).toBe(false);
+  });
+
+  it("defaults offset to 0", () => {
+    const result = workoutHistoryQuerySchema.safeParse({ userId: 1 });
+    expect(result.success && result.data.offset).toBe(0);
+  });
+
+  it("rejects negative offset", () => {
+    expect(workoutHistoryQuerySchema.safeParse({ userId: 1, offset: -1 }).success).toBe(false);
+  });
+});
+
+// ─── addExerciseToProgramSchema ───────────────────────────────────────────────
+
+describe("addExerciseToProgramSchema", () => {
+  const valid = { programId: 1, exerciseId: 2 };
+
+  it("accepts valid input", () => {
+    expect(addExerciseToProgramSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("rejects non-positive programId", () => {
+    expect(addExerciseToProgramSchema.safeParse({ ...valid, programId: 0 }).success).toBe(false);
+  });
+
+  it("rejects non-positive exerciseId", () => {
+    expect(addExerciseToProgramSchema.safeParse({ ...valid, exerciseId: 0 }).success).toBe(false);
+  });
+
+  it("accepts optional orderIndex of 0", () => {
+    expect(addExerciseToProgramSchema.safeParse({ ...valid, orderIndex: 0 }).success).toBe(true);
+  });
+
+  it("accepts optional notes within limit", () => {
+    expect(addExerciseToProgramSchema.safeParse({ ...valid, notes: "a".repeat(500) }).success).toBe(true);
+  });
+
+  it("rejects notes over 500 characters", () => {
+    expect(addExerciseToProgramSchema.safeParse({ ...valid, notes: "a".repeat(501) }).success).toBe(false);
+  });
+});
+
+// ─── updateProgramSetSchema ───────────────────────────────────────────────────
+
+describe("updateProgramSetSchema", () => {
+  it("accepts valid input with only id", () => {
+    expect(updateProgramSetSchema.safeParse({ id: 1 }).success).toBe(true);
+  });
+
+  it("rejects non-positive id", () => {
+    expect(updateProgramSetSchema.safeParse({ id: 0 }).success).toBe(false);
+    expect(updateProgramSetSchema.safeParse({ id: -1 }).success).toBe(false);
+  });
+
+  it("accepts restTimeSeconds at boundary 3600", () => {
+    expect(updateProgramSetSchema.safeParse({ id: 1, restTimeSeconds: 3600 }).success).toBe(true);
+  });
+
+  it("rejects restTimeSeconds over 3600", () => {
+    expect(updateProgramSetSchema.safeParse({ id: 1, restTimeSeconds: 3601 }).success).toBe(false);
+  });
+
+  it("accepts durationSeconds field", () => {
+    expect(updateProgramSetSchema.safeParse({ id: 1, durationSeconds: 90 }).success).toBe(true);
+  });
+});
+
+// ─── removeExerciseFromProgramSchema ──────────────────────────────────────────
+
+describe("removeExerciseFromProgramSchema", () => {
+  const valid = { programExerciseId: 1, programId: 2 };
+
+  it("accepts valid input", () => {
+    expect(removeExerciseFromProgramSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("rejects non-positive programExerciseId", () => {
+    expect(removeExerciseFromProgramSchema.safeParse({ ...valid, programExerciseId: 0 }).success).toBe(false);
+  });
+
+  it("rejects non-positive programId", () => {
+    expect(removeExerciseFromProgramSchema.safeParse({ ...valid, programId: 0 }).success).toBe(false);
+  });
+});
+
+// ─── deleteProgramSetSchema ───────────────────────────────────────────────────
+
+describe("deleteProgramSetSchema", () => {
+  it("accepts valid input", () => {
+    expect(deleteProgramSetSchema.safeParse({ programSetId: 1 }).success).toBe(true);
+  });
+
+  it("rejects non-positive programSetId", () => {
+    expect(deleteProgramSetSchema.safeParse({ programSetId: 0 }).success).toBe(false);
+    expect(deleteProgramSetSchema.safeParse({ programSetId: -1 }).success).toBe(false);
+  });
+});
+
+// ─── addProgramSetSchema (additional cases) ───────────────────────────────────
+
+describe("addProgramSetSchema additional", () => {
+  const valid = { programExerciseId: 1, setNumber: 1 };
+
+  it("accepts durationSeconds field", () => {
+    expect(addProgramSetSchema.safeParse({ ...valid, durationSeconds: 60 }).success).toBe(true);
+  });
+
+  it("accepts restTimeSeconds at boundary 3600", () => {
+    expect(addProgramSetSchema.safeParse({ ...valid, restTimeSeconds: 3600 }).success).toBe(true);
+  });
+
+  it("rejects restTimeSeconds over 3600", () => {
+    expect(addProgramSetSchema.safeParse({ ...valid, restTimeSeconds: 3601 }).success).toBe(false);
+  });
+});
+
+// ─── createExerciseSchema (enum fields) ──────────────────────────────────────
+
+describe("createExerciseSchema enum fields", () => {
+  const valid = { name: "Squat", category: "strength" as const };
+
+  it("accepts valid bodyArea values", () => {
+    for (const v of ["upper_body", "lower_body", "core", "full_body", "cardio"]) {
+      expect(createExerciseSchema.safeParse({ ...valid, bodyArea: v }).success).toBe(true);
+    }
+  });
+
+  it("rejects invalid bodyArea", () => {
+    expect(createExerciseSchema.safeParse({ ...valid, bodyArea: "arms" }).success).toBe(false);
+  });
+
+  it("accepts valid muscleGroup values", () => {
+    for (const v of ["chest", "back", "shoulders", "quads", "glutes"]) {
+      expect(createExerciseSchema.safeParse({ ...valid, muscleGroup: v }).success).toBe(true);
+    }
+  });
+
+  it("rejects invalid muscleGroup", () => {
+    expect(createExerciseSchema.safeParse({ ...valid, muscleGroup: "legs" }).success).toBe(false);
+  });
+
+  it("accepts valid equipment values", () => {
+    for (const v of ["barbell", "dumbbell", "machine", "bodyweight", "kettlebell"]) {
+      expect(createExerciseSchema.safeParse({ ...valid, equipment: v }).success).toBe(true);
+    }
+  });
+
+  it("rejects invalid equipment", () => {
+    expect(createExerciseSchema.safeParse({ ...valid, equipment: "rope" }).success).toBe(false);
+  });
+
+  it("accepts valid movementPattern values", () => {
+    for (const v of ["push", "pull", "hinge", "squat", "carry", "rotation", "isometric", "cardio"]) {
+      expect(createExerciseSchema.safeParse({ ...valid, movementPattern: v }).success).toBe(true);
+    }
+  });
+
+  it("rejects invalid movementPattern", () => {
+    expect(createExerciseSchema.safeParse({ ...valid, movementPattern: "stretch" }).success).toBe(false);
+  });
+});
+
+// ─── logWorkoutSetSchema (targetReps field) ───────────────────────────────────
+
+describe("logWorkoutSetSchema targetReps", () => {
+  const valid = {
+    sessionId: 1,
+    exerciseId: 1,
+    setNumber: 1,
+    actualReps: 10,
+    weightKg: 80,
+    rpe: 8,
+    restTimeSeconds: 90,
+  };
+
+  it("accepts optional positive targetReps", () => {
+    expect(logWorkoutSetSchema.safeParse({ ...valid, targetReps: 10 }).success).toBe(true);
+  });
+
+  it("rejects non-positive targetReps", () => {
+    expect(logWorkoutSetSchema.safeParse({ ...valid, targetReps: 0 }).success).toBe(false);
+    expect(logWorkoutSetSchema.safeParse({ ...valid, targetReps: -1 }).success).toBe(false);
   });
 });
