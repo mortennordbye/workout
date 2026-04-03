@@ -31,7 +31,6 @@ async function runMigrations() {
 
       if (appliedMigrations.rows.length > 0) {
         console.log("ℹ️  Database migrations already applied, skipping");
-        await pool.end();
         return;
       }
 
@@ -51,7 +50,6 @@ async function runMigrations() {
         );
         console.log(`✅ Registered migration state: ${latestEntry.tag}`);
       }
-      await pool.end();
       return;
     }
 
