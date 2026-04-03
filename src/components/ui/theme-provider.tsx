@@ -18,6 +18,8 @@ interface ThemeContextValue {
   setDefaultIncrementKg: (n: number) => void;
   defaultIncrementReps: number;
   setDefaultIncrementReps: (n: number) => void;
+  uiScale: number;
+  setUiScale: (scale: number) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -53,6 +55,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [weeklyGoal, setWeeklyGoalState] = useState(4);
   const [defaultIncrementKg, setDefaultIncrementKgState] = useState(2.5);
   const [defaultIncrementReps, setDefaultIncrementRepsState] = useState(0);
+  const [uiScale, setUiScaleState] = useState(1);
 
   const applyAccentColor = (color: AccentColor, currentTheme: Theme, hexOverride?: string) => {
     const colorValue =
@@ -76,6 +79,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const storedGoal = localStorage.getItem("weeklyGoal");
     const storedIncrementKg = localStorage.getItem("defaultIncrementKg");
     const storedIncrementReps = localStorage.getItem("defaultIncrementReps");
+    const storedUiScale = localStorage.getItem("uiScale");
 
     setTheme(storedTheme);
     setAccentColorState(storedAccent);
@@ -83,6 +87,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setWeeklyGoalState(storedGoal ? Number(storedGoal) : 4);
     setDefaultIncrementKgState(storedIncrementKg ? Number(storedIncrementKg) : 2.5);
     setDefaultIncrementRepsState(storedIncrementReps ? Number(storedIncrementReps) : 0);
+    const parsedScale = storedUiScale ? Number(storedUiScale) : 1;
+    setUiScaleState(parsedScale);
+    document.documentElement.style.zoom = String(parsedScale);
 
     document.documentElement.classList.toggle("dark", storedTheme === "dark");
     applyAccentColor(storedAccent, storedTheme, storedCustomHex);
@@ -142,9 +149,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setUiScale = (scale: number) => {
+    setUiScaleState(scale);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("uiScale", String(scale));
+      document.documentElement.style.zoom = String(scale);
+    }
+  };
+
   return (
     <ThemeContext.Provider
-      value={{ theme, toggleTheme, accentColor, setAccentColor, customAccentHex, setCustomAccentHex, weeklyGoal, setWeeklyGoal, defaultIncrementKg, setDefaultIncrementKg, defaultIncrementReps, setDefaultIncrementReps }}
+      value={{ theme, toggleTheme, accentColor, setAccentColor, customAccentHex, setCustomAccentHex, weeklyGoal, setWeeklyGoal, defaultIncrementKg, setDefaultIncrementKg, defaultIncrementReps, setDefaultIncrementReps, uiScale, setUiScale }}
     >
       {children}
     </ThemeContext.Provider>

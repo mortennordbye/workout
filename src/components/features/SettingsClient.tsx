@@ -13,6 +13,7 @@ const accentColors = [
   { value: "orange", label: "Orange", color: "#FF8C42" },
 ] as const;
 
+const UI_SCALE_PRESETS = [0.85, 0.9, 0.95, 1.0, 1.1, 1.2, 1.25] as const;
 const KG_INCREMENT_PRESETS = [0, 1, 2.5, 5, 10] as const;
 const REP_INCREMENT_PRESETS = [0, 1, 2, 3] as const;
 
@@ -52,6 +53,7 @@ export function SettingsClient() {
     weeklyGoal, setWeeklyGoal,
     defaultIncrementKg, setDefaultIncrementKg,
     defaultIncrementReps, setDefaultIncrementReps,
+    uiScale, setUiScale,
   } = useTheme();
   const colorInputRef = useRef<HTMLInputElement>(null);
 
@@ -78,6 +80,22 @@ export function SettingsClient() {
                   <p className="text-xs text-muted-foreground">Toggle between light and dark theme</p>
                 </div>
                 <ThemeToggle />
+              </div>
+            </Row>
+
+            <Row>
+              <RowLabel>Scale</RowLabel>
+              <RowDescription>Adjust the size of the entire UI</RowDescription>
+              <div className="flex flex-wrap gap-2">
+                {UI_SCALE_PRESETS.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setUiScale(s)}
+                    className={`h-11 px-4 rounded-xl text-sm font-semibold active:scale-95 transition-colors ${uiScale === s ? "bg-primary text-primary-foreground" : "bg-background text-foreground"}`}
+                  >
+                    {Math.round(s * 100)}%
+                  </button>
+                ))}
               </div>
             </Row>
 
