@@ -22,7 +22,7 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-const accentColors: Record<AccentColor, { light: string; dark: string }> = {
+const accentColors: Record<Exclude<AccentColor, "custom">, { light: string; dark: string }> = {
   blue: {
     light: "oklch(0.55 0.22 264.36)",
     dark: "oklch(0.70 0.19 264.36)",

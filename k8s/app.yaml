@@ -1,29 +1,3 @@
-# ─────────────────────────────────────────────────────────────────────────────
-# Secret — fill in real base64-encoded values before applying.
-#
-# Generate values:
-#   POSTGRES_PASSWORD:
-#     echo -n "your-password" | base64
-#
-#   DATABASE_URL (points at the postgres Service in this cluster):
-#     echo -n "postgresql://postgres:your-password@postgres.workout.svc.cluster.local:5432/workout_db" | base64
-#
-# Apply with:
-#   kubectl apply -f k8s/namespace.yaml
-#   kubectl apply -f k8s/postgres.yaml
-#   kubectl apply -f k8s/app.yaml
-# ─────────────────────────────────────────────────────────────────────────────
-apiVersion: v1
-kind: Secret
-metadata:
-  name: workout-secret
-  namespace: workout
-type: Opaque
-data:
-  # Replace these placeholders with real base64-encoded values (see above)
-  POSTGRES_PASSWORD: Y2hhbmdlbWU=   # "changeme" — REPLACE THIS
-  DATABASE_URL: REPLACE_WITH_BASE64_DATABASE_URL
-
 ---
 apiVersion: apps/v1
 kind: Deployment
