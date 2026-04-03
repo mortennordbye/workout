@@ -179,6 +179,30 @@ export async function updateProgramExerciseIncrement(
       .returning({ programId: programExercises.programId });
     if (pe) {
       revalidatePath(`/programs/${pe.programId}/workout/exercises/${programExerciseId}`);
+      revalidatePath(`/programs/${pe.programId}/exercises/${programExerciseId}`);
+    }
+    return { success: true, data: undefined };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function updateProgramExerciseIncrementReps(
+  programExerciseId: number,
+  incrementReps: number,
+): Promise<ActionResult<void>> {
+  if (!Number.isInteger(incrementReps) || incrementReps < 0 || incrementReps > 100) {
+    return { success: false, error: "Increment must be a whole number between 0 and 100" };
+  }
+  try {
+    const [pe] = await db
+      .update(programExercises)
+      .set({ overloadIncrementReps: incrementReps })
+      .where(eq(programExercises.id, programExerciseId))
+      .returning({ programId: programExercises.programId });
+    if (pe) {
+      revalidatePath(`/programs/${pe.programId}/workout/exercises/${programExerciseId}`);
+      revalidatePath(`/programs/${pe.programId}/exercises/${programExerciseId}`);
     }
     return { success: true, data: undefined };
   } catch (err) {

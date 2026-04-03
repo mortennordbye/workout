@@ -43,6 +43,7 @@ type WorkoutSetsListProps = {
   onDeleteSet?: (setId: number) => void;
   suggestions?: Record<number, SetSuggestionDisplay>;
   onApplySuggestion?: (setId: number, weightKg: number) => void;
+  onApplyRepSuggestion?: (setId: number, reps: number) => void;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -63,6 +64,7 @@ export function WorkoutSetsList({
   onDeleteSet,
   suggestions,
   onApplySuggestion,
+  onApplyRepSuggestion,
 }: WorkoutSetsListProps) {
   const router = useRouter();
   const workoutSession = useWorkoutSession();
@@ -342,6 +344,7 @@ export function WorkoutSetsList({
                     onStartTimer={startExerciseTimer}
                     suggestion={suggestions?.[item.set.id]}
                     onApplySuggestion={onApplySuggestion}
+                    onApplyRepSuggestion={onApplyRepSuggestion}
                   />
                   {isEditing && flatItems[index + 1]?.type !== "rest" && (
                     <InsertRestButton onClick={() => insertRest(index + 1)} />
@@ -539,6 +542,7 @@ function SortableSetRow({
   onStartTimer,
   suggestion,
   onApplySuggestion,
+  onApplyRepSuggestion,
 }: {
   id: string;
   set: ProgramSet;
@@ -554,6 +558,8 @@ function SortableSetRow({
   onStartTimer?: (setId: number, duration: number) => void;
   suggestion?: SetSuggestionDisplay;
   onApplySuggestion?: (setId: number, weightKg: number) => void;
+  onApplyRepSuggestion?: (setId: number, reps: number) => void;
+  onApplyRepSuggestion?: (setId: number, reps: number) => void;
 }) {
   const {
     attributes,
@@ -655,13 +661,15 @@ function SortableSetRow({
         )}
         {isWorkout && suggestion && (() => {
           const currentWeight = Number(set.weightKg ?? 0);
-          const isPending = suggestion.reason !== "manual" && currentWeight !== suggestion.suggestedWeightKg;
+          const currentReps = set.targetReps ?? 0;
+          const weightPending = suggestion.reason !== "manual" && suggestion.reason !== "held" && suggestion.reason !== "progressed-reps" && currentWeight !== suggestion.suggestedWeightKg;
+          const repsPending = suggestion.suggestedReps !== undefined && suggestion.suggestedReps > currentReps;
           return (
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-xs text-muted-foreground">
                 Last: {suggestion.basedOnWeightKg}kg ({suggestion.basedOnFeeling})
               </span>
-              {isPending && (
+              {weightPending && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -669,7 +677,18 @@ function SortableSetRow({
                   }}
                   className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
                 >
-                  {suggestion.reason === "progressed" ? "↑" : "="} {suggestion.suggestedWeightKg}kg
+                  ↑ {suggestion.suggestedWeightKg}kg
+                </button>
+              )}
+              {repsPending && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onApplyRepSuggestion?.(set.id, suggestion.suggestedReps!);
+                  }}
+                  className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
+                >
+                  ↑ {suggestion.suggestedReps} reps
                 </button>
               )}
             </div>

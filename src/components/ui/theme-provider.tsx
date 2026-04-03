@@ -14,6 +14,10 @@ interface ThemeContextValue {
   setAutoSaveToProgram: (v: boolean) => void;
   weeklyGoal: number;
   setWeeklyGoal: (n: number) => void;
+  defaultIncrementKg: number;
+  setDefaultIncrementKg: (n: number) => void;
+  defaultIncrementReps: number;
+  setDefaultIncrementReps: (n: number) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -47,6 +51,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [accentColor, setAccentColorState] = useState<AccentColor>("blue");
   const [autoSaveToProgram, setAutoSaveToProgramState] = useState(false);
   const [weeklyGoal, setWeeklyGoalState] = useState(4);
+  const [defaultIncrementKg, setDefaultIncrementKgState] = useState(2.5);
+  const [defaultIncrementReps, setDefaultIncrementRepsState] = useState(0);
 
   const applyAccentColor = (color: AccentColor, currentTheme: Theme) => {
     const colorValue =
@@ -66,11 +72,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const storedAccent = (localStorage.getItem("accentColor") as AccentColor | null) ?? "blue";
     const storedAutoSave = localStorage.getItem("autoSaveToProgram") === "true";
     const storedGoal = localStorage.getItem("weeklyGoal");
+    const storedIncrementKg = localStorage.getItem("defaultIncrementKg");
+    const storedIncrementReps = localStorage.getItem("defaultIncrementReps");
 
     setTheme(storedTheme);
     setAccentColorState(storedAccent);
     setAutoSaveToProgramState(storedAutoSave);
     setWeeklyGoalState(storedGoal ? Number(storedGoal) : 4);
+    setDefaultIncrementKgState(storedIncrementKg ? Number(storedIncrementKg) : 2.5);
+    setDefaultIncrementRepsState(storedIncrementReps ? Number(storedIncrementReps) : 0);
 
     document.documentElement.classList.toggle("dark", storedTheme === "dark");
     applyAccentColor(storedAccent, storedTheme);
@@ -111,9 +121,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setDefaultIncrementKg = (n: number) => {
+    setDefaultIncrementKgState(n);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("defaultIncrementKg", String(n));
+    }
+  };
+
+  const setDefaultIncrementReps = (n: number) => {
+    setDefaultIncrementRepsState(n);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("defaultIncrementReps", String(n));
+    }
+  };
+
   return (
     <ThemeContext.Provider
-      value={{ theme, toggleTheme, accentColor, setAccentColor, autoSaveToProgram, setAutoSaveToProgram, weeklyGoal, setWeeklyGoal }}
+      value={{ theme, toggleTheme, accentColor, setAccentColor, autoSaveToProgram, setAutoSaveToProgram, weeklyGoal, setWeeklyGoal, defaultIncrementKg, setDefaultIncrementKg, defaultIncrementReps, setDefaultIncrementReps }}
     >
       {children}
     </ThemeContext.Provider>

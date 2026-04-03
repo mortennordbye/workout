@@ -12,8 +12,11 @@ const accentColors = [
   { value: "orange", label: "Orange", color: "#FF8C42" },
 ] as const;
 
+const KG_INCREMENT_PRESETS = [0, 1, 2.5, 5, 10] as const;
+const REP_INCREMENT_PRESETS = [0, 1, 2, 3] as const;
+
 export function SettingsClient() {
-  const { accentColor, setAccentColor, autoSaveToProgram, setAutoSaveToProgram, weeklyGoal, setWeeklyGoal } = useTheme();
+  const { accentColor, setAccentColor, autoSaveToProgram, setAutoSaveToProgram, weeklyGoal, setWeeklyGoal, defaultIncrementKg, setDefaultIncrementKg, defaultIncrementReps, setDefaultIncrementReps } = useTheme();
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
@@ -91,6 +94,52 @@ export function SettingsClient() {
                     }`}
                   >
                     {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Default weight increment */}
+            <div className="mb-6">
+              <p className="font-medium mb-1">Default weight increment</p>
+              <p className="text-sm text-muted-foreground mb-3">
+                How much to increase weight when you hit your target reps
+              </p>
+              <div className="flex gap-2">
+                {KG_INCREMENT_PRESETS.map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setDefaultIncrementKg(n)}
+                    className={`flex-1 h-11 rounded-xl text-sm font-semibold transition-colors active:scale-95 ${
+                      defaultIncrementKg === n
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-foreground"
+                    }`}
+                  >
+                    {n === 0 ? "—" : `+${n}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Default rep increment */}
+            <div className="mb-6">
+              <p className="font-medium mb-1">Default rep increment</p>
+              <p className="text-sm text-muted-foreground mb-3">
+                How many reps to add when weight increment is set to manual
+              </p>
+              <div className="flex gap-2">
+                {REP_INCREMENT_PRESETS.map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setDefaultIncrementReps(n)}
+                    className={`flex-1 h-11 rounded-xl text-sm font-semibold transition-colors active:scale-95 ${
+                      defaultIncrementReps === n
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-background text-foreground"
+                    }`}
+                  >
+                    {n === 0 ? "—" : `+${n}`}
                   </button>
                 ))}
               </div>

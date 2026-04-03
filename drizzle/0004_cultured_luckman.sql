@@ -1,0 +1,2 @@
+ALTER TABLE "program_exercises" ADD COLUMN "overload_increment_kg" numeric(4, 2) DEFAULT '2.50';--> statement-breakpoint
+ALTER TABLE "program_exercises" ADD COLUMN "overload_increment_reps" integer DEFAULT 0;

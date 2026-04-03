@@ -36,6 +36,8 @@ export default async function ProgramExerciseDetailPage({ params }: Props) {
       exerciseName={pe.exercise.name}
       sets={pe.programSets}
       isWorkout={false}
+      overloadIncrementKg={Number(pe.overloadIncrementKg ?? 2.5)}
+      overloadIncrementReps={Number(pe.overloadIncrementReps ?? 0)}
     />
   );
 }

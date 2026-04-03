@@ -1,6 +1,6 @@
 {
-  "id": "76ba12f9-c012-4699-b68f-faf908d49b08",
-  "prevId": "65df8b10-ee44-4a84-99aa-0f0357592756",
+  "id": "bea64db3-3d5b-4202-8118-de32cc34257c",
+  "prevId": "76ba12f9-c012-4699-b68f-faf908d49b08",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -108,6 +108,20 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "overload_increment_kg": {
+          "name": "overload_increment_kg",
+          "type": "numeric(4, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'2.50'"
+        },
+        "overload_increment_reps": {
+          "name": "overload_increment_reps",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
         }
       },
       "indexes": {},

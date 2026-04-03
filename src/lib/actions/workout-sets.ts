@@ -478,11 +478,12 @@ export async function getSessionSets(
  */
 export type SetSuggestion = {
   suggestedWeightKg: number;
+  suggestedReps?: number;
   basedOnWeightKg: number;
   basedOnReps: number;
   basedOnFeeling: string;
   basedOnDate: string;
-  reason: "progressed" | "held" | "manual";
+  reason: "progressed" | "held" | "manual" | "progressed-reps";
 };
 
 /**
@@ -511,6 +512,7 @@ export async function getProgressiveSuggestions(
         targetReps: programSets.targetReps,
         exerciseId: programExercises.exerciseId,
         overloadIncrementKg: programExercises.overloadIncrementKg,
+        overloadIncrementReps: programExercises.overloadIncrementReps,
       })
       .from(programSets)
       .innerJoin(
@@ -590,32 +592,41 @@ export async function getProgressiveSuggestions(
       const best = bestMap.get(key);
       if (!best) continue; // no history — skip, caller uses program default
 
-      const baseWeight = Number(best.weightKg);
+      const baseWeight = Math.round(Number(best.weightKg) * 2) / 2; // round to nearest 0.5kg
       const hitTarget =
         best.actualReps != null &&
         best.targetReps != null &&
         best.actualReps >= best.targetReps;
 
       const incrementKg = Number(ps.overloadIncrementKg ?? 2.5);
+      const incrementReps = Number(ps.overloadIncrementReps ?? 0);
       const roundToIncrement = (kg: number) =>
         incrementKg > 0 ? Math.round(kg / incrementKg) * incrementKg : kg;
 
-      let suggestedWeightKg: number;
-      let reason: SetSuggestion["reason"];
+      let suggestedWeightKg: number = baseWeight;
+      let suggestedReps: number | undefined;
+      let reason: SetSuggestion["reason"] = "manual";
 
-      if (incrementKg === 0) {
-        suggestedWeightKg = baseWeight;
+      if (incrementKg === 0 && incrementReps === 0) {
         reason = "manual";
       } else if (hitTarget) {
-        suggestedWeightKg = roundToIncrement(baseWeight + incrementKg);
-        reason = "progressed";
+        // Apply weight increment independently
+        if (incrementKg > 0) {
+          suggestedWeightKg = roundToIncrement(baseWeight + incrementKg);
+          reason = "progressed";
+        }
+        // Apply rep increment independently
+        if (incrementReps > 0) {
+          suggestedReps = (ps.targetReps ?? best.targetReps ?? 0) + incrementReps;
+          if (reason !== "progressed") reason = "progressed-reps";
+        }
       } else {
-        suggestedWeightKg = baseWeight;
-        reason = "held";
+        reason = incrementKg === 0 && incrementReps === 0 ? "manual" : "held";
       }
 
       suggestions[ps.programSetId] = {
         suggestedWeightKg,
+        suggestedReps,
         basedOnWeightKg: baseWeight,
         basedOnReps: best.actualReps ?? 0,
         basedOnFeeling: best.feeling ?? "OK",
