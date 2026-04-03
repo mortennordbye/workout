@@ -23,7 +23,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronRight, GripVertical, Minus, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, Minus, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -193,40 +193,50 @@ export function ProgramDetailClient({
   return (
     <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
-        {isEditing ? (
-          <button
-            type="button"
-            onClick={cancelEditing}
-            disabled={saving}
-            className="text-muted-foreground text-sm font-medium disabled:opacity-40 shrink-0"
-          >
-            Cancel
-          </button>
-        ) : (
-          <Link href="/programs" className="text-primary text-sm font-medium whitespace-nowrap shrink-0">
-            &lt; Back
-          </Link>
-        )}
-        <h1 className="text-xl font-bold truncate px-2">{programName}</h1>
-        {isEditing ? (
-          <button
-            type="button"
-            onClick={saveEditing}
-            disabled={saving}
-            className="text-primary text-sm font-semibold disabled:opacity-40"
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={startEditing}
-            className="text-primary text-sm font-medium"
-          >
-            Edit
-          </button>
-        )}
+      <div className="flex items-center px-4 pt-6 pb-4 shrink-0">
+        <div className="w-20 shrink-0">
+          {isEditing ? (
+            <button
+              type="button"
+              onClick={cancelEditing}
+              disabled={saving}
+              className="text-muted-foreground text-sm font-medium disabled:opacity-40"
+            >
+              Cancel
+            </button>
+          ) : (
+            <Link href="/programs" className="flex items-center gap-1 text-primary">
+              <ChevronLeft className="h-5 w-5" />
+              <span className="text-sm font-medium">Back</span>
+            </Link>
+          )}
+        </div>
+        <div className="flex-1" />
+        <div className="w-20 shrink-0 flex justify-end">
+          {isEditing ? (
+            <button
+              type="button"
+              onClick={saveEditing}
+              disabled={saving}
+              className="text-primary text-sm font-semibold disabled:opacity-40"
+            >
+              {saving ? "Saving…" : "Save"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={startEditing}
+              className="text-primary text-sm font-medium"
+            >
+              Edit
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Program title */}
+      <div className="px-4 pb-4 shrink-0">
+        <h1 className="text-3xl font-bold text-center">{programName}</h1>
       </div>
 
       {/* Exercises — scrollable */}

@@ -18,12 +18,14 @@ function gradientColor(index: number, total: number): string {
 }
 
 type Props = {
+  programId: number;
   programExerciseId: number;
   nextSetNumber: number;
   lastSet?: ProgramSet;
 };
 
 export function NewSetView({
+  programId,
   programExerciseId,
   nextSetNumber,
   lastSet,
@@ -49,7 +51,7 @@ export function NewSetView({
       weightKg: weight,
       restTimeSeconds: 0,
     });
-    router.back();
+    router.push(`/programs/${programId}/exercises/${programExerciseId}?edit=true`);
   };
 
   return (

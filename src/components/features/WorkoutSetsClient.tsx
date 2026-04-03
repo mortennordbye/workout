@@ -50,6 +50,7 @@ type Props = {
   overloadIncrementKg?: number;
   overloadIncrementReps?: number;
   progressionMode?: ProgressionMode;
+  initialEditing?: boolean;
 };
 
 export function WorkoutSetsClient({
@@ -66,10 +67,10 @@ export function WorkoutSetsClient({
   overloadIncrementKg: initialIncrement = 2.5,
   overloadIncrementReps: initialIncrementReps = 0,
   progressionMode: initialMode = "weight",
+  initialEditing = false,
 }: Props) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
-  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [isEditing, setIsEditing] = useState(initialEditing);
   const [showProgressionPicker, setShowProgressionPicker] = useState(false);
   const [customKgInput, setCustomKgInput] = useState("");
   const [customRepInput, setCustomRepInput] = useState("");
@@ -147,7 +148,7 @@ export function WorkoutSetsClient({
   async function handleDeleteSet(setId: number) {
     setSets((prev) => prev.filter((s) => s.id !== setId));
     await deleteProgramSet(setId, programId, programExerciseId);
-    router.refresh();
+    router.push(`/programs/${programId}/exercises/${programExerciseId}?edit=true`);
   }
 
   function modeBadgeLabel(): string {
@@ -162,28 +163,37 @@ export function WorkoutSetsClient({
   return (
     <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
-        {isEditing ? (
-          <button
-            onClick={() => setIsEditing(false)}
-            className="text-primary text-sm font-medium"
-          >
-            Done
-          </button>
-        ) : (
-          <Link
-            href={isWorkout ? `/programs/${programId}/workout` : `/programs/${programId}`}
-            className="flex items-center gap-1 text-primary"
-          >
-            <ChevronLeftIcon className="h-5 w-5" />
-            <span className="text-sm font-medium">
-              {isWorkout ? "Workout" : programName}
-            </span>
-          </Link>
-        )}
-        <div className="text-lg font-bold">Sets</div>
-        <div className="flex items-center gap-3">
-          {!isEditing && (
+      <div className="flex items-center px-4 pt-6 pb-4 shrink-0">
+        {/* Left — fixed width so layout never shifts */}
+        <div className="w-20 shrink-0 flex items-center">
+          {isEditing ? (
+            <button
+              onClick={() => setIsEditing(false)}
+              className="text-primary text-sm font-medium"
+            >
+              Done
+            </button>
+          ) : (
+            <Link
+              href={isWorkout ? `/programs/${programId}/workout` : `/programs/${programId}`}
+              className="flex items-center gap-1 text-primary"
+            >
+              <ChevronLeftIcon className="h-5 w-5" />
+              <span className="text-sm font-medium">Back</span>
+            </Link>
+          )}
+        </div>
+        <div className="flex-1" />
+        {/* Right — fixed width so layout never shifts */}
+        <div className="w-20 shrink-0 flex items-center justify-end">
+          {isEditing ? (
+            <Link
+              href={`/programs/${programId}/exercises/${programExerciseId}/sets/new`}
+              className="w-7 h-7 rounded-full border-2 border-primary flex items-center justify-center"
+            >
+              <Plus className="w-4 h-4 text-primary" />
+            </Link>
+          ) : (
             <button
               onClick={() => setIsEditing(true)}
               className="text-primary text-sm font-medium"
@@ -191,12 +201,6 @@ export function WorkoutSetsClient({
               Edit
             </button>
           )}
-          <button
-            onClick={() => setShowActionSheet(true)}
-            className="w-7 h-7 rounded-full border-2 border-primary flex items-center justify-center"
-          >
-            <Plus className="w-4 h-4 text-primary" />
-          </button>
         </div>
       </div>
 
@@ -257,46 +261,6 @@ export function WorkoutSetsClient({
         )}
       </div>
 
-      {/* Action Sheet */}
-      {showActionSheet && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-end"
-          onClick={() => setShowActionSheet(false)}
-        >
-          <div
-            className="w-full px-4 pb-8 space-y-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-card rounded-2xl overflow-hidden">
-              <Link
-                href={`/programs/${programId}/exercises/${programExerciseId}/sets/new`}
-                onClick={() => setShowActionSheet(false)}
-                className="flex items-center justify-center py-4 text-base font-medium border-b border-border active:bg-muted/50 transition-colors"
-              >
-                Add Set
-              </Link>
-              <button
-                onClick={() => {
-                  setShowActionSheet(false);
-                  setIsEditing(true);
-                }}
-                disabled={sets.length === 0}
-                className="w-full flex items-center justify-center py-4 text-base font-medium active:bg-muted/50 transition-colors disabled:opacity-40"
-              >
-                Add Rest
-              </button>
-            </div>
-            <div className="bg-card rounded-2xl overflow-hidden">
-              <button
-                onClick={() => setShowActionSheet(false)}
-                className="w-full flex items-center justify-center py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Unified progression picker */}
       {showProgressionPicker && (

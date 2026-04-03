@@ -317,11 +317,6 @@ export function WorkoutSetsList({
           items={flatItems.map((i) => i.id)}
           strategy={verticalListSortingStrategy}
         >
-          {/* Top insert button — always visible in edit mode */}
-          {isEditing && flatItems.length > 0 && (
-            <InsertRestButton onClick={() => insertRest(0)} />
-          )}
-
           {flatItems.map((item, index) => {
             if (item.type === "set") {
               const setNumber =
@@ -370,6 +365,7 @@ export function WorkoutSetsList({
                     id={item.id}
                     seconds={item.seconds}
                     isEditing={isEditing}
+                    isWorkout={isWorkout}
                     restRemaining={restRemaining}
                     restProgress={restProgress}
                     onDelete={() => handleDeleteRest(item.id)}
@@ -604,7 +600,7 @@ function SortableSetRow({
       {isEditing && (
         <button
           type="button"
-          onClick={onDelete}
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
           className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center shrink-0"
         >
           <Minus className="w-4 h-4 text-white" />
@@ -719,6 +715,7 @@ function SortableRestRow({
   id,
   seconds,
   isEditing,
+  isWorkout,
   restRemaining,
   restProgress,
   onDelete,
@@ -727,6 +724,7 @@ function SortableRestRow({
   id: string;
   seconds: number;
   isEditing: boolean;
+  isWorkout: boolean;
   restRemaining: number | undefined;
   restProgress: number;
   onDelete: () => void;
@@ -762,11 +760,15 @@ function SortableRestRow({
           </button>
           <div className="w-7 shrink-0" />
           <div className="w-7 shrink-0" />
-          <div className="flex-1">
+          <button
+            type="button"
+            onClick={onEdit}
+            className="flex-1 text-left active:opacity-60 transition-opacity"
+          >
             <div className="text-xs text-muted-foreground uppercase tracking-wider">
               REST {formatTime(seconds)}
             </div>
-          </div>
+          </button>
           <button
             {...attributes}
             {...listeners}
@@ -776,7 +778,7 @@ function SortableRestRow({
           </button>
         </div>
       ) : (
-        <div onClick={onEdit} className="cursor-pointer active:opacity-60 transition-opacity">
+        <div onClick={isWorkout ? onEdit : undefined} className={isWorkout ? "cursor-pointer active:opacity-60 transition-opacity" : ""}>
           <div className="text-xs text-muted-foreground uppercase tracking-wider">
             REST{" "}
             {restRemaining !== undefined

@@ -59,7 +59,7 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
       <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
         <Link href="/history" className="flex items-center gap-1 text-primary">
           <ChevronLeftIcon className="h-5 w-5" />
-          <span className="text-sm font-medium">History</span>
+          <span className="text-sm font-medium">Back</span>
         </Link>
         <button
           onClick={() => setShowDeleteConfirm(true)}

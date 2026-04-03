@@ -41,13 +41,13 @@ export default async function NewSetPage({ params }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-4">
         <Link
-          href={`/programs/${programId}/exercises/${peId}`}
+          href={`/programs/${programId}/exercises/${peId}?edit=true`}
           className="flex items-center gap-1 text-primary"
         >
           <ChevronLeftIcon className="h-5 w-5" />
-          <span className="text-sm font-medium">Sets</span>
+          <span className="text-sm font-medium">Back</span>
         </Link>
-        <div className="text-lg font-bold">Add Set</div>
+        <div className="text-xl font-bold">Add Set</div>
         <div className="w-16" /> {/* Spacer for centering */}
       </div>
 
@@ -65,6 +65,7 @@ export default async function NewSetPage({ params }: Props) {
 
       {/* Add view */}
       <NewSetView
+        programId={programId}
         programExerciseId={peId}
         nextSetNumber={nextSetNumber}
         lastSet={lastSet}

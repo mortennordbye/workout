@@ -13,10 +13,12 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ id: string; programExerciseId: string }>;
+  searchParams: Promise<{ edit?: string }>;
 };
 
-export default async function ProgramExerciseDetailPage({ params }: Props) {
+export default async function ProgramExerciseDetailPage({ params, searchParams }: Props) {
   const { id, programExerciseId } = await params;
+  const { edit } = await searchParams;
   const programId = Number(id);
   const peId = Number(programExerciseId);
   if (isNaN(programId) || isNaN(peId)) notFound();
@@ -36,6 +38,7 @@ export default async function ProgramExerciseDetailPage({ params }: Props) {
       exerciseName={pe.exercise.name}
       sets={pe.programSets}
       isWorkout={false}
+      initialEditing={edit === "true"}
       overloadIncrementKg={Number(pe.overloadIncrementKg ?? 2.5)}
       overloadIncrementReps={Number(pe.overloadIncrementReps ?? 0)}
       progressionMode={(pe.progressionMode ?? "weight") as "manual" | "weight" | "smart" | "reps"}

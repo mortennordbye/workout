@@ -31,7 +31,7 @@ export function ProgramAddExerciseWrapper({ programId, exercises }: Props) {
           <ChevronLeft className="w-5 h-5" />
           <span className="text-base">Back</span>
         </Link>
-        <h1 className="flex-1 text-center text-lg font-bold whitespace-nowrap">Add Exercise</h1>
+        <h1 className="flex-1 text-center text-xl font-bold whitespace-nowrap">Add Exercise</h1>
         <div className="w-20 shrink-0" />
       </div>
 
