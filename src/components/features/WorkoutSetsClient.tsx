@@ -1,7 +1,12 @@
 "use client";
 
 import { WorkoutSetsList } from "@/components/features/WorkoutSetsList";
-import { deleteProgramSet, updateProgramExerciseIncrement, updateProgramExerciseIncrementReps } from "@/lib/actions/programs";
+import {
+  deleteProgramSet,
+  updateProgramExerciseIncrement,
+  updateProgramExerciseIncrementReps,
+  updateProgramExerciseProgressionMode,
+} from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import type { ProgramSet } from "@/types/workout";
 import { ChevronLeftIcon, Plus } from "lucide-react";
@@ -12,14 +17,24 @@ import { useEffect, useState } from "react";
 export type SetSuggestionDisplay = {
   suggestedWeightKg: number;
   suggestedReps?: number;
+  adjustedRepsForWeight?: number;
   basedOnWeightKg: number;
   basedOnReps: number;
   basedOnFeeling: string;
   reason: "progressed" | "held" | "manual" | "progressed-reps";
 };
 
-const KG_INCREMENT_PRESETS = [0, 1, 2.5, 5, 10] as const;
-const REP_INCREMENT_PRESETS = [0, 1, 2, 3] as const;
+type ProgressionMode = "manual" | "weight" | "smart" | "reps";
+
+const KG_INCREMENT_PRESETS = [0.5, 1, 2.5, 5, 10] as const;
+const REP_INCREMENT_PRESETS = [1, 2, 3] as const;
+
+const MODE_OPTIONS: { mode: ProgressionMode; label: string; description: string }[] = [
+  { mode: "manual",  label: "Manual",       description: "No auto-progression" },
+  { mode: "weight",  label: "Weight",        description: "Add kg when target reps are hit" },
+  { mode: "smart",   label: "Smart weight",  description: "Add kg and adjust reps via 1RM formula" },
+  { mode: "reps",    label: "Reps",          description: "Add reps when target reps are hit" },
+];
 
 type Props = {
   programId: number;
@@ -34,6 +49,7 @@ type Props = {
   suggestions?: Record<number, SetSuggestionDisplay>;
   overloadIncrementKg?: number;
   overloadIncrementReps?: number;
+  progressionMode?: ProgressionMode;
 };
 
 export function WorkoutSetsClient({
@@ -49,17 +65,18 @@ export function WorkoutSetsClient({
   suggestions,
   overloadIncrementKg: initialIncrement = 2.5,
   overloadIncrementReps: initialIncrementReps = 0,
+  progressionMode: initialMode = "weight",
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [showActionSheet, setShowActionSheet] = useState(false);
-  const [showKgPicker, setShowKgPicker] = useState(false);
-  const [showRepPicker, setShowRepPicker] = useState(false);
+  const [showProgressionPicker, setShowProgressionPicker] = useState(false);
   const [customKgInput, setCustomKgInput] = useState("");
   const [customRepInput, setCustomRepInput] = useState("");
   const [sets, setSets] = useState(initial);
   const [increment, setIncrement] = useState(initialIncrement);
   const [incrementReps, setIncrementReps] = useState(initialIncrementReps);
+  const [mode, setMode] = useState<ProgressionMode>(initialMode);
   const workoutSession = useWorkoutSession();
 
   useEffect(() => {
@@ -76,25 +93,24 @@ export function WorkoutSetsClient({
     };
   });
 
-  // How many sets still have a pending suggestion (not yet applied via override)
   const pendingCount = isWorkout
     ? sets.filter((s) => {
         const sug = suggestions?.[s.id];
-        if (!sug || sug.reason === "manual") return false;
+        if (!sug || sug.reason === "manual" || sug.reason === "held") return false;
         const currentWeight = workoutSession?.overrides[s.id]?.weightKg ?? Number(s.weightKg ?? 0);
         const currentReps = workoutSession?.overrides[s.id]?.targetReps ?? s.targetReps ?? 0;
-        const weightPending = sug.reason !== "manual" && sug.reason !== "held" && sug.reason !== "progressed-reps" && currentWeight !== sug.suggestedWeightKg;
+        const weightPending = sug.reason === "progressed" && currentWeight !== sug.suggestedWeightKg;
         const repsPending = sug.suggestedReps !== undefined && sug.suggestedReps > currentReps;
         return weightPending || repsPending;
       }).length
     : 0;
 
-  function applySuggestion(setId: number, suggestedWeightKg: number) {
+  function applySuggestion(setId: number, suggestedWeightKg: number, adjustedReps?: number) {
     if (!workoutSession) return;
     const set = sets.find((s) => s.id === setId);
     workoutSession.setOverride(setId, {
       weightKg: suggestedWeightKg,
-      targetReps: workoutSession.overrides[setId]?.targetReps ?? set?.targetReps ?? 0,
+      targetReps: adjustedReps ?? workoutSession.overrides[setId]?.targetReps ?? set?.targetReps ?? 0,
     });
   }
 
@@ -108,34 +124,22 @@ export function WorkoutSetsClient({
     });
   }
 
-  function applyAllSuggestions() {
-    if (!workoutSession || !suggestions) return;
-    for (const set of sets) {
-      const sug = suggestions[set.id];
-      if (!sug) continue;
-      const currentWeight = workoutSession.overrides[set.id]?.weightKg ?? Number(set.weightKg ?? 0);
-      const currentReps = workoutSession.overrides[set.id]?.targetReps ?? set.targetReps ?? 0;
-      const newWeight = sug.reason !== "manual" && sug.reason !== "held" && sug.reason !== "progressed-reps" && currentWeight !== sug.suggestedWeightKg
-        ? sug.suggestedWeightKg
-        : currentWeight;
-      const newReps = sug.suggestedReps !== undefined && currentReps !== sug.suggestedReps
-        ? sug.suggestedReps
-        : currentReps;
-      if (newWeight === currentWeight && newReps === currentReps) continue;
-      workoutSession.setOverride(set.id, { weightKg: newWeight, targetReps: newReps });
-    }
+  async function handleModeChange(newMode: ProgressionMode) {
+    setMode(newMode);
+    await updateProgramExerciseProgressionMode(programExerciseId, newMode);
+    router.refresh();
   }
 
   async function handleIncrementChange(newIncrement: number) {
     setIncrement(newIncrement);
-    setShowKgPicker(false);
+    setCustomKgInput("");
     await updateProgramExerciseIncrement(programExerciseId, newIncrement);
     router.refresh();
   }
 
   async function handleIncrementRepsChange(newIncrement: number) {
     setIncrementReps(newIncrement);
-    setShowRepPicker(false);
+    setCustomRepInput("");
     await updateProgramExerciseIncrementReps(programExerciseId, newIncrement);
     router.refresh();
   }
@@ -144,6 +148,15 @@ export function WorkoutSetsClient({
     setSets((prev) => prev.filter((s) => s.id !== setId));
     await deleteProgramSet(setId, programId, programExerciseId);
     router.refresh();
+  }
+
+  function modeBadgeLabel(): string {
+    switch (mode) {
+      case "manual": return "Manual";
+      case "weight": return increment > 0 ? `+${increment}kg` : "Weight";
+      case "smart":  return increment > 0 ? `+${increment}kg · smart` : "Smart";
+      case "reps":   return incrementReps > 0 ? `+${incrementReps} rep` : "Reps";
+    }
   }
 
   return (
@@ -192,28 +205,20 @@ export function WorkoutSetsClient({
         <h1 className="text-3xl font-bold text-center">{exerciseName}</h1>
       </div>
 
-      {/* Compact increment badges */}
-      <div className="px-4 pb-4 shrink-0 flex items-center gap-2">
+      {/* Single progression badge */}
+      <div className="px-4 pb-4 shrink-0">
         <button
-          onClick={() => setShowKgPicker(true)}
+          onClick={() => setShowProgressionPicker(true)}
           className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-muted text-xs font-semibold text-muted-foreground active:scale-95 transition-all"
         >
-          ↑ {increment === 0 ? "Manual kg" : `+${increment}kg`}
-        </button>
-        <button
-          onClick={() => setShowRepPicker(true)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-muted text-xs font-semibold text-muted-foreground active:scale-95 transition-all"
-        >
-          ↑ {incrementReps === 0 ? "Manual reps" : `+${incrementReps} rep`}
+          ↑ {modeBadgeLabel()}
         </button>
       </div>
-
 
       {/* Sets list or empty state */}
       <div className="flex-1 px-4 overflow-y-auto">
         {sets.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 pb-16">
-            {/* Dumbbell icon */}
             <svg
               width="80"
               height="80"
@@ -231,27 +236,24 @@ export function WorkoutSetsClient({
               Add Sets &amp; Rests
             </h2>
             <p className="text-muted-foreground text-sm text-center px-8">
-              Tap the add button (+) at the top of the screen to add sets and
-              rests
+              Tap the add button (+) at the top of the screen to add sets and rests
             </p>
           </div>
         ) : (
-          <>
-            <WorkoutSetsList
-              sets={displaySets}
-              programId={programId}
-              programExerciseId={programExerciseId}
-              isEditing={isEditing}
-              isWorkout={isWorkout}
-              isTimed={exerciseCategory === "cardio"}
-              exerciseId={exerciseId}
-              sessionId={workoutSession?.sessionId ?? undefined}
-              onDeleteSet={handleDeleteSet}
-              suggestions={suggestions}
-              onApplySuggestion={isWorkout ? applySuggestion : undefined}
-              onApplyRepSuggestion={isWorkout ? applyRepSuggestion : undefined}
-            />
-          </>
+          <WorkoutSetsList
+            sets={displaySets}
+            programId={programId}
+            programExerciseId={programExerciseId}
+            isEditing={isEditing}
+            isWorkout={isWorkout}
+            isTimed={exerciseCategory === "cardio"}
+            exerciseId={exerciseId}
+            sessionId={workoutSession?.sessionId ?? undefined}
+            onDeleteSet={handleDeleteSet}
+            suggestions={suggestions}
+            onApplySuggestion={isWorkout ? applySuggestion : undefined}
+            onApplyRepSuggestion={isWorkout ? applyRepSuggestion : undefined}
+          />
         )}
       </div>
 
@@ -296,119 +298,136 @@ export function WorkoutSetsClient({
         </div>
       )}
 
-      {/* Kg increment picker */}
-      {showKgPicker && (
+      {/* Unified progression picker */}
+      {showProgressionPicker && (
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-end"
-          onClick={() => { setShowKgPicker(false); setCustomKgInput(""); }}
+          onClick={() => { setShowProgressionPicker(false); setCustomKgInput(""); setCustomRepInput(""); }}
         >
           <div
             className="w-full px-4 pb-8 space-y-2"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="bg-card rounded-2xl overflow-hidden max-h-[70vh] flex flex-col">
+            <div className="bg-card rounded-2xl overflow-hidden max-h-[80vh] flex flex-col">
               <p className="text-center text-sm font-semibold text-muted-foreground pt-4 pb-2 shrink-0">
-                Weight increment
+                Progression
               </p>
               <div className="overflow-y-auto">
-                {KG_INCREMENT_PRESETS.map((preset) => (
+                {/* Mode selector */}
+                {MODE_OPTIONS.map((opt, i) => (
                   <button
-                    key={preset}
-                    onClick={() => handleIncrementChange(preset)}
-                    className={`w-full flex items-center justify-center py-4 text-base font-medium border-b border-border active:bg-muted/50 transition-colors ${
-                      increment === preset ? "text-primary font-semibold" : ""
+                    key={opt.mode}
+                    onClick={() => handleModeChange(opt.mode)}
+                    className={`w-full flex items-center justify-between px-4 py-3.5 border-b border-border active:bg-muted/50 transition-colors ${
+                      mode === opt.mode ? "text-primary" : ""
                     }`}
                   >
-                    {preset === 0 ? "Manual (no auto-progression)" : `+${preset} kg`}
+                    <div className="text-left">
+                      <p className={`text-base font-medium ${mode === opt.mode ? "font-semibold" : ""}`}>
+                        {opt.label}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{opt.description}</p>
+                    </div>
+                    {mode === opt.mode && (
+                      <span className="text-primary text-lg">✓</span>
+                    )}
                   </button>
                 ))}
-                <div className="flex items-center gap-3 px-4 py-3 border-t border-border">
-                  <span className="text-base font-medium text-muted-foreground shrink-0">+</span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    placeholder="Custom kg"
-                    value={customKgInput}
-                    onChange={(e) => setCustomKgInput(e.target.value)}
-                    className="flex-1 min-w-0 bg-transparent text-base font-medium outline-none placeholder:text-muted-foreground/50"
-                  />
-                  <button
-                    onClick={() => {
-                      const val = parseFloat(customKgInput);
-                      if (!isNaN(val) && val >= 0) handleIncrementChange(val);
-                    }}
-                    disabled={!customKgInput || isNaN(parseFloat(customKgInput))}
-                    className="shrink-0 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-30 active:scale-95 transition-all"
-                  >
-                    Set
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="bg-card rounded-2xl overflow-hidden">
-              <button
-                onClick={() => { setShowKgPicker(false); setCustomKgInput(""); }}
-                className="w-full flex items-center justify-center py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Rep increment picker */}
-      {showRepPicker && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-end"
-          onClick={() => { setShowRepPicker(false); setCustomRepInput(""); }}
-        >
-          <div
-            className="w-full px-4 pb-8 space-y-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-card rounded-2xl overflow-hidden max-h-[70vh] flex flex-col">
-              <p className="text-center text-sm font-semibold text-muted-foreground pt-4 pb-2 shrink-0">
-                Rep increment
-              </p>
-              <div className="overflow-y-auto">
-                {REP_INCREMENT_PRESETS.map((preset) => (
-                  <button
-                    key={preset}
-                    onClick={() => handleIncrementRepsChange(preset)}
-                    className={`w-full flex items-center justify-center py-4 text-base font-medium border-b border-border active:bg-muted/50 transition-colors ${
-                      incrementReps === preset ? "text-primary font-semibold" : ""
-                    }`}
-                  >
-                    {preset === 0 ? "Manual (no auto-progression)" : `+${preset} rep${preset > 1 ? "s" : ""}`}
-                  </button>
-                ))}
-                <div className="flex items-center gap-3 px-4 py-3 border-t border-border">
-                  <span className="text-base font-medium text-muted-foreground shrink-0">+</span>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    placeholder="Custom reps"
-                    value={customRepInput}
-                    onChange={(e) => setCustomRepInput(e.target.value)}
-                    className="flex-1 min-w-0 bg-transparent text-base font-medium outline-none placeholder:text-muted-foreground/50"
-                  />
-                  <button
-                    onClick={() => {
-                      const val = parseInt(customRepInput, 10);
-                      if (!isNaN(val) && val >= 0) handleIncrementRepsChange(val);
-                    }}
-                    disabled={!customRepInput || isNaN(parseInt(customRepInput, 10))}
-                    className="shrink-0 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-30 active:scale-95 transition-all"
-                  >
-                    Set
-                  </button>
-                </div>
+                {/* Kg increment — shown for weight and smart modes */}
+                {(mode === "weight" || mode === "smart") && (
+                  <div className="border-t border-border">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider px-4 pt-3 pb-1">
+                      Weight increment
+                    </p>
+                    <div className="flex flex-wrap gap-2 px-4 pb-3">
+                      {KG_INCREMENT_PRESETS.map((preset) => (
+                        <button
+                          key={preset}
+                          onClick={() => handleIncrementChange(preset)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                            increment === preset
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          +{preset}kg
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-3 px-4 py-3 border-t border-border">
+                      <span className="text-base font-medium text-muted-foreground shrink-0">+</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Custom kg"
+                        value={customKgInput}
+                        onChange={(e) => setCustomKgInput(e.target.value)}
+                        className="flex-1 min-w-0 bg-transparent text-base font-medium outline-none placeholder:text-muted-foreground/50"
+                      />
+                      <button
+                        onClick={() => {
+                          const val = parseFloat(customKgInput);
+                          if (!isNaN(val) && val >= 0) handleIncrementChange(val);
+                        }}
+                        disabled={!customKgInput || isNaN(parseFloat(customKgInput))}
+                        className="shrink-0 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-30 active:scale-95 transition-all"
+                      >
+                        Set
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rep increment — shown for reps mode */}
+                {mode === "reps" && (
+                  <div className="border-t border-border">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider px-4 pt-3 pb-1">
+                      Rep increment
+                    </p>
+                    <div className="flex gap-2 px-4 pb-3">
+                      {REP_INCREMENT_PRESETS.map((preset) => (
+                        <button
+                          key={preset}
+                          onClick={() => handleIncrementRepsChange(preset)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                            incrementReps === preset
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          +{preset}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-3 px-4 py-3 border-t border-border">
+                      <span className="text-base font-medium text-muted-foreground shrink-0">+</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="Custom reps"
+                        value={customRepInput}
+                        onChange={(e) => setCustomRepInput(e.target.value)}
+                        className="flex-1 min-w-0 bg-transparent text-base font-medium outline-none placeholder:text-muted-foreground/50"
+                      />
+                      <button
+                        onClick={() => {
+                          const val = parseInt(customRepInput, 10);
+                          if (!isNaN(val) && val >= 0) handleIncrementRepsChange(val);
+                        }}
+                        disabled={!customRepInput || isNaN(parseInt(customRepInput, 10))}
+                        className="shrink-0 px-4 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-30 active:scale-95 transition-all"
+                      >
+                        Set
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="bg-card rounded-2xl overflow-hidden">
               <button
-                onClick={() => { setShowRepPicker(false); setCustomRepInput(""); }}
+                onClick={() => { setShowProgressionPicker(false); setCustomKgInput(""); setCustomRepInput(""); }}
                 className="w-full flex items-center justify-center py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors"
               >
                 Cancel

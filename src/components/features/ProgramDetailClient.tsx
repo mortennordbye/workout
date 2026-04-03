@@ -127,12 +127,18 @@ export function ProgramDetailClient({
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [exercises, setExercises] = useState(initial);
+  // Snapshot of exercise order when entering edit mode — used for Cancel
+  const [preEditExercises, setPreEditExercises] = useState<ProgramExItem[]>([]);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<number>>(new Set());
 
-  // Sync local state when server refreshes with new data
+  // Sync when server data refreshes (e.g. after AddExerciseForm adds a new exercise)
   useEffect(() => {
-    setExercises(initial);
-  }, [initial]);
+    if (!isEditing) {
+      setExercises(initial);
+    }
+  }, [initial, isEditing]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -141,37 +147,61 @@ export function ProgramDetailClient({
     }),
   );
 
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const oldIndex = exercises.findIndex((e) => e.id === active.id);
-    const newIndex = exercises.findIndex((e) => e.id === over.id);
-    const reordered = arrayMove(exercises, oldIndex, newIndex);
-    setExercises(reordered); // optimistic
-    await reorderProgramExercises(
-      programId,
-      reordered.map((e) => e.id),
-    );
+  function startEditing() {
+    setPreEditExercises(exercises);
+    setPendingDeleteIds(new Set());
+    setIsEditing(true);
   }
 
-  async function handleDeleteExercise(peId: number) {
-    setExercises((prev) => prev.filter((e) => e.id !== peId));
-    await removeExerciseFromProgram(peId, programId);
+  function cancelEditing() {
+    setExercises(preEditExercises);
+    setPendingDeleteIds(new Set());
+    setIsEditing(false);
+  }
+
+  async function saveEditing() {
+    setSaving(true);
+    // Apply deletions
+    for (const peId of pendingDeleteIds) {
+      await removeExerciseFromProgram(peId, programId);
+    }
+    // Apply reorder on the surviving exercises
+    const surviving = exercises.filter((e) => !pendingDeleteIds.has(e.id));
+    if (surviving.length > 1) {
+      await reorderProgramExercises(programId, surviving.map((e) => e.id));
+    }
+    setSaving(false);
+    setIsEditing(false);
     router.refresh();
   }
 
-return (
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = exercises.findIndex((e) => e.id === active.id);
+    const newIndex = exercises.findIndex((e) => e.id === over.id);
+    // Only update local state — persisted on Save
+    setExercises(arrayMove(exercises, oldIndex, newIndex));
+  }
+
+  function handleDeleteExercise(peId: number) {
+    // Mark as pending delete and hide from list — persisted on Save
+    setPendingDeleteIds((prev) => new Set(prev).add(peId));
+    setExercises((prev) => prev.filter((e) => e.id !== peId));
+  }
+
+  return (
     <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
         {isEditing ? (
           <button
             type="button"
-            onClick={() => setIsEditing(false)}
-            className="text-primary text-sm font-medium"
+            onClick={cancelEditing}
+            disabled={saving}
+            className="text-muted-foreground text-sm font-medium disabled:opacity-40"
           >
-            Done
+            Cancel
           </button>
         ) : (
           <Link href="/programs" className="text-primary text-sm font-medium">
@@ -182,18 +212,16 @@ return (
         {isEditing ? (
           <button
             type="button"
-            className="w-7 h-7 rounded-full border-2 border-primary flex items-center justify-center"
-            onClick={() => {
-              const el = document.getElementById("add-exercise-form");
-              el?.scrollIntoView({ behavior: "smooth" });
-            }}
+            onClick={saveEditing}
+            disabled={saving}
+            className="text-primary text-sm font-semibold disabled:opacity-40"
           >
-            <Plus className="w-4 h-4 text-primary" />
+            {saving ? "Saving…" : "Save"}
           </button>
         ) : (
           <button
             type="button"
-            onClick={() => setIsEditing(true)}
+            onClick={startEditing}
             className="text-primary text-sm font-medium"
           >
             Edit
@@ -235,13 +263,34 @@ return (
         )}
 
         {isEditing && (
-          <div id="add-exercise-form" className="mt-4">
+          <div
+            id="add-exercise-form"
+            className="mt-4"
+          >
             <AddExerciseForm programId={programId} exercises={allExercises} />
           </div>
         )}
 
       </div>
 
+      {/* Add button in edit mode — scrolls to the form */}
+      {isEditing && (
+        <div className="shrink-0 px-4 pb-4 pt-2 border-t border-border">
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById("add-exercise-form");
+              el?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="flex items-center gap-2 text-primary text-sm font-medium"
+          >
+            <div className="w-7 h-7 rounded-full border-2 border-primary flex items-center justify-center">
+              <Plus className="w-4 h-4" />
+            </div>
+            Add exercise
+          </button>
+        </div>
+      )}
     </div>
   );
 }

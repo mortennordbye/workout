@@ -42,7 +42,7 @@ type WorkoutSetsListProps = {
   sessionId?: number;
   onDeleteSet?: (setId: number) => void;
   suggestions?: Record<number, SetSuggestionDisplay>;
-  onApplySuggestion?: (setId: number, weightKg: number) => void;
+  onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number) => void;
   onApplyRepSuggestion?: (setId: number, reps: number) => void;
 };
 
@@ -557,8 +557,7 @@ function SortableSetRow({
   onDelete: () => void;
   onStartTimer?: (setId: number, duration: number) => void;
   suggestion?: SetSuggestionDisplay;
-  onApplySuggestion?: (setId: number, weightKg: number) => void;
-  onApplyRepSuggestion?: (setId: number, reps: number) => void;
+  onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number) => void;
   onApplyRepSuggestion?: (setId: number, reps: number) => void;
 }) {
   const {
@@ -577,14 +576,14 @@ function SortableSetRow({
     : `/programs/${programId}/exercises/${programExerciseId}/sets/${set.id}`;
 
   const handleRowClick = () => {
-    if (isEditing) return;
-    router.push(setEditHref);
+    if (isEditing || isWorkout) router.push(setEditHref);
+    // In program view mode (not editing, not workout) — do nothing
   };
 
   const handlePlayClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (isEditing) return;
-    if (isTimed && isWorkout && !isCompleted) {
+    if (isEditing || !isWorkout) return;
+    if (isTimed && !isCompleted) {
       onStartTimer?.(set.id, set.durationSeconds ?? 60);
     } else {
       onToggle();
@@ -599,7 +598,7 @@ function SortableSetRow({
         transition,
         opacity: isDragging ? 0.4 : 1,
       }}
-      className={`flex items-center gap-3 py-4 border-t border-b border-border${!isEditing ? " cursor-pointer" : ""}`}
+      className={`flex items-center gap-3 py-4 border-t border-b border-border${(isEditing || isWorkout) ? " cursor-pointer" : ""}`}
       onClick={handleRowClick}
     >
       {isEditing && (
@@ -612,37 +611,39 @@ function SortableSetRow({
         </button>
       )}
 
-      {isTimed && isWorkout && !isCompleted ? (
-        /* Timed incomplete: play starts timer, check circle marks complete directly */
-        <>
+      {isWorkout && (
+        isTimed && !isCompleted ? (
+          /* Timed incomplete: play starts timer, check circle marks complete directly */
+          <>
+            <button
+              onClick={handlePlayClick}
+              className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 border-primary bg-transparent"
+            >
+              <Play className="w-3 h-3 text-primary fill-primary" />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggle(); }}
+              className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 border-primary/40 bg-transparent"
+            >
+              <Check className="w-4 h-4 text-primary/40" />
+            </button>
+          </>
+        ) : (
           <button
             onClick={handlePlayClick}
-            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 border-primary bg-transparent"
+            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 ${
+              isCompleted
+                ? "bg-primary border-primary"
+                : "border-primary bg-transparent"
+            }`}
           >
-            <Play className="w-3 h-3 text-primary fill-primary" />
+            {isCompleted ? (
+              <Check className="w-4 h-4 text-primary-foreground" />
+            ) : (
+              <Play className="w-3 h-3 text-primary fill-primary" />
+            )}
           </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onToggle(); }}
-            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 border-primary/40 bg-transparent"
-          >
-            <Check className="w-4 h-4 text-primary/40" />
-          </button>
-        </>
-      ) : (
-        <button
-          onClick={handlePlayClick}
-          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 ${
-            isCompleted
-              ? "bg-primary border-primary"
-              : "border-primary bg-transparent"
-          }`}
-        >
-          {isCompleted ? (
-            <Check className="w-4 h-4 text-primary-foreground" />
-          ) : (
-            <Play className="w-3 h-3 text-primary fill-primary" />
-          )}
-        </button>
+        )
       )}
 
       <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
@@ -663,7 +664,8 @@ function SortableSetRow({
           const currentWeight = Number(set.weightKg ?? 0);
           const currentReps = set.targetReps ?? 0;
           const weightPending = suggestion.reason !== "manual" && suggestion.reason !== "held" && suggestion.reason !== "progressed-reps" && currentWeight !== suggestion.suggestedWeightKg;
-          const repsPending = suggestion.suggestedReps !== undefined && suggestion.suggestedReps > currentReps;
+          const hasSmartAdjustment = suggestion.adjustedRepsForWeight !== undefined;
+          const repsPending = !hasSmartAdjustment && suggestion.suggestedReps !== undefined && suggestion.suggestedReps > currentReps;
           return (
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-xs text-muted-foreground">
@@ -673,11 +675,13 @@ function SortableSetRow({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    onApplySuggestion?.(set.id, suggestion.suggestedWeightKg);
+                    onApplySuggestion?.(set.id, suggestion.suggestedWeightKg, hasSmartAdjustment ? suggestion.adjustedRepsForWeight : undefined);
                   }}
                   className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
                 >
-                  ↑ {suggestion.suggestedWeightKg}kg
+                  {hasSmartAdjustment
+                    ? `↑ ${suggestion.suggestedWeightKg}kg — ${suggestion.adjustedRepsForWeight} reps`
+                    : `↑ ${suggestion.suggestedWeightKg}kg`}
                 </button>
               )}
               {repsPending && (

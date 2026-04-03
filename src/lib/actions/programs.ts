@@ -210,6 +210,32 @@ export async function updateProgramExerciseIncrementReps(
   }
 }
 
+const VALID_PROGRESSION_MODES = ["manual", "weight", "smart", "reps"] as const;
+type ProgressionMode = (typeof VALID_PROGRESSION_MODES)[number];
+
+export async function updateProgramExerciseProgressionMode(
+  programExerciseId: number,
+  mode: string,
+): Promise<ActionResult<void>> {
+  if (!VALID_PROGRESSION_MODES.includes(mode as ProgressionMode)) {
+    return { success: false, error: "Invalid progression mode" };
+  }
+  try {
+    const [pe] = await db
+      .update(programExercises)
+      .set({ progressionMode: mode })
+      .where(eq(programExercises.id, programExerciseId))
+      .returning({ programId: programExercises.programId });
+    if (pe) {
+      revalidatePath(`/programs/${pe.programId}/workout/exercises/${programExerciseId}`);
+      revalidatePath(`/programs/${pe.programId}/exercises/${programExerciseId}`);
+    }
+    return { success: true, data: undefined };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
 export async function reorderProgramExercises(
   programId: number,
   orderedIds: number[],

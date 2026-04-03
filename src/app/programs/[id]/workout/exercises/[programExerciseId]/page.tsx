@@ -48,6 +48,7 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
       suggestions={suggestions}
       overloadIncrementKg={Number(pe.overloadIncrementKg ?? 2.5)}
       overloadIncrementReps={Number(pe.overloadIncrementReps ?? 0)}
+      progressionMode={(pe.progressionMode ?? "weight") as "manual" | "weight" | "smart" | "reps"}
     />
   );
 }

@@ -1,0 +1,1 @@
+ALTER TABLE "program_exercises" ADD COLUMN "progression_mode" text DEFAULT 'weight';

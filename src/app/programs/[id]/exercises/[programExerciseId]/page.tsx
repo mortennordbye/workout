@@ -38,6 +38,7 @@ export default async function ProgramExerciseDetailPage({ params }: Props) {
       isWorkout={false}
       overloadIncrementKg={Number(pe.overloadIncrementKg ?? 2.5)}
       overloadIncrementReps={Number(pe.overloadIncrementReps ?? 0)}
+      progressionMode={(pe.progressionMode ?? "weight") as "manual" | "weight" | "smart" | "reps"}
     />
   );
 }

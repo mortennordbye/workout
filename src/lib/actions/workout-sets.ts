@@ -479,12 +479,21 @@ export async function getSessionSets(
 export type SetSuggestion = {
   suggestedWeightKg: number;
   suggestedReps?: number;
+  adjustedRepsForWeight?: number; // 1RM-estimated reps at new weight (smart mode)
   basedOnWeightKg: number;
   basedOnReps: number;
   basedOnFeeling: string;
   basedOnDate: string;
   reason: "progressed" | "held" | "manual" | "progressed-reps";
 };
+
+function estimate1RM(weightKg: number, reps: number): number {
+  return weightKg * (1 + reps / 30);
+}
+
+function estimateRepsAt(oneRepMax: number, weightKg: number): number {
+  return Math.max(1, Math.floor(30 * (oneRepMax / weightKg - 1)));
+}
 
 /**
  * Calculate progressive overload suggestions for every set in a program.
@@ -513,6 +522,7 @@ export async function getProgressiveSuggestions(
         exerciseId: programExercises.exerciseId,
         overloadIncrementKg: programExercises.overloadIncrementKg,
         overloadIncrementReps: programExercises.overloadIncrementReps,
+        progressionMode: programExercises.progressionMode,
       })
       .from(programSets)
       .innerJoin(
@@ -600,33 +610,64 @@ export async function getProgressiveSuggestions(
 
       const incrementKg = Number(ps.overloadIncrementKg ?? 2.5);
       const incrementReps = Number(ps.overloadIncrementReps ?? 0);
+      const mode = ps.progressionMode ?? "weight";
       const roundToIncrement = (kg: number) =>
         incrementKg > 0 ? Math.round(kg / incrementKg) * incrementKg : kg;
 
       let suggestedWeightKg: number = baseWeight;
       let suggestedReps: number | undefined;
+      let adjustedRepsForWeight: number | undefined;
       let reason: SetSuggestion["reason"] = "manual";
 
-      if (incrementKg === 0 && incrementReps === 0) {
-        reason = "manual";
-      } else if (hitTarget) {
-        // Apply weight increment independently
-        if (incrementKg > 0) {
-          suggestedWeightKg = roundToIncrement(baseWeight + incrementKg);
-          reason = "progressed";
-        }
-        // Apply rep increment independently
-        if (incrementReps > 0) {
-          suggestedReps = (ps.targetReps ?? best.targetReps ?? 0) + incrementReps;
-          if (reason !== "progressed") reason = "progressed-reps";
-        }
-      } else {
-        reason = incrementKg === 0 && incrementReps === 0 ? "manual" : "held";
+      switch (mode) {
+        case "manual":
+          reason = "manual";
+          break;
+
+        case "weight":
+          if (hitTarget && incrementKg > 0) {
+            suggestedWeightKg = roundToIncrement(baseWeight + incrementKg);
+            reason = "progressed";
+          } else {
+            reason = hitTarget ? "held" : "held";
+          }
+          break;
+
+        case "smart":
+          if (hitTarget && incrementKg > 0) {
+            suggestedWeightKg = roundToIncrement(baseWeight + incrementKg);
+            reason = "progressed";
+            // 1RM-based rep adjustment
+            if (best.actualReps != null && best.actualReps >= 2 && suggestedWeightKg > baseWeight) {
+              const oneRM = estimate1RM(baseWeight, best.actualReps);
+              const adj = estimateRepsAt(oneRM, suggestedWeightKg);
+              const currentTarget = ps.targetReps ?? best.targetReps ?? best.actualReps;
+              if (currentTarget != null && adj < currentTarget) {
+                adjustedRepsForWeight = adj;
+              }
+            }
+          } else {
+            reason = "held";
+          }
+          break;
+
+        case "reps":
+          if (hitTarget && incrementReps > 0) {
+            suggestedReps = (ps.targetReps ?? best.targetReps ?? 0) + incrementReps;
+            reason = "progressed-reps";
+          } else {
+            reason = "held";
+          }
+          break;
+
+        default:
+          reason = "manual";
       }
 
       suggestions[ps.programSetId] = {
         suggestedWeightKg,
         suggestedReps,
+        adjustedRepsForWeight,
         basedOnWeightKg: baseWeight,
         basedOnReps: best.actualReps ?? 0,
         basedOnFeeling: best.feeling ?? "OK",

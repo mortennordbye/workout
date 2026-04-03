@@ -10,8 +10,6 @@ interface ThemeContextValue {
   toggleTheme: () => void;
   accentColor: AccentColor;
   setAccentColor: (color: AccentColor) => void;
-  autoSaveToProgram: boolean;
-  setAutoSaveToProgram: (v: boolean) => void;
   weeklyGoal: number;
   setWeeklyGoal: (n: number) => void;
   defaultIncrementKg: number;
@@ -49,7 +47,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Start with server-safe defaults — localStorage is loaded after hydration in useEffect
   const [theme, setTheme] = useState<Theme>("light");
   const [accentColor, setAccentColorState] = useState<AccentColor>("blue");
-  const [autoSaveToProgram, setAutoSaveToProgramState] = useState(false);
   const [weeklyGoal, setWeeklyGoalState] = useState(4);
   const [defaultIncrementKg, setDefaultIncrementKgState] = useState(2.5);
   const [defaultIncrementReps, setDefaultIncrementRepsState] = useState(0);
@@ -70,14 +67,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const storedTheme = (localStorage.getItem("theme") as Theme | null) ??
       (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     const storedAccent = (localStorage.getItem("accentColor") as AccentColor | null) ?? "blue";
-    const storedAutoSave = localStorage.getItem("autoSaveToProgram") === "true";
     const storedGoal = localStorage.getItem("weeklyGoal");
     const storedIncrementKg = localStorage.getItem("defaultIncrementKg");
     const storedIncrementReps = localStorage.getItem("defaultIncrementReps");
 
     setTheme(storedTheme);
     setAccentColorState(storedAccent);
-    setAutoSaveToProgramState(storedAutoSave);
     setWeeklyGoalState(storedGoal ? Number(storedGoal) : 4);
     setDefaultIncrementKgState(storedIncrementKg ? Number(storedIncrementKg) : 2.5);
     setDefaultIncrementRepsState(storedIncrementReps ? Number(storedIncrementReps) : 0);
@@ -107,13 +102,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const setAutoSaveToProgram = (v: boolean) => {
-    setAutoSaveToProgramState(v);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("autoSaveToProgram", String(v));
-    }
-  };
-
   const setWeeklyGoal = (n: number) => {
     setWeeklyGoalState(n);
     if (typeof window !== "undefined") {
@@ -137,7 +125,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ThemeContext.Provider
-      value={{ theme, toggleTheme, accentColor, setAccentColor, autoSaveToProgram, setAutoSaveToProgram, weeklyGoal, setWeeklyGoal, defaultIncrementKg, setDefaultIncrementKg, defaultIncrementReps, setDefaultIncrementReps }}
+      value={{ theme, toggleTheme, accentColor, setAccentColor, weeklyGoal, setWeeklyGoal, defaultIncrementKg, setDefaultIncrementKg, defaultIncrementReps, setDefaultIncrementReps }}
     >
       {children}
     </ThemeContext.Provider>

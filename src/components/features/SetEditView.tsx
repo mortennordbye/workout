@@ -2,7 +2,6 @@
 
 import { updateProgramSet } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { useTheme } from "@/components/ui/theme-provider";
 import type { ProgramSet } from "@/types/workout";
 import { Loader2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -24,7 +23,6 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
   const [saving, setSaving] = useState(false);
 
   const workoutSession = useWorkoutSession();
-  const { autoSaveToProgram } = useTheme();
   const override = isWorkout ? (workoutSession?.overrides[set.id] ?? null) : null;
 
   const [reps, setReps] = useState(override?.targetReps ?? set.targetReps ?? 10);
@@ -33,12 +31,13 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
 
   const handleSave = async () => {
     setSaving(true);
-    if (isTimed) {
-      await updateProgramSet({ id: set.id, durationSeconds: duration });
-    } else if (!isWorkout || autoSaveToProgram) {
-      await updateProgramSet({ id: set.id, targetReps: reps, weightKg: weight });
-    } else if (isWorkout && !autoSaveToProgram) {
+    if (isWorkout) {
+      // During a workout, changes apply to the active session only — never write back to the program
       workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight });
+    } else if (isTimed) {
+      await updateProgramSet({ id: set.id, durationSeconds: duration });
+    } else {
+      await updateProgramSet({ id: set.id, targetReps: reps, weightKg: weight });
     }
     router.back();
   };
