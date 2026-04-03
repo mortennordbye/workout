@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Dumbbell,
+  Eye,
   PersonStanding,
   Plus,
   Search,
@@ -58,6 +59,7 @@ const MENU_ITEMS: { id: ViewId; label: string; Icon: React.ElementType }[] = [
   { id: "equipment", label: "Equipment", Icon: Wrench },
   { id: "timed", label: "Timed", Icon: Timer },
   { id: "function", label: "Function", Icon: Activity },
+  { id: "custom", label: "My Exercises", Icon: Eye },
 ];
 
 const GROUP_CONFIG = {
@@ -159,9 +161,13 @@ function DetailView({
 function ExerciseRow({
   exercise,
   onOpen,
+  onSelect,
+  selectLoading,
 }: {
   exercise: Exercise;
   onOpen: (exercise: Exercise) => void;
+  onSelect?: (exercise: Exercise) => void;
+  selectLoading?: boolean;
 }) {
   const sub = [
     exercise.muscleGroup ? capitalize(exercise.muscleGroup) : null,
@@ -170,8 +176,9 @@ function ExerciseRow({
 
   return (
     <button
-      onClick={() => onOpen(exercise)}
-      className="flex items-center justify-between w-full px-4 py-3.5 min-h-[54px] border-b border-border/50 last:border-0 active:bg-muted/50 transition-colors text-left"
+      onClick={() => onSelect ? onSelect(exercise) : onOpen(exercise)}
+      disabled={selectLoading}
+      className="flex items-center justify-between w-full px-4 py-3.5 min-h-[54px] border-b border-border/50 last:border-0 active:bg-muted/50 transition-colors text-left disabled:opacity-50"
     >
       <div className="flex-1 min-w-0">
         <p className="font-medium">{exercise.name}</p>
@@ -196,12 +203,16 @@ function FlatExerciseList({
   exercises,
   onBack,
   onOpen,
+  onSelect,
+  selectLoading,
 }: {
   title: string;
   backLabel: string;
   exercises: Exercise[];
   onBack: () => void;
   onOpen: (exercise: Exercise) => void;
+  onSelect?: (exercise: Exercise) => void;
+  selectLoading?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const filtered = exercises.filter((ex) =>
@@ -217,7 +228,15 @@ function FlatExerciseList({
         {filtered.length === 0 ? (
           <p className="text-muted-foreground text-center py-8">No exercises found.</p>
         ) : (
-          filtered.map((ex) => <ExerciseRow key={ex.id} exercise={ex} onOpen={onOpen} />)
+          filtered.map((ex) => (
+            <ExerciseRow
+              key={ex.id}
+              exercise={ex}
+              onOpen={onOpen}
+              onSelect={onSelect}
+              selectLoading={selectLoading}
+            />
+          ))
         )}
       </div>
     </>
@@ -267,7 +286,13 @@ function CategoryList({
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export function ExercisesClient({ exercises }: { exercises: Exercise[] }) {
+export function ExercisesClient({
+  exercises,
+  onSelectExercise,
+}: {
+  exercises: Exercise[];
+  onSelectExercise?: (exercise: Exercise) => Promise<void>;
+}) {
   const router = useRouter();
   const [view, setView] = useState<ViewId | "menu">("menu");
   const [subCategory, setSubCategory] = useState<string | null>(null);
@@ -281,6 +306,15 @@ export function ExercisesClient({ exercises }: { exercises: Exercise[] }) {
   const [movementPattern, setMovementPattern] = useState<MovementPattern | "">("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectLoading, setSelectLoading] = useState(false);
+  const [menuSearch, setMenuSearch] = useState("");
+
+  async function handleSelectExercise(exercise: Exercise) {
+    if (!onSelectExercise) return;
+    setSelectLoading(true);
+    await onSelectExercise(exercise);
+    setSelectLoading(false);
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -337,6 +371,8 @@ export function ExercisesClient({ exercises }: { exercises: Exercise[] }) {
         exercises={filtered}
         onBack={() => setSubCategory(null)}
         onOpen={setSelectedExercise}
+        onSelect={onSelectExercise ? handleSelectExercise : undefined}
+        selectLoading={selectLoading}
       />
     );
   }
@@ -374,15 +410,44 @@ export function ExercisesClient({ exercises }: { exercises: Exercise[] }) {
         exercises={filtered}
         onBack={() => setView("menu")}
         onOpen={setSelectedExercise}
+        onSelect={onSelectExercise ? handleSelectExercise : undefined}
+        selectLoading={selectLoading}
       />
+    );
+  }
+
+  // Menu view — global search across all exercises
+  if (menuSearch.trim()) {
+    const searchFiltered = exercises.filter((ex) =>
+      ex.name.toLowerCase().includes(menuSearch.trim().toLowerCase())
+    );
+    return (
+      <>
+        <SearchBar value={menuSearch} onChange={setMenuSearch} />
+        <div className="bg-card rounded-2xl overflow-hidden mt-4">
+          {searchFiltered.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No exercises found.</p>
+          ) : (
+            searchFiltered.map((ex) => (
+              <ExerciseRow
+                key={ex.id}
+                exercise={ex}
+                onOpen={setSelectedExercise}
+                onSelect={onSelectExercise ? handleSelectExercise : undefined}
+                selectLoading={selectLoading}
+              />
+            ))
+          )}
+        </div>
+      </>
     );
   }
 
   // Menu view
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold tracking-tight">Exercises</h1>
+      <div className="flex items-center justify-between mb-3">
+        <h1 className="text-2xl font-bold tracking-tight">Exercises</h1>
         <button
           onClick={() => { setShowForm(true); setError(""); }}
           className="flex items-center justify-center w-10 h-10 rounded-full border border-border text-foreground active:opacity-70"
@@ -390,6 +455,7 @@ export function ExercisesClient({ exercises }: { exercises: Exercise[] }) {
           <Plus className="w-5 h-5" />
         </button>
       </div>
+      <SearchBar value={menuSearch} onChange={setMenuSearch} />
 
       {showForm && (
         <div className="bg-card rounded-2xl p-4 mb-4 space-y-3">
@@ -479,15 +545,15 @@ export function ExercisesClient({ exercises }: { exercises: Exercise[] }) {
         </div>
       )}
 
-      <div className="bg-card rounded-2xl overflow-hidden mb-4">
+      <div className="bg-card rounded-2xl overflow-hidden mt-3">
         {MENU_ITEMS.map(({ id, label, Icon }) => (
           <button
             key={id}
             onClick={() => setView(id)}
-            className="flex items-center gap-3 w-full px-4 py-3.5 min-h-[56px] border-b border-border/50 last:border-0 active:bg-muted/50 transition-colors"
+            className="flex items-center gap-2.5 w-full px-4 py-2.5 min-h-[44px] border-b border-border/50 last:border-0 active:bg-muted/50 transition-colors"
           >
-            <div className="w-9 h-9 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-              <Icon className="w-5 h-5 text-primary" />
+            <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+              <Icon className="w-4 h-4 text-primary" />
             </div>
             <span className="flex-1 text-left font-medium">{label}</span>
             <ChevronRight className="w-4 h-4 text-muted-foreground" />
@@ -495,14 +561,6 @@ export function ExercisesClient({ exercises }: { exercises: Exercise[] }) {
         ))}
       </div>
 
-      <div className="bg-card rounded-2xl overflow-hidden">
-        <button
-          onClick={() => setView("custom")}
-          className="flex items-center w-full px-4 py-4 min-h-[56px] active:bg-muted/50 transition-colors"
-        >
-          <span className="text-primary font-medium">My Exercises</span>
-        </button>
-      </div>
     </>
   );
 }

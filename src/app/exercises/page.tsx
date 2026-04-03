@@ -9,7 +9,7 @@ export default async function ExercisesPage() {
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto px-4 pt-8 pb-24">
+      <div className="flex-1 overflow-y-auto px-4 pt-8 pb-32">
         <ExercisesClient exercises={exerciseList} />
       </div>
     </div>

@@ -1,12 +1,11 @@
 "use client";
 
-import { AddExerciseForm } from "@/components/features/AddExerciseForm";
 import {
   removeExerciseFromProgram,
   reorderProgramExercises,
 } from "@/lib/actions/programs";
 import { buildSetSummary } from "@/lib/utils/format";
-import type { Exercise, ProgramSet } from "@/types/workout";
+import type { ProgramSet } from "@/types/workout";
 import {
   DndContext,
   KeyboardSensor,
@@ -39,7 +38,6 @@ type Props = {
   programId: number;
   programName: string;
   exercises: ProgramExItem[];
-  allExercises: Exercise[];
 };
 
 
@@ -75,7 +73,7 @@ function SortableExerciseRow({
       }}
       className="flex items-center gap-3 py-4 border-b border-border last:border-0"
     >
-      {/* Left: red minus in edit, decorative circle in view */}
+      {/* Left: red minus in edit, decorative circle in view — identical size, no layout shift */}
       {isEditing ? (
         <button
           type="button"
@@ -93,6 +91,7 @@ function SortableExerciseRow({
       <Link
         href={`/programs/${programId}/exercises/${exercise.id}`}
         className="flex-1 min-w-0"
+        onClick={(e) => { if (isEditing) e.preventDefault(); }}
       >
         <p className="text-base font-medium">{exercise.name}</p>
         {summary && (
@@ -102,7 +101,7 @@ function SortableExerciseRow({
         )}
       </Link>
 
-      {/* Right: grip handle in edit mode, chevron in view mode */}
+      {/* Right: fixed w-10 container in both modes — chevron in view, grip in edit, no layout shift */}
       {isEditing ? (
         <button
           {...attributes}
@@ -113,7 +112,9 @@ function SortableExerciseRow({
           <GripVertical className="w-5 h-5" />
         </button>
       ) : (
-        <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+        <div className="w-10 h-10 flex items-center justify-center shrink-0">
+          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+        </div>
       )}
     </div>
   );
@@ -123,7 +124,6 @@ export function ProgramDetailClient({
   programId,
   programName,
   exercises: initial,
-  allExercises,
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -199,13 +199,13 @@ export function ProgramDetailClient({
             type="button"
             onClick={cancelEditing}
             disabled={saving}
-            className="text-muted-foreground text-sm font-medium disabled:opacity-40"
+            className="text-muted-foreground text-sm font-medium disabled:opacity-40 shrink-0"
           >
             Cancel
           </button>
         ) : (
-          <Link href="/programs" className="text-primary text-sm font-medium">
-            &lt; Programs
+          <Link href="/programs" className="text-primary text-sm font-medium whitespace-nowrap shrink-0">
+            &lt; Back
           </Link>
         )}
         <h1 className="text-xl font-bold truncate px-2">{programName}</h1>
@@ -262,33 +262,21 @@ export function ProgramDetailClient({
           </DndContext>
         )}
 
-        {isEditing && (
-          <div
-            id="add-exercise-form"
-            className="mt-4"
-          >
-            <AddExerciseForm programId={programId} exercises={allExercises} />
-          </div>
-        )}
 
       </div>
 
-      {/* Add button in edit mode — scrolls to the form */}
+      {/* Add exercise button in edit mode */}
       {isEditing && (
         <div className="shrink-0 px-4 pb-4 pt-2 border-t border-border">
-          <button
-            type="button"
-            onClick={() => {
-              const el = document.getElementById("add-exercise-form");
-              el?.scrollIntoView({ behavior: "smooth" });
-            }}
+          <Link
+            href={`/programs/${programId}/add-exercise`}
             className="flex items-center gap-2 text-primary text-sm font-medium"
           >
             <div className="w-7 h-7 rounded-full border-2 border-primary flex items-center justify-center">
               <Plus className="w-4 h-4" />
             </div>
             Add exercise
-          </button>
+          </Link>
         </div>
       )}
     </div>

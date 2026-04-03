@@ -1,5 +1,4 @@
 import { ProgramDetailClient } from "@/components/features/ProgramDetailClient";
-import { getAllExercises } from "@/lib/actions/exercises";
 import { getProgramWithExercises } from "@/lib/actions/programs";
 import { notFound } from "next/navigation";
 
@@ -14,16 +13,10 @@ export default async function ProgramDetailPage({ params }: Props) {
   const programId = Number(id);
   if (isNaN(programId)) notFound();
 
-  const [programResult, exercisesResult] = await Promise.all([
-    getProgramWithExercises(programId),
-    getAllExercises(),
-  ]);
-
+  const programResult = await getProgramWithExercises(programId);
   if (!programResult.success) notFound();
 
   const program = programResult.data;
-  const allExercises = exercisesResult.success ? exercisesResult.data : [];
-
   const exercises = program.programExercises.map((pe) => ({
     id: pe.id,
     name: pe.exercise.name,
@@ -35,7 +28,6 @@ export default async function ProgramDetailPage({ params }: Props) {
       programId={programId}
       programName={program.name}
       exercises={exercises}
-      allExercises={allExercises}
     />
   );
 }
