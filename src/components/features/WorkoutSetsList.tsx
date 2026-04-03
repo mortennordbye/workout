@@ -91,6 +91,23 @@ export function WorkoutSetsList({
     setFlatItems(toFlatItems(sets));
   }, [sets]);
 
+  // Restore active rest timers from persisted end timestamps on mount
+  useEffect(() => {
+    if (!isWorkout || !workoutSession) return;
+    const now = Date.now();
+    const initial = new Map<number, number>();
+    Object.entries(workoutSession.restTimerEnds).forEach(([id, endMs]) => {
+      const remaining = Math.round((Number(endMs) - now) / 1000);
+      if (remaining > 0) {
+        initial.set(Number(id), remaining);
+      } else {
+        workoutSession.clearRestTimerEnd(Number(id));
+      }
+    });
+    if (initial.size > 0) setRestTimers(initial);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // When sets are pre-completed (e.g. marked via exercise checkmark), show their
   // rest timers as already finished (0) rather than showing the configured duration.
   useEffect(() => {
@@ -149,6 +166,7 @@ export function WorkoutSetsList({
         t.delete(setId);
         return t;
       });
+      if (isWorkout && workoutSession) workoutSession.clearRestTimerEnd(setId);
     } else {
       if (completedSets) {
         workoutSession!.addCompletedSet(setId);
@@ -176,6 +194,9 @@ export function WorkoutSetsList({
         }
         return t;
       });
+      if (restSeconds > 0 && isWorkout && workoutSession) {
+        workoutSession.setRestTimerEnd(setId, Date.now() + restSeconds * 1000);
+      }
 
       // Log the completed set to the database
       if (isWorkout && sessionId != null && exerciseId != null) {

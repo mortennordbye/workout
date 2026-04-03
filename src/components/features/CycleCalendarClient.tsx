@@ -102,9 +102,9 @@ export function CycleCalendarClient({ cycles, completedDates }: Props) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 pb-6">
+    <div className="flex-1 overflow-hidden px-4 pb-2 flex flex-col">
       {/* Month navigation */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <button onClick={prevMonth} className="w-10 h-10 flex items-center justify-center active:opacity-60">
           <ChevronLeftIcon className="w-5 h-5" />
         </button>
@@ -115,7 +115,7 @@ export function CycleCalendarClient({ cycles, completedDates }: Props) {
       </div>
 
       {/* Day-of-week headers */}
-      <div className="grid grid-cols-7 mb-1">
+      <div className="grid grid-cols-7">
         {DAY_LABELS.map((label) => (
           <div key={label} className="text-center text-xs font-medium text-muted-foreground py-1">
             {label}
@@ -124,7 +124,7 @@ export function CycleCalendarClient({ cycles, completedDates }: Props) {
       </div>
 
       {/* Calendar grid */}
-      <div className="grid grid-cols-7 gap-y-1">
+      <div className="grid grid-cols-7 flex-1">
         {grid.map((dateStr, idx) => {
           if (!dateStr) return <div key={`pad-${idx}`} />;
 
@@ -138,9 +138,8 @@ export function CycleCalendarClient({ cycles, completedDates }: Props) {
           return (
             <div
               key={dateStr}
-              className={`flex flex-col items-center py-1 rounded-lg ${colors && info.isScheduled ? colors.light : ""}`}
+              className={`flex flex-col items-center justify-center rounded-lg ${colors && info.isScheduled ? colors.light : ""}`}
             >
-              {/* Day number */}
               <span
                 className={`
                   w-8 h-8 flex items-center justify-center rounded-full text-sm font-medium
@@ -150,16 +149,12 @@ export function CycleCalendarClient({ cycles, completedDates }: Props) {
               >
                 {dayNum}
               </span>
-
-              {/* Indicator dot */}
               {info.isScheduled && colors ? (
-                <span
-                  className={`w-1.5 h-1.5 rounded-full mt-0.5 ${colors.dot} ${isCompleted ? "opacity-100" : "opacity-30"}`}
-                />
+                <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${colors.dot} ${isCompleted ? "opacity-100" : "opacity-30"}`} />
               ) : isCompleted ? (
                 <span className="w-1.5 h-1.5 rounded-full mt-0.5 bg-primary" />
               ) : (
-                <span className="w-1.5 h-1.5 mt-0.5" /> // spacer to keep rows same height
+                <span className="w-1.5 h-1.5 mt-0.5" />
               )}
             </div>
           );
@@ -168,8 +163,8 @@ export function CycleCalendarClient({ cycles, completedDates }: Props) {
 
       {/* Legend */}
       {visibleCycles.length > 0 && (
-        <div className="mt-6 flex flex-col gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+        <div className="mt-3 flex flex-col gap-1.5 shrink-0">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
             Cycles
           </p>
           {visibleCycles.map((cycle) => {
@@ -183,8 +178,7 @@ export function CycleCalendarClient({ cycles, completedDates }: Props) {
               </div>
             );
           })}
-
-          <div className="flex items-center gap-5 mt-3 pt-3 border-t border-border">
+          <div className="flex items-center gap-5 mt-2 pt-2 border-t border-border">
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-foreground opacity-20" />
               <span className="text-xs text-muted-foreground">Scheduled</span>
@@ -198,7 +192,7 @@ export function CycleCalendarClient({ cycles, completedDates }: Props) {
       )}
 
       {visibleCycles.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center mt-8">
+        <p className="text-sm text-muted-foreground text-center mt-4">
           No cycles with a start date yet.
         </p>
       )}

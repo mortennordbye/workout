@@ -12,49 +12,43 @@ export function WeeklyGoalProgress({
   const remaining = Math.max(weeklyGoal - thisWeekWorkouts, 0);
 
   return (
-    <div className="w-full max-w-sm">
-      <div className="text-center">
-        <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
-          Workouts Per Week
-        </div>
-        <div className="flex items-center justify-center gap-4">
-          <div className="relative w-16 h-16 shrink-0">
-            <svg className="w-16 h-16 transform -rotate-90">
-              <circle
-                cx="32"
-                cy="32"
-                r="26"
-                stroke="currentColor"
-                strokeWidth="6"
-                fill="none"
-                className="text-muted"
-              />
-              <circle
-                cx="32"
-                cy="32"
-                r="26"
-                stroke="currentColor"
-                strokeWidth="6"
-                fill="none"
-                strokeDasharray={`${2 * Math.PI * 26}`}
-                strokeDashoffset={`${2 * Math.PI * 26 * (1 - progress / 100)}`}
-                className="text-primary"
-                strokeLinecap="round"
-              />
-            </svg>
-          </div>
-          <div className="text-left">
-            <div className="text-4xl font-bold">
-              {thisWeekWorkouts}/{weeklyGoal}
-            </div>
-            <div className="text-xs text-muted-foreground max-w-[180px]">
-              {remaining === 0
-                ? "Weekly goal reached"
-                : `${remaining} more to reach your weekly goal`}
-            </div>
-          </div>
+    <div className="w-full flex flex-col items-center gap-2">
+      <div className="text-xs text-muted-foreground uppercase tracking-wider">
+        Workouts Per Week
+      </div>
+      <div className="relative w-16 h-16">
+        <svg className="w-16 h-16 transform -rotate-90" viewBox="0 0 64 64">
+          <circle
+            cx="32"
+            cy="32"
+            r="26"
+            stroke="currentColor"
+            strokeWidth="5"
+            fill="none"
+            className="text-border/40"
+          />
+          <circle
+            cx="32"
+            cy="32"
+            r="26"
+            stroke="currentColor"
+            strokeWidth="5"
+            fill="none"
+            strokeDasharray={`${2 * Math.PI * 26}`}
+            strokeDashoffset={`${2 * Math.PI * 26 * (1 - progress / 100)}`}
+            className="text-primary"
+            strokeLinecap="round"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-sm font-bold tabular-nums">
+            {thisWeekWorkouts}/{weeklyGoal}
+          </span>
         </div>
       </div>
+      <p className="text-xs text-muted-foreground text-center">
+        {remaining === 0 ? "Weekly goal reached 🎉" : `${remaining} more to reach your goal`}
+      </p>
     </div>
   );
 }

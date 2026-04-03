@@ -4,6 +4,7 @@ import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { Dumbbell, MoreHorizontal, RefreshCw, LayoutList } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 const staticNavItems = [
   {
@@ -32,8 +33,16 @@ export function BottomNav() {
   const pathname = usePathname();
   const workoutSession = useWorkoutSession();
   const workoutPath = workoutSession?.workoutPath ?? null;
+  const lastWorkoutPath = workoutSession?.lastWorkoutPath ?? null;
 
   const isWorkoutRoute = pathname.includes("/workout");
+
+  // Keep lastWorkoutPath in context up to date as the user navigates deeper
+  useEffect(() => {
+    if (isWorkoutRoute && workoutSession) {
+      workoutSession.updateLastWorkoutPath(pathname);
+    }
+  }, [pathname, isWorkoutRoute, workoutSession]);
 
   const isActive = (label: string, href: string) => {
     if (label === "Workout") {
@@ -58,7 +67,9 @@ export function BottomNav() {
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
         {staticNavItems.map((item) => {
           const Icon = item.icon;
-          const href = item.label === "Workout" ? (workoutPath ?? item.defaultHref ?? "/") : (item.href ?? "/");
+          const href = item.label === "Workout"
+            ? (lastWorkoutPath ?? workoutPath ?? "/")
+            : (item.href ?? "/");
           const active = isActive(item.label, href);
           const showDot = item.label === "Workout" && workoutPath !== null;
 

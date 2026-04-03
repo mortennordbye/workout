@@ -1,9 +1,11 @@
 "use client";
-import { createContext, useContext, useEffect, useState } from "react";
+import { requestNotificationPermission, sendNotification } from "@/lib/notifications";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 type SetOverride = { targetReps: number; weightKg: number };
 
 const STORAGE_KEY = "activeWorkout";
+const REST_TIMERS_KEY = "restTimerEnds";
 
 type WorkoutSessionContextValue = {
   sessionId: number | null;
@@ -15,6 +17,11 @@ type WorkoutSessionContextValue = {
   completedSetIds: Set<number>;
   addCompletedSet: (id: number) => void;
   removeCompletedSet: (id: number) => void;
+  restTimerEnds: Record<number, number>;
+  setRestTimerEnd: (setId: number, endMs: number) => void;
+  clearRestTimerEnd: (setId: number) => void;
+  lastWorkoutPath: string | null;
+  updateLastWorkoutPath: (path: string) => void;
   programId: number | null;
   startTime: string | null;
   workoutPath: string | null;
@@ -28,6 +35,9 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
   const [sessionId, setSessionId] = useState<number | null>(null);
   const [overrides, setOverrides] = useState<Record<number, SetOverride>>({});
   const [completedSetIds, setCompletedSetIds] = useState<Set<number>>(new Set());
+  const [restTimerEnds, setRestTimerEnds] = useState<Record<number, number>>({});
+  const [lastWorkoutPath, setLastWorkoutPath] = useState<string | null>(null);
+  const restTimeoutRefs = useRef<Record<number, ReturnType<typeof setTimeout>>>({});
   const [programId, setProgramId] = useState<number | null>(null);
   const [startTime, setStartTime] = useState<string | null>(null);
   const [workoutPath, setWorkoutPath] = useState<string | null>(null);
@@ -49,7 +59,41 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
         localStorage.removeItem(STORAGE_KEY);
       }
     }
+    const rawTimers = localStorage.getItem(REST_TIMERS_KEY);
+    if (rawTimers) {
+      try {
+        setRestTimerEnds(JSON.parse(rawTimers) as Record<number, number>);
+      } catch {
+        localStorage.removeItem(REST_TIMERS_KEY);
+      }
+    }
   }, []);
+
+  // Schedule/cancel notification timeouts whenever restTimerEnds changes
+  useEffect(() => {
+    const refs = restTimeoutRefs.current;
+
+    // Schedule new timers
+    Object.entries(restTimerEnds).forEach(([id, endMs]) => {
+      const setId = Number(id);
+      if (refs[setId] !== undefined) return; // already scheduled
+      const delay = endMs - Date.now();
+      if (delay <= 0) return;
+      refs[setId] = setTimeout(() => {
+        sendNotification("Rest complete!", "Time to get back to work 💪");
+        delete refs[setId];
+      }, delay);
+    });
+
+    // Cancel timeouts for removed entries
+    Object.keys(refs).forEach((id) => {
+      const setId = Number(id);
+      if (restTimerEnds[setId] === undefined) {
+        clearTimeout(refs[setId]);
+        delete refs[setId];
+      }
+    });
+  }, [restTimerEnds]);
 
   const setOverride = (setId: number, data: SetOverride) =>
     setOverrides((prev) => ({ ...prev, [setId]: data }));
@@ -69,20 +113,46 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
       return s;
     });
 
+  const setRestTimerEnd = (setId: number, endMs: number) => {
+    setRestTimerEnds((prev) => {
+      const next = { ...prev, [setId]: endMs };
+      localStorage.setItem(REST_TIMERS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const clearRestTimerEnd = (setId: number) => {
+    setRestTimerEnds((prev) => {
+      const next = { ...prev };
+      delete next[setId];
+      localStorage.setItem(REST_TIMERS_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
   const setActiveWorkout = (pid: number, st: string, sid?: number) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ programId: pid, startTime: st, sessionId: sid ?? null }));
     setProgramId(pid);
     setStartTime(st);
     setWorkoutPath(`/programs/${pid}/workout`);
     if (sid != null) setSessionId(sid);
+    void requestNotificationPermission();
   };
+
+  const updateLastWorkoutPath = (path: string) => setLastWorkoutPath(path);
 
   const clearActiveWorkout = () => {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(REST_TIMERS_KEY);
+    // Cancel all pending notification timeouts
+    Object.values(restTimeoutRefs.current).forEach(clearTimeout);
+    restTimeoutRefs.current = {};
     setProgramId(null);
     setStartTime(null);
     setWorkoutPath(null);
     setSessionId(null);
+    setRestTimerEnds({});
+    setLastWorkoutPath(null);
     clearOverrides();
   };
 
@@ -98,6 +168,11 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
         completedSetIds,
         addCompletedSet,
         removeCompletedSet,
+        restTimerEnds,
+        setRestTimerEnd,
+        clearRestTimerEnd,
+        lastWorkoutPath,
+        updateLastWorkoutPath,
         programId,
         startTime,
         workoutPath,

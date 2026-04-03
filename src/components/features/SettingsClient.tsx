@@ -3,6 +3,7 @@
 import { useTheme } from "@/components/ui/theme-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { CheckIcon } from "lucide-react";
+import { useRef } from "react";
 
 const accentColors = [
   { value: "blue", label: "Blue", color: "#5B8FFF" },
@@ -15,141 +16,201 @@ const accentColors = [
 const KG_INCREMENT_PRESETS = [0, 1, 2.5, 5, 10] as const;
 const REP_INCREMENT_PRESETS = [0, 1, 2, 3] as const;
 
+const isKgPreset = (v: number): v is typeof KG_INCREMENT_PRESETS[number] =>
+  (KG_INCREMENT_PRESETS as readonly number[]).includes(v);
+const isRepPreset = (v: number): v is typeof REP_INCREMENT_PRESETS[number] =>
+  (REP_INCREMENT_PRESETS as readonly number[]).includes(v);
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1 mb-2">
+      {children}
+    </p>
+  );
+}
+
+function Row({ children, last }: { children: React.ReactNode; last?: boolean }) {
+  return (
+    <div className={`px-4 py-3.5 ${!last ? "border-b border-border/50" : ""}`}>
+      {children}
+    </div>
+  );
+}
+
+function RowLabel({ children }: { children: React.ReactNode }) {
+  return <p className="text-sm font-medium mb-0.5">{children}</p>;
+}
+
+function RowDescription({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs text-muted-foreground mb-3">{children}</p>;
+}
+
 export function SettingsClient() {
-  const { accentColor, setAccentColor, weeklyGoal, setWeeklyGoal, defaultIncrementKg, setDefaultIncrementKg, defaultIncrementReps, setDefaultIncrementReps } = useTheme();
+  const {
+    accentColor, setAccentColor,
+    customAccentHex, setCustomAccentHex,
+    weeklyGoal, setWeeklyGoal,
+    defaultIncrementKg, setDefaultIncrementKg,
+    defaultIncrementReps, setDefaultIncrementReps,
+  } = useTheme();
+  const colorInputRef = useRef<HTMLInputElement>(null);
+
+  const presetBtn = (active: boolean) =>
+    `h-11 min-w-[44px] px-3 rounded-xl text-sm font-semibold active:scale-95 transition-colors ${
+      active ? "bg-primary text-primary-foreground" : "bg-background text-foreground"
+    }`;
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       <h1 className="text-3xl font-bold tracking-tight px-4 pt-8 pb-0 shrink-0">Settings</h1>
 
-      {/* Settings sections */}
-      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar px-4 pt-8 pb-8">
-        <div className="flex flex-col gap-4">
-        {/* Appearance section */}
-        <div className="rounded-xl bg-muted overflow-hidden">
-          <div className="p-4">
-            <h2 className="font-semibold mb-1">Appearance</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Customize how the app looks
-            </p>
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-6 pb-24 flex flex-col gap-6">
 
-            {/* Dark Mode Toggle */}
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <p className="font-medium">Dark Mode</p>
-                <p className="text-sm text-muted-foreground">
-                  Toggle between light and dark theme
-                </p>
+        {/* ── Appearance ─────────────────────────────── */}
+        <div>
+          <SectionLabel>Appearance</SectionLabel>
+          <div className="rounded-xl bg-muted overflow-hidden">
+
+            <Row>
+              <div className="flex items-center justify-between">
+                <div>
+                  <RowLabel>Dark Mode</RowLabel>
+                  <p className="text-xs text-muted-foreground">Toggle between light and dark theme</p>
+                </div>
+                <ThemeToggle />
               </div>
-              <ThemeToggle />
-            </div>
+            </Row>
 
-            {/* Accent Color Picker */}
-            <div>
-              <p className="font-medium mb-3">Accent Color</p>
-              <div className="flex gap-3 flex-wrap">
+            <Row last>
+              <RowLabel>Accent Color</RowLabel>
+              <div className="flex gap-3 flex-wrap mt-2">
                 {accentColors.map((color) => (
                   <button
                     key={color.value}
                     onClick={() => setAccentColor(color.value)}
-                    className="relative w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
+                    className="relative w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-transform"
                     style={{ backgroundColor: color.color }}
                   >
                     {accentColor === color.value && (
-                      <CheckIcon
-                        className="h-6 w-6 text-black"
-                        strokeWidth={3}
-                      />
+                      <CheckIcon className="h-5 w-5 text-black" strokeWidth={3} />
                     )}
                   </button>
                 ))}
+                <button
+                  onClick={() => colorInputRef.current?.click()}
+                  className="relative w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-transform overflow-hidden"
+                  style={{
+                    background: accentColor === "custom"
+                      ? customAccentHex
+                      : "conic-gradient(red, yellow, lime, cyan, blue, magenta, red)",
+                  }}
+                >
+                  {accentColor === "custom" && (
+                    <CheckIcon className="h-5 w-5 text-black" strokeWidth={3} />
+                  )}
+                </button>
+                <input
+                  ref={colorInputRef}
+                  type="color"
+                  className="sr-only"
+                  value={customAccentHex}
+                  onChange={(e) => setCustomAccentHex(e.target.value)}
+                />
               </div>
-            </div>
+            </Row>
+
           </div>
         </div>
 
-        {/* Workout section */}
-        <div className="rounded-xl bg-muted overflow-hidden">
-          <div className="p-4">
-            <h2 className="font-semibold mb-1">Workout</h2>
-            <p className="text-sm text-muted-foreground mb-4">
-              Workout defaults and goals
-            </p>
+        {/* ── Workout ────────────────────────────────── */}
+        <div>
+          <SectionLabel>Workout</SectionLabel>
+          <div className="rounded-xl bg-muted overflow-hidden">
 
-            {/* Weekly goal */}
-            <div className="mb-6">
-              <p className="font-medium mb-1">Weekly goal</p>
-              <p className="text-sm text-muted-foreground mb-3">
-                How many workouts you aim to do per week
-              </p>
-              <div className="flex gap-2">
+            <Row>
+              <RowLabel>Weekly Goal</RowLabel>
+              <RowDescription>Workouts you aim to complete each week</RowDescription>
+              <div className="grid grid-cols-7 gap-2">
                 {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setWeeklyGoal(n)}
-                    className={`flex-1 h-11 rounded-xl text-sm font-semibold transition-colors active:scale-95 ${
-                      weeklyGoal === n
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-foreground"
-                    }`}
-                  >
+                  <button key={n} onClick={() => setWeeklyGoal(n)} className={`h-11 w-full rounded-xl text-sm font-semibold active:scale-95 transition-colors flex items-center justify-center ${weeklyGoal === n ? "bg-primary text-primary-foreground" : "bg-background text-foreground"}`}>
                     {n}
                   </button>
                 ))}
               </div>
-            </div>
+            </Row>
 
-            {/* Default weight increment */}
-            <div className="mb-6">
-              <p className="font-medium mb-1">Default weight increment</p>
-              <p className="text-sm text-muted-foreground mb-3">
-                How much to increase weight when you hit your target reps
-              </p>
+            <Row>
+              <RowLabel>Weight Increment</RowLabel>
+              <RowDescription>How much to increase weight when you hit your target reps</RowDescription>
               <div className="flex gap-2">
                 {KG_INCREMENT_PRESETS.map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setDefaultIncrementKg(n)}
-                    className={`flex-1 h-11 rounded-xl text-sm font-semibold transition-colors active:scale-95 ${
-                      defaultIncrementKg === n
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-foreground"
-                    }`}
-                  >
+                  <button key={n} onClick={() => setDefaultIncrementKg(n)} className={presetBtn(defaultIncrementKg === n)}>
                     {n === 0 ? "—" : `+${n}`}
                   </button>
                 ))}
               </div>
-            </div>
+              <div className="flex items-center gap-3 mt-3">
+                <span className="text-xs text-muted-foreground">Custom</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  placeholder="e.g. 7.5"
+                  value={isKgPreset(defaultIncrementKg) ? "" : defaultIncrementKg}
+                  onChange={(e) => {
+                    const v = parseFloat(e.target.value);
+                    if (!isNaN(v) && v >= 0) setDefaultIncrementKg(v);
+                  }}
+                  className={`h-9 w-24 rounded-xl text-sm font-semibold text-center border-0 outline-none appearance-none ${
+                    !isKgPreset(defaultIncrementKg)
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-foreground"
+                  }`}
+                />
+                {!isKgPreset(defaultIncrementKg) && (
+                  <span className="text-xs text-muted-foreground">kg</span>
+                )}
+              </div>
+            </Row>
 
-            {/* Default rep increment */}
-            <div className="mb-6">
-              <p className="font-medium mb-1">Default rep increment</p>
-              <p className="text-sm text-muted-foreground mb-3">
-                How many reps to add when weight increment is set to manual
-              </p>
+            <Row last>
+              <RowLabel>Rep Increment</RowLabel>
+              <RowDescription>Extra reps to add each progression cycle</RowDescription>
               <div className="flex gap-2">
                 {REP_INCREMENT_PRESETS.map((n) => (
-                  <button
-                    key={n}
-                    onClick={() => setDefaultIncrementReps(n)}
-                    className={`flex-1 h-11 rounded-xl text-sm font-semibold transition-colors active:scale-95 ${
-                      defaultIncrementReps === n
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-background text-foreground"
-                    }`}
-                  >
+                  <button key={n} onClick={() => setDefaultIncrementReps(n)} className={presetBtn(defaultIncrementReps === n)}>
                     {n === 0 ? "—" : `+${n}`}
                   </button>
                 ))}
               </div>
-            </div>
+              <div className="flex items-center gap-3 mt-3">
+                <span className="text-xs text-muted-foreground">Custom</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="e.g. 5"
+                  value={isRepPreset(defaultIncrementReps) ? "" : defaultIncrementReps}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    if (!isNaN(v) && v >= 0) setDefaultIncrementReps(v);
+                  }}
+                  className={`h-9 w-24 rounded-xl text-sm font-semibold text-center border-0 outline-none appearance-none ${
+                    !isRepPreset(defaultIncrementReps)
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background text-foreground"
+                  }`}
+                />
+                {!isRepPreset(defaultIncrementReps) && (
+                  <span className="text-xs text-muted-foreground">reps</span>
+                )}
+              </div>
+            </Row>
 
           </div>
         </div>
-        </div>
+
       </div>
     </div>
   );
 }
-
