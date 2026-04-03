@@ -16,9 +16,7 @@ spec:
     spec:
       containers:
         - name: workout-app
-          # TODO: replace with your registry image after running scripts/build-prod.sh
-          # Example: image: ghcr.io/youruser/workout-app:v1
-          image: workout-app:latest
+          image: ghcr.io/mortennordbye/workout:sha-e0eb06b
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
@@ -29,11 +27,13 @@ spec:
               value: "0.0.0.0"
             - name: NEXT_TELEMETRY_DISABLED
               value: "1"
-            - name: DATABASE_URL
+            - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: workout-secret
-                  key: DATABASE_URL
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: "postgresql://postgres:$(POSTGRES_PASSWORD)@postgres.workout.svc.cluster.local:5432/workout_db"
           readinessProbe:
             httpGet:
               path: /api/health

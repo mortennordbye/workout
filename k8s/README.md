@@ -4,55 +4,34 @@ Deploys [workout](https://github.com/mortennordbye/workout) — a Next.js PWA �
 
 ## Prerequisites
 
-- Docker
-- `kubectl` pointed at your cluster
-- A container registry you can push to (e.g. `ghcr.io/mortennordbye/workout-app`)
 - [external-secrets-operator](https://external-secrets.io) installed with a `ClusterSecretStore` named `bitwarden-secretsmanager`
 - Gateway API with a `Gateway` named `traefik-gateway-private` in the `traefik` namespace
 
-## 1. Build & push the image
+## Deploying a new image
+
+Images are built and pushed automatically by GitHub Actions on every push to `main` and on version tags.
+
+### 1. Tag a release
 
 ```bash
-IMAGE=ghcr.io/mortennordbye/workout-app:v1 PUSH=true ./scripts/build-prod.sh
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
-## 2. Update the image tag
+The workflow builds and pushes `ghcr.io/mortennordbye/workout:v1.0.0` to the GitHub Container Registry.
 
-Open `k8s/app.yaml` and update the `image:` line to match your registry and tag:
+### 2. Update the image tag in `k8s/app.yaml`
 
 ```yaml
-image: ghcr.io/mortennordbye/workout-app:v1
+image: ghcr.io/mortennordbye/workout:v1.0.0
 ```
 
-## 3. Apply
+### 3. Commit and push
 
 ```bash
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/externalsecret.yaml
-kubectl apply -f k8s/postgres.yaml
-kubectl apply -f k8s/app.yaml
-kubectl apply -f k8s/httproute.yaml
-```
-
-> The ExternalSecret must be applied before the postgres and app pods start, as both reference the `workout-secret` it creates.
-
-## 4. Watch pods come up
-
-```bash
-kubectl get pods -n workout -w
-```
-
-Both pods should reach `Running` / `1/1` (the app pod takes ~45 s for migrations).
-
-## 5. Access
-
-The app is available at `http://workout.local.bigd.no` via the Traefik gateway.
-
-For direct port-forward access:
-
-```bash
-kubectl port-forward -n workout svc/workout-app 3000:3000
-# → http://localhost:3000
+git add k8s/app.yaml
+git commit -m "chore: bump image to v1.0.0"
+git push
 ```
 
 ## Teardown
