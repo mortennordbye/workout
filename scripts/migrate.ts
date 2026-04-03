@@ -34,6 +34,25 @@ async function runMigrations() {
         await pool.end();
         return;
       }
+
+      // Migrations table exists but is empty — the schema was created outside of
+      // Drizzle's migration runner (e.g. a previous db:push). Register the latest
+      // migration as applied so we don't try to re-run it against an existing schema.
+      console.log("ℹ️  Migrations table is empty but schema exists — registering current state");
+      const fs = await import("fs");
+      const path = await import("path");
+      const journalPath = path.join(process.cwd(), "drizzle", "meta", "_journal.json");
+      const journal = JSON.parse(fs.readFileSync(journalPath, "utf-8"));
+      if (journal.entries && journal.entries.length > 0) {
+        const latestEntry = journal.entries[journal.entries.length - 1];
+        await pool.query(
+          `INSERT INTO __drizzle_migrations (hash, created_at) VALUES ($1, $2)`,
+          [latestEntry.tag, Date.now()],
+        );
+        console.log(`✅ Registered migration state: ${latestEntry.tag}`);
+      }
+      await pool.end();
+      return;
     }
 
     // Run migrations
@@ -42,7 +61,7 @@ async function runMigrations() {
   } catch (error: unknown) {
     // If tables already exist but migrations table doesn't, manually create it
     const err = error as { cause?: { code?: string } };
-    if (err?.cause?.code === "42P07") {
+    if (err?.cause?.code === "42P07" || err?.cause?.code === "42710") {
       console.log("ℹ️  Database tables already exist");
 
       try {
