@@ -9,29 +9,33 @@ Deploys [workout](https://github.com/mortennordbye/workout) — a Next.js PWA �
 
 ## Deploying a new image
 
-Images are built and pushed automatically by GitHub Actions on every push to `main` and on version tags.
+Images are built and pushed automatically by GitHub Actions on every push to `main` and on version tags. No manual build step needed.
 
-### 1. Tag a release
+### 1. Push to main (or tag a release)
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git push origin main
+# or for a versioned release:
+git tag v1.0.0 && git push origin v1.0.0
 ```
 
-The workflow builds and pushes `ghcr.io/mortennordbye/workout:v1.0.0` to the GitHub Container Registry.
+The workflow builds and pushes to `ghcr.io/mortennordbye/workout` with tags:
+- `latest` — on every push to `main`
+- `sha-<short-sha>` — on every push
+- `v1.0.0` — on git tags
 
 ### 2. Update the image tag in `k8s/app.yaml`
 
 ```yaml
-image: ghcr.io/mortennordbye/workout:v1.0.0
+image: ghcr.io/mortennordbye/workout:latest
+# or pin to a specific sha/tag for stability:
+image: ghcr.io/mortennordbye/workout:sha-abc1234
 ```
 
-### 3. Commit and push
+### 3. Apply
 
 ```bash
-git add k8s/app.yaml
-git commit -m "chore: bump image to v1.0.0"
-git push
+kubectl apply -f k8s/app.yaml
 ```
 
 ## Teardown
