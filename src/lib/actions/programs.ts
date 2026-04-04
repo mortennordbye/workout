@@ -8,6 +8,7 @@
 
 import { db } from "@/db";
 import { programExercises, programSets, programs } from "@/db/schema";
+import { requireSession } from "@/lib/utils/session";
 import {
   addExerciseToProgramSchema,
   addProgramSetSchema,
@@ -33,7 +34,7 @@ import { revalidatePath } from "next/cache";
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getPrograms(
-  userId: number,
+  userId: string,
 ): Promise<ActionResult<Program[]>> {
   try {
     const rows = await db
@@ -79,15 +80,17 @@ export async function getProgramWithExercises(
 export async function createProgram(
   data: unknown,
 ): Promise<ActionResult<Program>> {
-  try {
-    const validation = createProgramSchema.safeParse(data);
-    if (!validation.success) {
-      return { success: false, error: "Invalid input" };
-    }
+  const auth = await requireSession();
 
+  const validation = createProgramSchema.safeParse(data);
+  if (!validation.success) {
+    return { success: false, error: "Invalid input" };
+  }
+
+  try {
     const [program] = await db
       .insert(programs)
-      .values(validation.data)
+      .values({ ...validation.data, userId: auth.user.id })
       .returning();
 
     revalidatePath("/programs");

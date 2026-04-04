@@ -14,8 +14,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-const DEMO_USER_ID = 1;
-
 function toDateString(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -73,7 +71,6 @@ export function WorkoutSessionClient({
 
     async function init() {
       const result = await createWorkoutSession({
-        userId: DEMO_USER_ID,
         date: toDateString(effectiveStart),
         startTime: effectiveStart.toISOString(),
         programId,

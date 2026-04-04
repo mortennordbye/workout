@@ -254,7 +254,7 @@ function ProgressChart({ data, exerciseName }: { data: ExerciseProgress[]; exerc
 // ── Main component ─────────────────────────────────────────────────────────
 
 type Props = {
-  userId: number;
+  userId: string;
   weekly: WeeklyMetric[];
   personalRecords: PersonalRecord[];
   muscleBalance: MuscleBalance[];

@@ -9,15 +9,10 @@ import {
 // ─── createTrainingCycleSchema ────────────────────────────────────────────────
 
 describe("createTrainingCycleSchema", () => {
-  const valid = { userId: 1, name: "My Cycle", durationWeeks: 8 };
+  const valid = { name: "My Cycle", durationWeeks: 8 };
 
   it("accepts valid minimal input", () => {
     expect(createTrainingCycleSchema.safeParse(valid).success).toBe(true);
-  });
-
-  it("rejects non-positive userId", () => {
-    expect(createTrainingCycleSchema.safeParse({ ...valid, userId: 0 }).success).toBe(false);
-    expect(createTrainingCycleSchema.safeParse({ ...valid, userId: -1 }).success).toBe(false);
   });
 
   it("rejects empty name", () => {

@@ -7,8 +7,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const DEMO_USER_ID = 1;
-
 type Props = {
   programs: Program[];
 };
@@ -42,7 +40,7 @@ export function ProgramListClient({ programs: initial }: Props) {
     e.preventDefault();
     if (!newName.trim()) return;
     setCreating(true);
-    const result = await createProgram({ userId: DEMO_USER_ID, name: newName.trim() });
+    const result = await createProgram({ name: newName.trim() });
     setCreating(false);
     if (result.success) {
       setNewName("");

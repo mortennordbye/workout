@@ -27,7 +27,7 @@ import { users } from "./users";
 // -------------------------------------------------------------------
 export const programs = pgTable("programs", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id")
+  userId: text("user_id")
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
   name: text("name").notNull(),

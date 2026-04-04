@@ -17,15 +17,13 @@ import { PlayIcon, Trash2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-const DEMO_USER_ID = 1;
-
 export function StartCycleButton({ cycle }: { cycle: TrainingCycle }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function handleStart() {
     setLoading(true);
-    const result = await startTrainingCycle(cycle.id, DEMO_USER_ID);
+    const result = await startTrainingCycle(cycle.id);
     setLoading(false);
     if (result.success) {
       router.refresh();

@@ -1,18 +1,16 @@
-/**
- * Users Table Schema
- *
- * Stores user account information. This is kept simple for now but can be
- * extended with additional fields like:
- * - username, password_hash (for authentication)
- * - name, avatar_url (for profile info)
- * - preferences (JSON column for app settings)
- * - bodyweight_kg, height_cm (for tracking metrics)
- */
+import { boolean, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 
-import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
-
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
+export const users = pgTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
   email: text("email").notNull().unique(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  image: text("image"),
+  // Set by Better Auth admin plugin
+  role: text("role").$type<"user" | "admin">().default("user"),
+  banned: boolean("banned").default(false),
+  banReason: text("ban_reason"),
+  banExpires: timestamp("ban_expires"),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at").notNull(),
 });

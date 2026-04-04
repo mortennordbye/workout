@@ -18,15 +18,10 @@ import {
 // ─── createWorkoutSessionSchema ───────────────────────────────────────────────
 
 describe("createWorkoutSessionSchema", () => {
-  const valid = { userId: 1, date: "2026-03-17" };
+  const valid = { date: "2026-03-17" };
 
   it("accepts valid input", () => {
     expect(createWorkoutSessionSchema.safeParse(valid).success).toBe(true);
-  });
-
-  it("rejects non-positive userId", () => {
-    expect(createWorkoutSessionSchema.safeParse({ ...valid, userId: 0 }).success).toBe(false);
-    expect(createWorkoutSessionSchema.safeParse({ ...valid, userId: -1 }).success).toBe(false);
   });
 
   it("rejects invalid date format", () => {
@@ -143,7 +138,7 @@ describe("addProgramSetSchema", () => {
 // ─── createProgramSchema ──────────────────────────────────────────────────────
 
 describe("createProgramSchema", () => {
-  const valid = { userId: 1, name: "Push Day" };
+  const valid = { name: "Push Day" };
 
   it("accepts valid input", () => {
     expect(createProgramSchema.safeParse(valid).success).toBe(true);
@@ -243,39 +238,40 @@ describe("reorderProgramSetsSchema", () => {
 // ─── workoutHistoryQuerySchema ─────────────────────────────────────────────────
 
 describe("workoutHistoryQuerySchema", () => {
+  const uid = "user-abc-123";
+
   it("accepts valid input with only userId", () => {
-    expect(workoutHistoryQuerySchema.safeParse({ userId: 1 }).success).toBe(true);
+    expect(workoutHistoryQuerySchema.safeParse({ userId: uid }).success).toBe(true);
   });
 
-  it("rejects non-positive userId", () => {
-    expect(workoutHistoryQuerySchema.safeParse({ userId: 0 }).success).toBe(false);
-    expect(workoutHistoryQuerySchema.safeParse({ userId: -1 }).success).toBe(false);
+  it("rejects empty userId", () => {
+    expect(workoutHistoryQuerySchema.safeParse({ userId: "" }).success).toBe(false);
   });
 
   it("accepts optional exerciseId", () => {
-    expect(workoutHistoryQuerySchema.safeParse({ userId: 1, exerciseId: 5 }).success).toBe(true);
+    expect(workoutHistoryQuerySchema.safeParse({ userId: uid, exerciseId: 5 }).success).toBe(true);
   });
 
   it("rejects non-positive exerciseId", () => {
-    expect(workoutHistoryQuerySchema.safeParse({ userId: 1, exerciseId: 0 }).success).toBe(false);
+    expect(workoutHistoryQuerySchema.safeParse({ userId: uid, exerciseId: 0 }).success).toBe(false);
   });
 
   it("defaults limit to 50", () => {
-    const result = workoutHistoryQuerySchema.safeParse({ userId: 1 });
+    const result = workoutHistoryQuerySchema.safeParse({ userId: uid });
     expect(result.success && result.data.limit).toBe(50);
   });
 
   it("rejects limit over 100", () => {
-    expect(workoutHistoryQuerySchema.safeParse({ userId: 1, limit: 101 }).success).toBe(false);
+    expect(workoutHistoryQuerySchema.safeParse({ userId: uid, limit: 101 }).success).toBe(false);
   });
 
   it("defaults offset to 0", () => {
-    const result = workoutHistoryQuerySchema.safeParse({ userId: 1 });
+    const result = workoutHistoryQuerySchema.safeParse({ userId: uid });
     expect(result.success && result.data.offset).toBe(0);
   });
 
   it("rejects negative offset", () => {
-    expect(workoutHistoryQuerySchema.safeParse({ userId: 1, offset: -1 }).success).toBe(false);
+    expect(workoutHistoryQuerySchema.safeParse({ userId: uid, offset: -1 }).success).toBe(false);
   });
 });
 

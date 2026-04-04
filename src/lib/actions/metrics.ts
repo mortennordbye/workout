@@ -59,7 +59,7 @@ function fillWeeklyGaps(rows: WeeklyMetric[], weeks = 8): WeeklyMetric[] {
 
 // ── Queries ────────────────────────────────────────────────────────────────
 
-async function fetchWeeklyMetrics(userId: number): Promise<WeeklyMetric[]> {
+async function fetchWeeklyMetrics(userId: string): Promise<WeeklyMetric[]> {
   const rows = await db
     .select({
       weekStart: sql<string>`date_trunc('week', ${workoutSessions.startTime})::date`,
@@ -87,7 +87,7 @@ async function fetchWeeklyMetrics(userId: number): Promise<WeeklyMetric[]> {
   return fillWeeklyGaps(mapped);
 }
 
-async function fetchPersonalRecords(userId: number): Promise<PersonalRecord[]> {
+async function fetchPersonalRecords(userId: string): Promise<PersonalRecord[]> {
   const rows = await db
     .select({
       exerciseId: exercises.id,
@@ -117,7 +117,7 @@ async function fetchPersonalRecords(userId: number): Promise<PersonalRecord[]> {
   }));
 }
 
-async function fetchMuscleBalance(userId: number): Promise<MuscleBalance[]> {
+async function fetchMuscleBalance(userId: string): Promise<MuscleBalance[]> {
   const rows = await db
     .select({
       muscleGroup: exercises.muscleGroup,
@@ -148,7 +148,7 @@ async function fetchMuscleBalance(userId: number): Promise<MuscleBalance[]> {
 // ── Exported actions ───────────────────────────────────────────────────────
 
 export async function getMetricsData(
-  userId: number,
+  userId: string,
 ): Promise<ActionResult<MetricsData>> {
   try {
     const [weekly, personalRecords, muscleBalance] = await Promise.all([
@@ -164,7 +164,7 @@ export async function getMetricsData(
 }
 
 export async function getExerciseProgress(
-  userId: number,
+  userId: string,
   exerciseId: number,
 ): Promise<ActionResult<ExerciseProgress[]>> {
   try {

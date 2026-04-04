@@ -133,7 +133,7 @@ export async function logWorkoutSet(
  * - thisWeekWorkouts: completed sessions in the current Mon–Sun week
  */
 export async function getWorkoutStats(
-  userId: number,
+  userId: string,
 ): Promise<ActionResult<WorkoutStats>> {
   try {
     // Lifetime totals
@@ -286,7 +286,7 @@ export async function getWorkoutHistory(
  * Used for the history list view.
  */
 export async function getCompletedSessions(
-  userId: number,
+  userId: string,
 ): Promise<ActionResult<SessionWithStats[]>> {
   try {
     const rows = await db
@@ -510,7 +510,7 @@ function estimateRepsAt(oneRepMax: number, weightKg: number): number {
  */
 export async function getProgressiveSuggestions(
   programId: number,
-  userId: number,
+  userId: string,
 ): Promise<ActionResult<Record<number, SetSuggestion>>> {
   try {
     // Step 1: get all program sets for this program with their exercise ids and increment

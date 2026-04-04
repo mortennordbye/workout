@@ -1,6 +1,5 @@
-import { eq } from "drizzle-orm";
 import { db } from "../src/db";
-import { exercises, users } from "../src/db/schema";
+import { exercises } from "../src/db/schema";
 
 const EXERCISES = [
   // ── Chest ──────────────────────────────────────────────────────────────────
@@ -233,17 +232,8 @@ async function seed() {
   console.log("🌱 Seeding database...");
 
   try {
-    // Create demo user
-    const existingUser = await db.query.users.findFirst({
-      where: eq(users.email, "demo@example.com"),
-    });
-
-    if (!existingUser) {
-      await db.insert(users).values({ email: "demo@example.com" });
-      console.log("✅ Created demo user");
-    } else {
-      console.log("ℹ️  Demo user already exists");
-    }
+    // User accounts are now created via Better Auth (pnpm create-admin).
+    // The seed script only handles the exercise library.
 
     // Seed exercises — skips any that already exist by name
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

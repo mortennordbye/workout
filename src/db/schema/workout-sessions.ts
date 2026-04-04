@@ -43,7 +43,7 @@ export const workoutFeelingEnum = pgEnum("workout_feeling", [
 
 export const workoutSessions = pgTable("workout_sessions", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id")
+  userId: text("user_id")
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
   programId: integer("program_id").references(() => programs.id),

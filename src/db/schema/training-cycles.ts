@@ -26,7 +26,7 @@ import { users } from "./users";
 // -------------------------------------------------------------------
 export const trainingCycles = pgTable("training_cycles", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id")
+  userId: text("user_id")
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
   name: text("name").notNull(),

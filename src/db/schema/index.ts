@@ -11,6 +11,7 @@
  */
 
 // Table schemas
+export * from "./auth";
 export * from "./exercises";
 export * from "./programs";
 export * from "./training-cycles";

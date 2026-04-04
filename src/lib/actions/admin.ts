@@ -13,9 +13,8 @@ import {
   workoutSessions,
   workoutSets,
 } from "@/db/schema";
+import { requireSession } from "@/lib/utils/session";
 import { ActionResult } from "@/types/workout";
-
-const DEMO_USER_ID = 1;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -130,20 +129,22 @@ const FAKE_PROGRAMS: ProgramBlueprint[] = [
 // ── Actions ────────────────────────────────────────────────────────────────
 
 export async function adminResetUserData(): Promise<ActionResult<{ sessions: number; programs: number; cycles: number }>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   try {
     const deletedSessions = await db
       .delete(workoutSessions)
-      .where(eq(workoutSessions.userId, DEMO_USER_ID))
+      .where(eq(workoutSessions.userId, userId))
       .returning({ id: workoutSessions.id });
 
     const deletedPrograms = await db
       .delete(programs)
-      .where(eq(programs.userId, DEMO_USER_ID))
+      .where(eq(programs.userId, userId))
       .returning({ id: programs.id });
 
     const deletedCycles = await db
       .delete(trainingCycles)
-      .where(eq(trainingCycles.userId, DEMO_USER_ID))
+      .where(eq(trainingCycles.userId, userId))
       .returning({ id: trainingCycles.id });
 
     revalidatePath("/", "layout");
@@ -163,6 +164,8 @@ export async function adminResetUserData(): Promise<ActionResult<{ sessions: num
 }
 
 export async function adminSeedFakeData(): Promise<ActionResult<{ programs: number; sessions: number }>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   try {
     // Fetch exercise IDs by name
     const exerciseNames = FAKE_PROGRAMS.flatMap((p) =>
@@ -184,7 +187,7 @@ export async function adminSeedFakeData(): Promise<ActionResult<{ programs: numb
     for (const blueprint of FAKE_PROGRAMS) {
       const [program] = await db
         .insert(programs)
-        .values({ userId: DEMO_USER_ID, name: blueprint.name })
+        .values({ userId: userId, name: blueprint.name })
         .returning({ id: programs.id });
 
       for (let i = 0; i < blueprint.exercises.length; i++) {
@@ -225,7 +228,7 @@ export async function adminSeedFakeData(): Promise<ActionResult<{ programs: numb
     const [cycle] = await db
       .insert(trainingCycles)
       .values({
-        userId: DEMO_USER_ID,
+        userId: userId,
         name: "12-Week Strength Block",
         durationWeeks: 12,
         scheduleType: "day_of_week",
@@ -270,7 +273,7 @@ export async function adminSeedFakeData(): Promise<ActionResult<{ programs: numb
         const [session] = await db
           .insert(workoutSessions)
           .values({
-            userId: DEMO_USER_ID,
+            userId: userId,
             programId: prog.id,
             date: toDateString(sessionDate),
             startTime,

@@ -33,7 +33,6 @@ const feelingSchema = z.enum(WORKOUT_FEELINGS).optional();
  * Validates data when starting a new workout session.
  */
 export const createWorkoutSessionSchema = z.object({
-  userId: z.number().int().positive("User ID must be a positive integer"),
   date: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
@@ -94,7 +93,7 @@ export const logWorkoutSetSchema = z.object({
  * Used to query past performance for a specific exercise.
  */
 export const workoutHistoryQuerySchema = z.object({
-  userId: z.number().int().positive("User ID must be a positive integer"),
+  userId: z.string().min(1),
   exerciseId: z
     .number()
     .int()
@@ -143,7 +142,6 @@ export const createExerciseSchema = z.object({
  * Programs Schemas
  */
 export const createProgramSchema = z.object({
-  userId: z.number().int().positive(),
   name: z.string().min(1).max(100),
 });
 

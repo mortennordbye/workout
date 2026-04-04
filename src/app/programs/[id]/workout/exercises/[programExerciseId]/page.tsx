@@ -5,11 +5,10 @@
 import { WorkoutSetsClient } from "@/components/features/WorkoutSetsClient";
 import { getProgramWithExercises } from "@/lib/actions/programs";
 import { getExerciseLoggedCount, getProgressiveSuggestions } from "@/lib/actions/workout-sets";
+import { requireSession } from "@/lib/utils/session";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-
-const DEMO_USER_ID = 1;
 
 type Props = {
   params: Promise<{ id: string; programExerciseId: string }>;
@@ -21,9 +20,10 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
   const peId = Number(programExerciseId);
   if (isNaN(programId) || isNaN(peId)) notFound();
 
+  const session = await requireSession();
   const [result, suggestionsResult] = await Promise.all([
     getProgramWithExercises(programId),
-    getProgressiveSuggestions(programId, DEMO_USER_ID),
+    getProgressiveSuggestions(programId, session.user.id),
   ]);
   if (!result.success) notFound();
 

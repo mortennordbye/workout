@@ -11,8 +11,6 @@ import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useMemo, useState } from "react";
 
-const DEMO_USER_ID = 1;
-
 type Feeling = WorkoutFeeling;
 const FEELINGS: Feeling[] = [...WORKOUT_FEELINGS];
 
@@ -71,7 +69,6 @@ function FinishContent() {
     } else {
       // Fallback if session wasn't pre-created (e.g. direct navigation)
       const created = await createWorkoutSession({
-        userId: DEMO_USER_ID,
         date: toDateString(startTime),
         startTime: startTime.toISOString(),
       });

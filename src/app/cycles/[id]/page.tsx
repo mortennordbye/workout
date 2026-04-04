@@ -9,13 +9,12 @@ import { DeleteCycleButton, StartCycleButton } from "@/components/features/Cycle
 import { CycleScheduleBuilder } from "@/components/features/CycleScheduleBuilder";
 import { getTrainingCycleWithSlots } from "@/lib/actions/training-cycles";
 import { getPrograms } from "@/lib/actions/programs";
+import { requireSession } from "@/lib/utils/session";
 import { ChevronLeftIcon } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-
-const DEMO_USER_ID = 1;
 
 export default async function CycleDetailPage({
   params,
@@ -26,9 +25,10 @@ export default async function CycleDetailPage({
   const cycleId = Number(id);
   if (isNaN(cycleId)) notFound();
 
+  const session = await requireSession();
   const [cycleResult, programsResult] = await Promise.all([
     getTrainingCycleWithSlots(cycleId),
-    getPrograms(DEMO_USER_ID),
+    getPrograms(session.user.id),
   ]);
 
   if (!cycleResult.success) notFound();

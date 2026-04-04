@@ -11,8 +11,6 @@ import { createTrainingCycle } from "@/lib/actions/training-cycles";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-const DEMO_USER_ID = 1;
-
 const DURATION_OPTIONS = [4, 6, 8, 10, 12, 16];
 
 const END_ACTION_OPTIONS = [
@@ -43,7 +41,6 @@ export function CreateCycleForm() {
     setError("");
 
     const result = await createTrainingCycle({
-      userId: DEMO_USER_ID,
       name: name.trim(),
       durationWeeks,
       scheduleType,

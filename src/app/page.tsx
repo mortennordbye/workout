@@ -1,11 +1,10 @@
 import { WeeklyGoalProgress } from "@/components/features/WeeklyGoalProgress";
 import { getActiveCycleForUser } from "@/lib/actions/training-cycles";
 import { getCompletedSessions, getWorkoutStats } from "@/lib/actions/workout-sets";
+import { requireSession } from "@/lib/utils/session";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
-
-const DEMO_USER_ID = 1;
 
 const DAY_LETTERS = ["M", "T", "W", "T", "F", "S", "S"];
 const DAY_LABELS_FULL = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -27,10 +26,13 @@ function getThisWeekDates(): string[] {
 }
 
 export default async function Home() {
+  const session = await requireSession();
+  const userId = session.user.id;
+
   const [statsResult, cycleResult, sessionsResult] = await Promise.all([
-    getWorkoutStats(DEMO_USER_ID),
-    getActiveCycleForUser(DEMO_USER_ID),
-    getCompletedSessions(DEMO_USER_ID),
+    getWorkoutStats(userId),
+    getActiveCycleForUser(userId),
+    getCompletedSessions(userId),
   ]);
 
   const stats = statsResult.success

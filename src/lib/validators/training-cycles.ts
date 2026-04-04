@@ -5,7 +5,6 @@ const scheduleTypeEnum = z.enum(["day_of_week", "rotation"]);
 const statusEnum = z.enum(["draft", "active", "completed"]);
 
 export const createTrainingCycleSchema = z.object({
-  userId: z.number().int().positive(),
   name: z.string().min(1).max(100),
   durationWeeks: z.number().int().refine((v) => [4, 6, 8, 10, 12, 16].includes(v), {
     message: "Duration must be 4, 6, 8, 10, 12, or 16 weeks",

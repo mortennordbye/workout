@@ -136,5 +136,5 @@ export type ActiveCycleInfo = {
  */
 export type SessionContextProps = {
   sessionId: number;
-  userId: number;
+  userId: string;
 };

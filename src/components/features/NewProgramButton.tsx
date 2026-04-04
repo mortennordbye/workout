@@ -11,8 +11,6 @@ import { PlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-const DEMO_USER_ID = 1;
-
 export function NewProgramButton() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -23,10 +21,7 @@ export function NewProgramButton() {
     e.preventDefault();
     if (!name.trim()) return;
     setLoading(true);
-    const result = await createProgram({
-      userId: DEMO_USER_ID,
-      name: name.trim(),
-    });
+    const result = await createProgram({ name: name.trim() });
     setLoading(false);
     if (result.success) {
       setName("");

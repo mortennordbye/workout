@@ -19,11 +19,11 @@ import {
   programs,
   trainingCycleSlots,
   trainingCycles,
+  users,
   workoutSessions,
   workoutSets,
 } from "../src/db/schema";
 
-const DEMO_USER_ID = 1;
 const FORCE = process.argv.includes("--force");
 
 // ── Program definitions ────────────────────────────────────────────────────
@@ -137,6 +137,19 @@ function lastMonday(from: Date): Date {
 
 async function seedFake() {
   console.log("🏋️  Seeding fake data...");
+
+  // Resolve user ID
+  const targetEmail = process.env.USER_EMAIL;
+  const user = targetEmail
+    ? await db.query.users.findFirst({ where: eq(users.email, targetEmail) })
+    : await db.query.users.findFirst();
+
+  if (!user) {
+    console.error("❌ No users found. Run `pnpm create-admin` first.");
+    process.exit(1);
+  }
+  const DEMO_USER_ID = user.id;
+  console.log(`👤 Seeding for user: ${user.email}`);
 
   // Check if fake data already exists
   const existingPrograms = await db

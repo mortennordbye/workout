@@ -1,16 +1,16 @@
 import { CycleCalendarClient } from "@/components/features/CycleCalendarClient";
 import { getAllCyclesWithSlots } from "@/lib/actions/training-cycles";
 import { getCompletedSessions } from "@/lib/actions/workout-sets";
+import { requireSession } from "@/lib/utils/session";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-const DEMO_USER_ID = 1;
-
 export default async function CalendarPage() {
+  const session = await requireSession();
   const [cyclesResult, sessionsResult] = await Promise.all([
-    getAllCyclesWithSlots(DEMO_USER_ID),
-    getCompletedSessions(DEMO_USER_ID),
+    getAllCyclesWithSlots(session.user.id),
+    getCompletedSessions(session.user.id),
   ]);
 
   const cycles = cyclesResult.success ? cyclesResult.data : [];

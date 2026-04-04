@@ -9,16 +9,16 @@
 import { getActiveCycleForUser } from "@/lib/actions/training-cycles";
 import { getPrograms } from "@/lib/actions/programs";
 import NewWorkoutClient from "@/components/features/NewWorkoutClient";
+import { requireSession } from "@/lib/utils/session";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
-const DEMO_USER_ID = 1;
-
 export default async function NewWorkoutPage() {
+  const session = await requireSession();
   const [cycleResult, programsResult] = await Promise.all([
-    getActiveCycleForUser(DEMO_USER_ID),
-    getPrograms(DEMO_USER_ID),
+    getActiveCycleForUser(session.user.id),
+    getPrograms(session.user.id),
   ]);
 
   const activeCycleInfo = cycleResult.success ? cycleResult.data : null;

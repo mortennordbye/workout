@@ -8,6 +8,7 @@
 
 import { db } from "@/db";
 import { trainingCycleSlots, trainingCycles, workoutSessions } from "@/db/schema";
+import { requireSession } from "@/lib/utils/session";
 import {
   createTrainingCycleSchema,
   reorderCycleSlotsSchema,
@@ -29,7 +30,7 @@ import { revalidatePath } from "next/cache";
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getTrainingCycles(
-  userId: number,
+  userId: string,
 ): Promise<ActionResult<TrainingCycle[]>> {
   try {
     const rows = await db
@@ -70,7 +71,7 @@ export async function getTrainingCycleWithSlots(
 }
 
 export async function getAllCyclesWithSlots(
-  userId: number,
+  userId: string,
 ): Promise<ActionResult<TrainingCycleWithSlots[]>> {
   try {
     const rows = await db.query.trainingCycles.findMany({
@@ -90,7 +91,7 @@ export async function getAllCyclesWithSlots(
 }
 
 export async function getActiveCycleForUser(
-  userId: number,
+  userId: string,
 ): Promise<ActionResult<ActiveCycleInfo | null>> {
   try {
     const cycle = await db.query.trainingCycles.findFirst({
@@ -189,22 +190,21 @@ export async function getActiveCycleForUser(
 export async function createTrainingCycle(
   data: unknown,
 ): Promise<ActionResult<TrainingCycle>> {
-  try {
-    const validation = createTrainingCycleSchema.safeParse(data);
-    if (!validation.success) {
-      return {
-        success: false,
-        error: "Invalid input",
-        fieldErrors: validation.error.flatten().fieldErrors as Record<
-          string,
-          string[]
-        >,
-      };
-    }
+  const auth = await requireSession();
 
+  const validation = createTrainingCycleSchema.safeParse(data);
+  if (!validation.success) {
+    return {
+      success: false,
+      error: "Invalid input",
+      fieldErrors: validation.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  try {
     const [cycle] = await db
       .insert(trainingCycles)
-      .values(validation.data)
+      .values({ ...validation.data, userId: auth.user.id })
       .returning();
 
     revalidatePath("/cycles");
@@ -254,8 +254,10 @@ export async function deleteTrainingCycle(
 
 export async function startTrainingCycle(
   cycleId: number,
-  userId: number,
 ): Promise<ActionResult<TrainingCycle>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
+
   try {
     // Only one active cycle at a time — deactivate any current active cycle
     await db

@@ -33,12 +33,17 @@ services:
     restart: unless-stopped
     ports:
       - "3000:3000"
+    env_file:
+      - path: .env.local
+        required: false
     environment:
       # These variables will adapt based on the script flags
       NODE_ENV: ${NODE_ENV:-development}
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/workout_db
-      HOSTNAME: "0.0.0.0"          
-      WATCHPACK_POLLING: "true"    
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-change-me-in-production-use-openssl-rand-base64-32}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+      HOSTNAME: "0.0.0.0"
+      WATCHPACK_POLLING: "true"
       NEXT_TELEMETRY_DISABLED: 1
     volumes:
       # Only use these volumes in development to allow hot-reloading

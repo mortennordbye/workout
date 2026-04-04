@@ -1,12 +1,12 @@
 import { CyclesListClient } from "@/components/features/CyclesListClient";
 import { getTrainingCycles } from "@/lib/actions/training-cycles";
+import { requireSession } from "@/lib/utils/session";
 
 export const dynamic = "force-dynamic";
 
-const DEMO_USER_ID = 1;
-
 export default async function CyclesPage() {
-  const result = await getTrainingCycles(DEMO_USER_ID);
+  const session = await requireSession();
+  const result = await getTrainingCycles(session.user.id);
   const cycles = result.success ? result.data : [];
   return <CyclesListClient cycles={cycles} />;
 }
