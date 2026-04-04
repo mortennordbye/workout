@@ -1,5 +1,6 @@
 "use client";
 
+import { BottomSheet } from "@/components/ui/BottomSheet";
 import { updateProgramSet } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import type { ProgramSet } from "@/types/workout";
@@ -103,9 +104,8 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
       </div>
 
       {/* Reps Picker Modal */}
-      {showRepsPicker && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-150">
-          <div className="w-full bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-200 ease-spring">
+      <BottomSheet open={showRepsPicker} onClose={() => setShowRepsPicker(false)} blur>
+          <div className="w-full bg-card rounded-t-3xl p-6">
             <div className="flex items-center justify-between mb-6">
               <span className="text-sm text-muted-foreground uppercase tracking-wider">
                 Select Reps
@@ -148,13 +148,11 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
               />
             </div>
           </div>
-        </div>
-      )}
+      </BottomSheet>
 
       {/* Duration Picker Modal */}
-      {showDurationPicker && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-150">
-          <div className="w-full bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-200 ease-spring">
+      <BottomSheet open={showDurationPicker} onClose={() => setShowDurationPicker(false)} blur>
+          <div className="w-full bg-card rounded-t-3xl p-6">
             <div className="flex items-center justify-between mb-6">
               <span className="text-sm text-muted-foreground uppercase tracking-wider">
                 Select Duration
@@ -210,13 +208,11 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
               />
             </div>
           </div>
-        </div>
-      )}
+      </BottomSheet>
 
       {/* Weight Picker Modal */}
-      {showWeightPicker && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-150">
-          <div className="w-full bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-200 ease-spring">
+      <BottomSheet open={showWeightPicker} onClose={() => setShowWeightPicker(false)} blur>
+          <div className="w-full bg-card rounded-t-3xl p-6">
             <div className="flex items-center justify-between mb-6">
               <span className="text-sm text-muted-foreground uppercase tracking-wider">
                 Select Weight
@@ -263,8 +259,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
               />
             </div>
           </div>
-        </div>
-      )}
+      </BottomSheet>
     </>
   );
 }

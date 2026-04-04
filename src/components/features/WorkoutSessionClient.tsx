@@ -1,6 +1,7 @@
 "use client";
 
 import { WorkoutExerciseList } from "@/components/features/WorkoutExerciseList";
+import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { createWorkoutSession, deleteWorkoutSession } from "@/lib/actions/workout-sessions";
 import {
@@ -170,105 +171,90 @@ export function WorkoutSessionClient({
       </div>
 
       {/* Options sheet */}
-      {finishSheet === 'options' && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-end"
-          onClick={() => setFinishSheet('hidden')}
-        >
-          <div
-            className="w-full px-4 pb-8 space-y-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-card rounded-2xl overflow-hidden text-center">
-              <button
-                onClick={() => {
-                  setFinishSheet('hidden');
-                  router.push(
-                    `/programs/${programId}/workout/finish?start=${startTime.toISOString()}`,
-                  );
-                }}
-                className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors border-b border-border"
-              >
-                I am finished
-              </button>
-              <button
-                onClick={() => setFinishSheet('discard-confirm')}
-                className="w-full py-4 text-base font-semibold text-destructive active:bg-muted/50 transition-colors border-b border-border"
-              >
-                Don&apos;t save
-              </button>
-              <button
-                onClick={() => setFinishSheet('hidden')}
-                className="w-full py-4 text-base font-medium text-muted-foreground active:bg-muted/50 transition-colors"
-              >
-                Continue workout
-              </button>
-            </div>
+      <BottomSheet
+        open={finishSheet === 'options'}
+        onClose={() => setFinishSheet('hidden')}
+      >
+        <div className="w-full px-4 pb-8 space-y-2">
+          <div className="bg-card rounded-2xl overflow-hidden text-center">
+            <button
+              onClick={() => {
+                setFinishSheet('hidden');
+                router.push(
+                  `/programs/${programId}/workout/finish?start=${startTime.toISOString()}`,
+                );
+              }}
+              className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors border-b border-border"
+            >
+              I am finished
+            </button>
+            <button
+              onClick={() => setFinishSheet('discard-confirm')}
+              className="w-full py-4 text-base font-semibold text-destructive active:bg-muted/50 transition-colors border-b border-border"
+            >
+              Don&apos;t save
+            </button>
+            <button
+              onClick={() => setFinishSheet('hidden')}
+              className="w-full py-4 text-base font-medium text-muted-foreground active:bg-muted/50 transition-colors"
+            >
+              Continue workout
+            </button>
           </div>
         </div>
-      )}
+      </BottomSheet>
 
       {/* Discard confirmation sheet */}
-      {finishSheet === 'discard-confirm' && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-end"
-          onClick={() => setFinishSheet('options')}
-        >
-          <div
-            className="w-full px-4 pb-8 space-y-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-card rounded-2xl overflow-hidden text-center">
-              <div className="px-4 pt-5 pb-4 border-b border-border">
-                <p className="font-semibold text-base">Are you sure you don&apos;t want to save?</p>
-              </div>
-              <button
-                onClick={() => setFinishSheet('options')}
-                className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors border-b border-border"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDiscard}
-                className="w-full py-4 text-base font-semibold text-destructive active:bg-muted/50 transition-colors"
-              >
-                Yes, discard
-              </button>
+      <BottomSheet
+        open={finishSheet === 'discard-confirm'}
+        onClose={() => setFinishSheet('options')}
+      >
+        <div className="w-full px-4 pb-8 space-y-2">
+          <div className="bg-card rounded-2xl overflow-hidden text-center">
+            <div className="px-4 pt-5 pb-4 border-b border-border">
+              <p className="font-semibold text-base">Are you sure you don&apos;t want to save?</p>
             </div>
+            <button
+              onClick={() => setFinishSheet('options')}
+              className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors border-b border-border"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDiscard}
+              className="w-full py-4 text-base font-semibold text-destructive active:bg-muted/50 transition-colors"
+            >
+              Yes, discard
+            </button>
           </div>
         </div>
-      )}
+      </BottomSheet>
 
       {/* Action Sheet */}
-      {showActionSheet && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-end"
-          onClick={() => setShowActionSheet(false)}
-        >
-          <div
-            className="w-full px-4 pb-8 space-y-2"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-card rounded-2xl overflow-hidden">
-              <Link
-                href={`/programs/${programId}/workout/add-exercise`}
-                onClick={() => setShowActionSheet(false)}
-                className="flex items-center justify-center py-4 text-base font-medium active:bg-muted/50 transition-colors"
-              >
-                Add Exercise
-              </Link>
-            </div>
-            <div className="bg-card rounded-2xl overflow-hidden">
-              <button
-                onClick={() => setShowActionSheet(false)}
-                className="w-full flex items-center justify-center py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
+      <BottomSheet
+        open={showActionSheet}
+        onClose={() => setShowActionSheet(false)}
+      >
+        <div className="w-full px-4 pb-8 space-y-2">
+          <div className="bg-card rounded-2xl overflow-hidden">
+            <Link
+              href={`/programs/${programId}/workout/add-exercise`}
+              onClick={() => setShowActionSheet(false)}
+              className="flex items-center justify-center py-4 text-base font-medium active:bg-muted/50 transition-colors"
+            >
+              Add Exercise
+            </Link>
+          </div>
+          <div className="bg-card rounded-2xl overflow-hidden">
+            <button
+              onClick={() => setShowActionSheet(false)}
+              className="w-full flex items-center justify-center py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors"
+            >
+              Cancel
+            </button>
           </div>
         </div>
-      )}
+      </BottomSheet>
     </div>
   );
 }

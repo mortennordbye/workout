@@ -1,5 +1,6 @@
 "use client";
 
+import { BottomSheet } from "@/components/ui/BottomSheet";
 import { addProgramSet } from "@/lib/actions/programs";
 import type { ProgramSet } from "@/types/workout";
 import { Loader2Icon } from "lucide-react";
@@ -96,15 +97,8 @@ export function NewSetView({
       </div>
 
       {/* Reps Picker Modal */}
-      {showRepsPicker && (
-        <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-150"
-          onClick={() => setShowRepsPicker(false)}
-        >
-          <div
-            className="w-full bg-card rounded-t-3xl pb-10 animate-in slide-in-from-bottom duration-200 ease-spring"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <BottomSheet open={showRepsPicker} onClose={() => setShowRepsPicker(false)} blur>
+          <div className="w-full bg-card rounded-t-3xl pb-10">
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-6 pb-5">
               <span className="text-sm font-semibold uppercase tracking-widest text-foreground">
@@ -161,19 +155,11 @@ export function NewSetView({
               </div>
             )}
           </div>
-        </div>
-      )}
+      </BottomSheet>
 
       {/* Weight Picker Modal */}
-      {showWeightPicker && (
-        <div
-          className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end animate-in fade-in duration-150"
-          onClick={() => setShowWeightPicker(false)}
-        >
-          <div
-            className="w-full bg-card rounded-t-3xl pb-10 animate-in slide-in-from-bottom duration-200 ease-spring"
-            onClick={(e) => e.stopPropagation()}
-          >
+      <BottomSheet open={showWeightPicker} onClose={() => setShowWeightPicker(false)} blur>
+          <div className="w-full bg-card rounded-t-3xl pb-10">
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-6 pb-5">
               <span className="text-sm font-semibold uppercase tracking-widest text-foreground">
@@ -234,8 +220,7 @@ export function NewSetView({
               </div>
             )}
           </div>
-        </div>
-      )}
+      </BottomSheet>
     </>
   );
 }

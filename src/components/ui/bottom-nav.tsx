@@ -35,7 +35,8 @@ export function BottomNav() {
   const workoutPath = workoutSession?.workoutPath ?? null;
   const lastWorkoutPath = workoutSession?.lastWorkoutPath ?? null;
 
-  const isWorkoutRoute = pathname.includes("/workout");
+  // Only match real workout routes like /programs/[id]/workout/..., not /new-workout
+  const isWorkoutRoute = pathname.startsWith("/programs") && pathname.includes("/workout");
 
   // Keep lastWorkoutPath in context up to date as the user navigates deeper
   useEffect(() => {
@@ -67,8 +68,10 @@ export function BottomNav() {
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
         {staticNavItems.map((item) => {
           const Icon = item.icon;
+          // Only use saved workout paths while there's actually an active workout.
+          // After discard/finish, workoutPath is null and the tab should go home.
           const href = item.label === "Workout"
-            ? (lastWorkoutPath ?? workoutPath ?? "/")
+            ? (workoutPath !== null ? (lastWorkoutPath ?? workoutPath) : "/")
             : (item.href ?? "/");
           const active = isActive(item.label, href);
           const showDot = item.label === "Workout" && workoutPath !== null;

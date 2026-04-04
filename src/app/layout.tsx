@@ -1,4 +1,5 @@
 import { BottomNav } from "@/components/ui/bottom-nav";
+import { PageTransition } from "@/components/features/PageTransition";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { WorkoutSessionProvider } from "@/contexts/workout-session-context";
 import type { Metadata } from "next";
@@ -40,7 +41,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <WorkoutSessionProvider>
-            {children}
+            <PageTransition>{children}</PageTransition>
             <BottomNav />
           </WorkoutSessionProvider>
         </ThemeProvider>

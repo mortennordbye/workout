@@ -1,6 +1,7 @@
 "use client";
 
 import { adminResetUserData, adminSeedFakeData } from "@/lib/actions/admin";
+import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { ChevronLeft, DatabaseZap, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -8,6 +9,7 @@ import { useState } from "react";
 type Status = { type: "success" | "error"; message: string } | null;
 
 export function AdminPanelClient() {
+  const workoutSession = useWorkoutSession();
   const [seedLoading, setSeedLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [confirmingReset, setConfirmingReset] = useState(false);
@@ -40,6 +42,7 @@ export function AdminPanelClient() {
     try {
       const result = await adminResetUserData();
       if (result.success) {
+        workoutSession?.clearActiveWorkout();
         setStatus({
           type: "success",
           message: `Deleted ${result.data.sessions} sessions, ${result.data.programs} programs, ${result.data.cycles} cycles.`,

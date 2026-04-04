@@ -114,26 +114,7 @@ export default async function Home() {
               </Link>
             )}
           </div>
-        ) : (
-          <div className="rounded-2xl bg-muted px-4 py-4 shrink-0">
-            <p className="text-sm font-semibold mb-0.5">No active cycle</p>
-            <p className="text-xs text-muted-foreground mb-3">Start a block to see your plan</p>
-            <div className="flex gap-2 flex-wrap">
-              <Link
-                href="/new-workout"
-                className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground active:opacity-80"
-              >
-                Start a Workout →
-              </Link>
-              <Link
-                href="/cycles"
-                className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground active:opacity-70"
-              >
-                Set up a Cycle →
-              </Link>
-            </div>
-          </div>
-        )}
+        ) : null}
 
         {/* ── Week strip ─────────────────────────────────── */}
         {info?.cycle.scheduleType === "day_of_week" && (
@@ -204,9 +185,30 @@ export default async function Home() {
           </div>
         )}
 
-        {/* ── Weekly goal (no cycle) ─────────────────────── */}
+        {/* ── No cycle: full-height empty state ─────────── */}
         {!info && (
-          <WeeklyGoalProgress thisWeekWorkouts={stats.thisWeekWorkouts} />
+          <div className="flex-1 flex flex-col justify-between min-h-0">
+            {/* Progress ring — fills vertical space, centered */}
+            <div className="flex-1 flex flex-col items-center justify-center">
+              <WeeklyGoalProgress thisWeekWorkouts={stats.thisWeekWorkouts} size="lg" />
+            </div>
+
+            {/* Actions pinned to bottom */}
+            <div className="space-y-3 pt-4">
+              <Link
+                href="/new-workout"
+                className="flex items-center justify-center w-full rounded-2xl bg-primary py-4 text-base font-semibold text-primary-foreground active:opacity-80"
+              >
+                Start a Workout
+              </Link>
+              <Link
+                href="/cycles"
+                className="flex items-center justify-center w-full rounded-2xl bg-muted py-4 text-sm font-medium text-foreground active:opacity-70"
+              >
+                Set up a Training Cycle
+              </Link>
+            </div>
+          </div>
         )}
 
       </div>

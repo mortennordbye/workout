@@ -1,5 +1,6 @@
 "use client";
 
+import { BottomSheet } from "@/components/ui/BottomSheet";
 import { reorderProgramSets, updateProgramSet } from "@/lib/actions/programs";
 import { logWorkoutSet } from "@/lib/actions/workout-sets";
 import type { SetSuggestionDisplay } from "@/components/features/WorkoutSetsClient";
@@ -461,64 +462,66 @@ export function WorkoutSetsList({
       )}
 
       {/* Rest duration picker */}
-      {editingRestItemId !== null && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-end">
-          <div className="w-full bg-card rounded-t-3xl p-6">
-            <div className="flex items-center justify-between mb-6">
-              <span className="text-sm text-muted-foreground uppercase tracking-wider">
-                Select Rest Time
-              </span>
+      <BottomSheet
+        open={editingRestItemId !== null}
+        onClose={handleSaveRest}
+        blur
+      >
+        <div className="w-full bg-card rounded-t-3xl p-6">
+          <div className="flex items-center justify-between mb-6">
+            <span className="text-sm text-muted-foreground uppercase tracking-wider">
+              Select Rest Time
+            </span>
+            <button
+              onClick={handleSaveRest}
+              className="text-primary text-sm font-medium"
+            >
+              Done
+            </button>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-4">
+            {REST_OPTIONS.map((seconds) => (
               <button
-                onClick={handleSaveRest}
-                className="text-primary text-sm font-medium"
+                key={seconds}
+                onClick={() => setRestDraft(seconds)}
+                className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all active:scale-95 ${
+                  restDraft === seconds
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-foreground"
+                }`}
               >
-                Done
+                {seconds < 60 ? (
+                  <>
+                    <span className="text-lg">{seconds}</span>
+                    <span className="text-xs opacity-70">s</span>
+                  </>
+                ) : seconds % 60 === 0 ? (
+                  <>
+                    <span className="text-lg">{seconds / 60}</span>
+                    <span className="text-xs opacity-70">m</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-lg">
+                      {Math.floor(seconds / 60)}:
+                      {String(seconds % 60).padStart(2, "0")}
+                    </span>
+                    <span className="text-xs opacity-70">m</span>
+                  </>
+                )}
               </button>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-4">
-              {REST_OPTIONS.map((seconds) => (
-                <button
-                  key={seconds}
-                  onClick={() => setRestDraft(seconds)}
-                  className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all active:scale-95 ${
-                    restDraft === seconds
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground"
-                  }`}
-                >
-                  {seconds < 60 ? (
-                    <>
-                      <span className="text-lg">{seconds}</span>
-                      <span className="text-xs opacity-70">s</span>
-                    </>
-                  ) : seconds % 60 === 0 ? (
-                    <>
-                      <span className="text-lg">{seconds / 60}</span>
-                      <span className="text-xs opacity-70">m</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-lg">
-                        {Math.floor(seconds / 60)}:
-                        {String(seconds % 60).padStart(2, "0")}
-                      </span>
-                      <span className="text-xs opacity-70">m</span>
-                    </>
-                  )}
-                </button>
-              ))}
-            </div>
-            <div className="mt-4">
-              <input
-                type="number"
-                value={restDraft}
-                onChange={(e) => setRestDraft(Number(e.target.value))}
-                className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
-              />
-            </div>
+            ))}
+          </div>
+          <div className="mt-4">
+            <input
+              type="number"
+              value={restDraft}
+              onChange={(e) => setRestDraft(Number(e.target.value))}
+              className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
+            />
           </div>
         </div>
-      )}
+      </BottomSheet>
     </>
   );
 }

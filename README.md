@@ -76,6 +76,7 @@ docker-compose exec app pnpm db:reset-user
 | **Language** | TypeScript (Strict Mode) |
 | **Database** | PostgreSQL 16 (Dockerized) |
 | **ORM** | Drizzle ORM |
+| **Authentication** | Better Auth |
 | **Validation** | Zod — required on all Server Actions |
 | **Styling** | Tailwind CSS 4 |
 | **UI** | shadcn/ui + Lucide React |
