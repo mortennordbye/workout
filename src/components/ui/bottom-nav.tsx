@@ -38,6 +38,8 @@ export function BottomNav() {
   // Only match real workout routes like /programs/[id]/workout/..., not /new-workout
   const isWorkoutRoute = pathname.startsWith("/programs") && pathname.includes("/workout");
 
+  if (pathname.startsWith("/login")) return null;
+
   // Keep lastWorkoutPath in context up to date as the user navigates deeper
   useEffect(() => {
     if (isWorkoutRoute && workoutSession) {
