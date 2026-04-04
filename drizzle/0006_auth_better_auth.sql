@@ -103,6 +103,8 @@ CREATE TABLE "verification" (
 --> statement-breakpoint
 
 -- Domain tables rebuilt with text user_id
+DROP TYPE IF EXISTS "public"."workout_feeling";
+--> statement-breakpoint
 CREATE TYPE "public"."workout_feeling" AS ENUM('Tired', 'OK', 'Good', 'Awesome');
 --> statement-breakpoint
 CREATE TABLE "programs" (
