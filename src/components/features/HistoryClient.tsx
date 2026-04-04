@@ -1,7 +1,7 @@
 "use client";
 
 import type { SessionWithStats } from "@/types/workout";
-import { Calendar } from "lucide-react";
+import { Calendar, ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
 function formatDate(d: Date): string {
@@ -22,9 +22,15 @@ function formatDuration(minutes: number): string {
 export function HistoryClient({ sessions }: { sessions: SessionWithStats[] }) {
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden">
-      <header className="flex-none px-4 pt-6 pb-4 shrink-0">
+      <div className="flex items-center px-4 pt-6 pb-2 shrink-0">
+        <Link href="/more" className="flex items-center gap-0.5 text-primary active:opacity-70 -ml-1">
+          <ChevronLeft className="w-5 h-5" />
+          <span className="text-sm font-medium">More</span>
+        </Link>
+      </div>
+      <div className="px-4 pt-2 pb-4 shrink-0">
         <h1 className="text-3xl font-bold tracking-tight">History</h1>
-      </header>
+      </div>
 
       <div className="flex-1 overflow-y-auto px-4">
         {sessions.length === 0 ? (
