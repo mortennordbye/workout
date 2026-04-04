@@ -2,7 +2,7 @@
 
 import { adminResetUserData, adminSeedFakeData } from "@/lib/actions/admin";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { ChevronLeft, DatabaseZap, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, DatabaseZap, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -81,6 +81,25 @@ export function AdminPanelClient() {
             {status.message}
           </div>
         )}
+
+        <section className="space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+            Users
+          </h2>
+          <div className="rounded-xl border border-border overflow-hidden">
+            <Link
+              href="/more/admin/users"
+              className="w-full flex items-center gap-4 px-4 min-h-[64px] active:bg-muted/50 transition-colors"
+            >
+              <Users className="w-5 h-5 text-muted-foreground flex-none" />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium">User management</div>
+                <div className="text-sm text-muted-foreground">View and impersonate users</div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+          </div>
+        </section>
 
         <section className="space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">

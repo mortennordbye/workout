@@ -1,4 +1,5 @@
 import { BottomNav } from "@/components/ui/bottom-nav";
+import { ImpersonationBanner } from "@/components/features/ImpersonationBanner";
 import { PageTransition } from "@/components/features/PageTransition";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { WorkoutSessionProvider } from "@/contexts/workout-session-context";
@@ -40,6 +41,7 @@ export default function RootLayout({
         className={`${inter.variable} ${geistMono.variable} antialiased pb-16`}
       >
         <ThemeProvider>
+          <ImpersonationBanner />
           <WorkoutSessionProvider>
             <PageTransition>{children}</PageTransition>
             <BottomNav />
