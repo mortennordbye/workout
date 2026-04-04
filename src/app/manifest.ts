@@ -22,8 +22,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Smart Workout PWA",
-    short_name: "Workout",
+    name: "LogEveryLift",
+    short_name: "LogEveryLift",
     description:
       "Track your workouts with intelligent progress monitoring, offline-first design, and auto-deload detection.",
     start_url: "/",

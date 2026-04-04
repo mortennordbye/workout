@@ -1,4 +1,4 @@
-# Smart Workout PWA
+# LogEveryLift
 
 **A mobile-first Workout Tracking PWA built with Next.js 16 (App Router).**
 Designed to feel like a native iOS app. Runs in Docker containers for environment consistency.

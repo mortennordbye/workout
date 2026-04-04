@@ -18,7 +18,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_ROOT"
 
 echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║   Smart Workout PWA - Docker Control   ║${NC}"
+echo -e "${BLUE}║     LogEveryLift - Docker Control      ║${NC}"
 echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
 
 # Default values
