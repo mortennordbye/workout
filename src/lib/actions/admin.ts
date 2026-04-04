@@ -130,6 +130,9 @@ const FAKE_PROGRAMS: ProgramBlueprint[] = [
 
 export async function adminResetUserData(): Promise<ActionResult<{ sessions: number; programs: number; cycles: number }>> {
   const auth = await requireSession();
+  if (auth.session.impersonatedBy) {
+    return { success: false, error: "Cannot reset data while impersonating another user." };
+  }
   const userId = auth.user.id;
   try {
     const deletedSessions = await db
@@ -165,6 +168,9 @@ export async function adminResetUserData(): Promise<ActionResult<{ sessions: num
 
 export async function adminSeedFakeData(): Promise<ActionResult<{ programs: number; sessions: number }>> {
   const auth = await requireSession();
+  if (auth.session.impersonatedBy) {
+    return { success: false, error: "Cannot seed data while impersonating another user." };
+  }
   const userId = auth.user.id;
   try {
     // Fetch exercise IDs by name
