@@ -17,6 +17,7 @@ import {
   removeExerciseFromProgramSchema,
   reorderProgramExercisesSchema,
   reorderProgramSetsSchema,
+  updateProgramSchema,
   updateProgramSetSchema,
 } from "@/lib/validators/workout";
 import type {
@@ -26,7 +27,7 @@ import type {
   ProgramSet,
   ProgramWithExercises,
 } from "@/types/workout";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,6 +96,34 @@ export async function createProgram(
 
     revalidatePath("/programs");
     return { success: true, data: program };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function updateProgram(
+  data: unknown,
+): Promise<ActionResult<void>> {
+  const auth = await requireSession();
+
+  const validation = updateProgramSchema.safeParse(data);
+  if (!validation.success) {
+    return { success: false, error: "Invalid input" };
+  }
+
+  try {
+    await db
+      .update(programs)
+      .set({ name: validation.data.name })
+      .where(
+        and(
+          eq(programs.id, validation.data.id),
+          eq(programs.userId, auth.user.id),
+        ),
+      );
+
+    revalidatePath("/programs");
+    return { success: true, data: undefined };
   } catch (err) {
     return { success: false, error: String(err) };
   }

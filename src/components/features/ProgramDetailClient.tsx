@@ -3,6 +3,7 @@
 import {
   removeExerciseFromProgram,
   reorderProgramExercises,
+  updateProgram,
 } from "@/lib/actions/programs";
 import { buildSetSummary } from "@/lib/utils/format";
 import type { ProgramSet } from "@/types/workout";
@@ -134,6 +135,8 @@ export function ProgramDetailClient({
   // Snapshot of exercise order when entering edit mode — used for Cancel
   const [preEditExercises, setPreEditExercises] = useState<ProgramExItem[]>([]);
   const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<number>>(new Set());
+  const [name, setName] = useState(programName);
+  const [preEditName, setPreEditName] = useState(programName);
 
   // Sync when server data refreshes (e.g. after AddExerciseForm adds a new exercise)
   useEffect(() => {
@@ -146,6 +149,7 @@ export function ProgramDetailClient({
   useEffect(() => {
     if (initialEditing) {
       setPreEditExercises(initial);
+      setPreEditName(programName);
       router.replace(`/programs/${programId}`);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -160,18 +164,24 @@ export function ProgramDetailClient({
 
   function startEditing() {
     setPreEditExercises(exercises);
+    setPreEditName(name);
     setPendingDeleteIds(new Set());
     setIsEditing(true);
   }
 
   function cancelEditing() {
     setExercises(preEditExercises);
+    setName(preEditName);
     setPendingDeleteIds(new Set());
     setIsEditing(false);
   }
 
   async function saveEditing() {
     setSaving(true);
+    // Rename if changed
+    if (name.trim() !== preEditName) {
+      await updateProgram({ id: programId, name: name.trim() });
+    }
     // Apply deletions
     for (const peId of pendingDeleteIds) {
       await removeExerciseFromProgram(peId, programId);
@@ -228,7 +238,7 @@ export function ProgramDetailClient({
             <button
               type="button"
               onClick={saveEditing}
-              disabled={saving}
+              disabled={saving || !name.trim()}
               className="text-primary text-sm font-semibold disabled:opacity-40"
             >
               {saving ? "Saving…" : "Save"}
@@ -247,7 +257,15 @@ export function ProgramDetailClient({
 
       {/* Program title */}
       <div className="px-4 pb-4 shrink-0">
-        <h1 className="text-3xl font-bold text-center">{programName}</h1>
+        {isEditing ? (
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="text-3xl font-bold text-center w-full bg-transparent outline-none border-b-2 border-primary pb-1"
+          />
+        ) : (
+          <h1 className="text-3xl font-bold text-center">{name}</h1>
+        )}
       </div>
 
       {/* Exercises — scrollable */}

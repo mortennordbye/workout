@@ -1,6 +1,6 @@
 "use client";
 
-import { createProgram, deleteProgram } from "@/lib/actions/programs";
+import { createProgram, deleteProgram, updateProgram } from "@/lib/actions/programs";
 import type { Program } from "@/types/workout";
 import { ChevronRightIcon, Minus, PlusIcon } from "lucide-react";
 import Link from "next/link";
@@ -21,6 +21,8 @@ export function ProgramListClient({ programs: initial }: Props) {
   }, [initial]);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [renamingId, setRenamingId] = useState<number | null>(null);
+  const [renamingValue, setRenamingValue] = useState("");
 
   // Create form state
   const [showCreate, setShowCreate] = useState(false);
@@ -33,6 +35,20 @@ export function ProgramListClient({ programs: initial }: Props) {
     await deleteProgram(programId);
     setPendingDeleteId(null);
     setDeleting(false);
+    router.refresh();
+  }
+
+  function startRenaming(program: Program) {
+    setRenamingId(program.id);
+    setRenamingValue(program.name);
+  }
+
+  async function commitRename(program: Program) {
+    const trimmed = renamingValue.trim();
+    setRenamingId(null);
+    if (!trimmed || trimmed === program.name) return;
+    setPrograms((prev) => prev.map((p) => p.id === program.id ? { ...p, name: trimmed } : p));
+    await updateProgram({ id: program.id, name: trimmed });
     router.refresh();
   }
 
@@ -58,7 +74,7 @@ export function ProgramListClient({ programs: initial }: Props) {
           {isEditing ? (
             <button
               type="button"
-              onClick={() => { setIsEditing(false); setPendingDeleteId(null); }}
+              onClick={() => { setIsEditing(false); setPendingDeleteId(null); setRenamingId(null); }}
               className="text-primary text-sm font-medium min-h-[44px] px-1"
             >
               Done
@@ -130,15 +146,34 @@ export function ProgramListClient({ programs: initial }: Props) {
                       <Minus className="w-4 h-4 text-white" />
                     </button>
                   )}
-                  <Link
-                    href={`/programs/${program.id}`}
-                    className="flex-1 flex items-center justify-between py-4 active:opacity-70 transition-opacity"
-                  >
-                    <span className="text-base font-medium">{program.name}</span>
-                    {!isEditing && (
+                  {isEditing ? (
+                    renamingId === program.id ? (
+                      <input
+                        autoFocus
+                        value={renamingValue}
+                        onChange={(e) => setRenamingValue(e.target.value)}
+                        onBlur={() => commitRename(program)}
+                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                        className="flex-1 py-4 text-base font-medium bg-transparent outline-none border-b border-primary"
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => startRenaming(program)}
+                        className="flex-1 py-4 text-left text-base font-medium"
+                      >
+                        {program.name}
+                      </button>
+                    )
+                  ) : (
+                    <Link
+                      href={`/programs/${program.id}`}
+                      className="flex-1 flex items-center justify-between py-4 active:opacity-70 transition-opacity"
+                    >
+                      <span className="text-base font-medium">{program.name}</span>
                       <ChevronRightIcon className="h-5 w-5 text-muted-foreground" />
-                    )}
-                  </Link>
+                    </Link>
+                  )}
                 </div>
               );
             })}

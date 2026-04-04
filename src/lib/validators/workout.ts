@@ -145,6 +145,11 @@ export const createProgramSchema = z.object({
   name: z.string().min(1).max(100),
 });
 
+export const updateProgramSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string().min(1).max(100),
+});
+
 export const addExerciseToProgramSchema = z.object({
   programId: z.number().int().positive(),
   exerciseId: z.number().int().positive(),
