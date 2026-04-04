@@ -2,7 +2,7 @@
 
 import { adminResetUserData, adminSeedFakeData } from "@/lib/actions/admin";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { ChevronLeft, ChevronRight, DatabaseZap, Trash2, Users } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, DatabaseZap, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -66,7 +66,7 @@ export function AdminPanelClient() {
         </Link>
       </div>
       <div className="px-4 pt-2 pb-4 shrink-0">
-        <h1 className="text-3xl font-bold tracking-tight">Developer Tools</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Admin Tools</h1>
       </div>
 
       <main className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
@@ -86,7 +86,7 @@ export function AdminPanelClient() {
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
             Users
           </h2>
-          <div className="rounded-xl border border-border overflow-hidden">
+          <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
             <Link
               href="/more/admin/users"
               className="w-full flex items-center gap-4 px-4 min-h-[64px] active:bg-muted/50 transition-colors"
@@ -95,6 +95,17 @@ export function AdminPanelClient() {
               <div className="flex-1 min-w-0">
                 <div className="font-medium">User management</div>
                 <div className="text-sm text-muted-foreground">View and impersonate users</div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+            <Link
+              href="/more/admin/insights"
+              className="w-full flex items-center gap-4 px-4 min-h-[64px] active:bg-muted/50 transition-colors"
+            >
+              <BarChart3 className="w-5 h-5 text-muted-foreground flex-none" />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium">Insights</div>
+                <div className="text-sm text-muted-foreground">Usage analytics and engagement funnel</div>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </Link>

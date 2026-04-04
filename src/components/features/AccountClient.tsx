@@ -1,8 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
-import { LogOut, Users } from "lucide-react";
-import Link from "next/link";
+import { LogOut } from "lucide-react";
 
 interface AccountClientProps {
   name: string;
@@ -45,23 +44,6 @@ export function AccountClient({ name, email, role }: AccountClientProps) {
           </div>
         </div>
       </div>
-
-      {/* Admin */}
-      {role === "admin" && (
-        <div>
-          <SectionLabel>Admin</SectionLabel>
-          <div className="rounded-xl bg-muted overflow-hidden">
-            <Link
-              href="/settings/users"
-              className="flex items-center gap-3 px-4 py-3.5 active:opacity-60"
-            >
-              <Users className="w-5 h-5 text-muted-foreground" />
-              <span className="text-sm font-medium flex-1">Manage Users</span>
-              <span className="text-muted-foreground text-sm">›</span>
-            </Link>
-          </div>
-        </div>
-      )}
 
       {/* Sign out */}
       <div>

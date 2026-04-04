@@ -1,9 +1,9 @@
 "use client";
 
-import { BarChart2, CalendarDays, ChevronRight, Clock, Library, Settings, Terminal, UserCircle } from "lucide-react";
+import { BarChart2, CalendarDays, ChevronRight, Clock, Library, Settings, Shield, UserCircle } from "lucide-react";
 import Link from "next/link";
 
-const moreItems = [
+const baseItems = [
   {
     label: "Account",
     href: "/more/account",
@@ -40,15 +40,18 @@ const moreItems = [
     icon: Settings,
     description: "Appearance and preferences",
   },
-  {
-    label: "Developer Tools",
-    href: "/more/admin",
-    icon: Terminal,
-    description: "Seed and reset test data",
-  },
 ];
 
-export function MoreClient() {
+const adminItem = {
+  label: "Admin Tools",
+  href: "/more/admin",
+  icon: Shield,
+  description: "Users, insights, and test data",
+};
+
+export function MoreClient({ role }: { role: string }) {
+  const items = role === "admin" ? [...baseItems, adminItem] : baseItems;
+
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden">
       <header className="flex-none px-4 py-4 border-b border-border">
@@ -57,7 +60,7 @@ export function MoreClient() {
 
       <main className="flex-1 overflow-y-auto">
         <div className="divide-y divide-border">
-          {moreItems.map((item) => {
+          {items.map((item) => {
             const Icon = item.icon;
             return (
               <Link
