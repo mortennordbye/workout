@@ -19,10 +19,6 @@ const DEMO_USER_ID = 1;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function jitter(value: number, range: number): number {
-  return Math.round((value + (Math.random() * range * 2 - range)) * 100) / 100;
-}
-
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
   d.setDate(d.getDate() + days);
@@ -52,6 +48,8 @@ type SetBlueprint = {
 
 type ExerciseBlueprint = {
   name: string;
+  /** kg added to every set's weight each week (always a multiple of 2.5) */
+  weeklyIncrementKg: number;
   sets: SetBlueprint[];
 };
 
@@ -66,6 +64,7 @@ const FAKE_PROGRAMS: ProgramBlueprint[] = [
     exercises: [
       {
         name: "Bench Press",
+        weeklyIncrementKg: 2.5,
         sets: [
           { setNumber: 1, targetReps: 8, weightKg: 80, restTimeSeconds: 90 },
           { setNumber: 2, targetReps: 8, weightKg: 80, restTimeSeconds: 90 },
@@ -75,6 +74,7 @@ const FAKE_PROGRAMS: ProgramBlueprint[] = [
       },
       {
         name: "Incline Dumbbell Press",
+        weeklyIncrementKg: 2.5,
         sets: [
           { setNumber: 1, targetReps: 10, weightKg: 30, restTimeSeconds: 75 },
           { setNumber: 2, targetReps: 10, weightKg: 30, restTimeSeconds: 75 },
@@ -83,6 +83,7 @@ const FAKE_PROGRAMS: ProgramBlueprint[] = [
       },
       {
         name: "Tricep Pushdown",
+        weeklyIncrementKg: 2.5,
         sets: [
           { setNumber: 1, targetReps: 12, weightKg: 25, restTimeSeconds: 60 },
           { setNumber: 2, targetReps: 12, weightKg: 25, restTimeSeconds: 60 },
@@ -96,6 +97,7 @@ const FAKE_PROGRAMS: ProgramBlueprint[] = [
     exercises: [
       {
         name: "Pull-up",
+        weeklyIncrementKg: 2.5,
         sets: [
           { setNumber: 1, targetReps: 8, weightKg: 0, restTimeSeconds: 90 },
           { setNumber: 2, targetReps: 8, weightKg: 0, restTimeSeconds: 90 },
@@ -104,6 +106,7 @@ const FAKE_PROGRAMS: ProgramBlueprint[] = [
       },
       {
         name: "Barbell Row",
+        weeklyIncrementKg: 2.5,
         sets: [
           { setNumber: 1, targetReps: 8, weightKg: 70, restTimeSeconds: 90 },
           { setNumber: 2, targetReps: 8, weightKg: 70, restTimeSeconds: 90 },
@@ -113,6 +116,7 @@ const FAKE_PROGRAMS: ProgramBlueprint[] = [
       },
       {
         name: "Overhead Press",
+        weeklyIncrementKg: 2.5,
         sets: [
           { setNumber: 1, targetReps: 8, weightKg: 50, restTimeSeconds: 90 },
           { setNumber: 2, targetReps: 8, weightKg: 50, restTimeSeconds: 90 },
@@ -280,12 +284,11 @@ export async function adminSeedFakeData(): Promise<ActionResult<{ programs: numb
           if (!exerciseId) continue;
 
           for (const setBlueprint of exBlueprint.sets) {
-            const actualReps = Math.max(
-              1,
-              setBlueprint.targetReps + Math.round(Math.random() * 2 - 1)
-            );
-            const weightKg = jitter(setBlueprint.weightKg, 2.5);
-            const rpe = 6 + Math.floor(Math.random() * 3);
+            // Progressive overload: add increment each week, always a clean multiple of 2.5
+            const weightKg = setBlueprint.weightKg + week * exBlueprint.weeklyIncrementKg;
+            // Reps always hit target; occasionally +1 when weights are lighter (early weeks)
+            const actualReps = setBlueprint.targetReps + (week < 2 && Math.random() < 0.25 ? 1 : 0);
+            const rpe = 6 + week + (Math.random() < 0.4 ? 1 : 0); // harder as weeks progress
 
             await db.insert(workoutSets).values({
               sessionId: session.id,

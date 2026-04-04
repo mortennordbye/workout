@@ -68,7 +68,7 @@ export default async function Home() {
 
       {/* Header */}
       <div className="px-6 pt-6 pb-3 shrink-0">
-        <h1 className="text-2xl font-bold tracking-tight text-center">Workout App</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-center">LogEveryLift</h1>
       </div>
 
       {/* Content */}
