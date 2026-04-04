@@ -47,5 +47,3 @@ docker-compose.yml
 # Kubernetes
 k8s/
 
-# Drizzle
-drizzle/
