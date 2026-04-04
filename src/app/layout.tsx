@@ -3,7 +3,7 @@ import { ImpersonationBanner } from "@/components/features/ImpersonationBanner";
 import { PageTransition } from "@/components/features/PageTransition";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { WorkoutSessionProvider } from "@/contexts/workout-session-context";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+export const viewport: Viewport = {
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: "LogEveryLift",
@@ -38,7 +42,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${inter.variable} ${geistMono.variable} antialiased pb-16`}
+        className={`${inter.variable} ${geistMono.variable} antialiased pb-nav-safe`}
       >
         <ThemeProvider>
           <ImpersonationBanner />

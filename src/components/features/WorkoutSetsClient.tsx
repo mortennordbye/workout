@@ -161,7 +161,7 @@ export function WorkoutSetsClient({
   }
 
   return (
-    <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
+    <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center px-4 pt-6 pb-4 shrink-0">
         {/* Left — fixed width so layout never shifts */}

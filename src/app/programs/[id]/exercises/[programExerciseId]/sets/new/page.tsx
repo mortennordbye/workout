@@ -37,7 +37,7 @@ export default async function NewSetPage({ params }: Props) {
   const lastSet = pe.programSets[pe.programSets.length - 1];
 
   return (
-    <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
+    <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-4">
         <Link

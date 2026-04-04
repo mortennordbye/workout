@@ -69,7 +69,7 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-16">
+      <div className="flex-1 overflow-y-auto px-4 pb-nav-safe">
         {/* Date + program heading */}
         <h1 className="text-2xl font-bold">{formatDate(startTime)}</h1>
         <p className="text-muted-foreground mt-1">

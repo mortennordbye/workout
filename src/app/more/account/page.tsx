@@ -9,7 +9,7 @@ export default async function AccountPage() {
   const session = await requireSession();
 
   return (
-    <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
+    <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col overflow-hidden">
       <div className="flex items-center px-4 pt-6 pb-2 shrink-0">
         <Link href="/more" className="flex items-center gap-0.5 text-primary active:opacity-70 -ml-1">
           <ChevronLeft className="w-5 h-5" />

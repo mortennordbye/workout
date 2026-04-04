@@ -34,14 +34,14 @@ export function HistoryClient({ sessions }: { sessions: SessionWithStats[] }) {
 
       <div className="flex-1 overflow-y-auto px-4">
         {sessions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-4 pb-16">
+          <div className="flex flex-col items-center justify-center h-full gap-4 pb-nav-safe">
             <Calendar className="w-12 h-12 text-muted-foreground" />
             <p className="text-muted-foreground text-center">
               Complete a workout to see it here
             </p>
           </div>
         ) : (
-          <div className="space-y-3 pb-16">
+          <div className="space-y-3 pb-nav-safe">
             {sessions.map((session) => (
               <Link key={session.id} href={`/history/${session.id}`}>
                 <div className="bg-card rounded-2xl p-4 active:bg-muted/50 transition-colors">

@@ -42,7 +42,7 @@ export default async function ProgramSetEditPage({ params }: Props) {
   const totalSets = pe.programSets.length;
 
   return (
-    <div className="h-[100dvh] pb-16 bg-background flex flex-col">
+    <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
         <Link

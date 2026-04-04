@@ -16,7 +16,7 @@ export default async function UsersPage() {
           Manage accounts — only admins can access this page.
         </p>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-24">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-nav-safe-lg">
         <UserManagement />
       </div>
     </div>

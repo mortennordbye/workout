@@ -66,7 +66,7 @@ export default async function Home() {
     : null;
 
   return (
-    <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
+    <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col overflow-hidden">
 
       {/* Header */}
       <div className="px-6 pt-6 pb-3 shrink-0">
@@ -74,7 +74,7 @@ export default async function Home() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex flex-col gap-3 px-6 pb-4 min-h-0 overflow-hidden">
+      <div className="flex-1 flex flex-col gap-3 px-6 min-h-0 overflow-hidden pb-4">
 
         {/* ── Today card ─────────────────────────────────── */}
         {info ? (
@@ -187,33 +187,33 @@ export default async function Home() {
           </div>
         )}
 
-        {/* ── No cycle: full-height empty state ─────────── */}
+        {/* ── No cycle: progress ring ───────────────────── */}
         {!info && (
-          <div className="flex-1 flex flex-col justify-between min-h-0">
-            {/* Progress ring — fills vertical space, centered */}
-            <div className="flex-1 flex flex-col items-center justify-center">
-              <WeeklyGoalProgress thisWeekWorkouts={stats.thisWeekWorkouts} size="lg" />
-            </div>
-
-            {/* Actions pinned to bottom */}
-            <div className="space-y-3 pt-4">
-              <Link
-                href="/new-workout"
-                className="flex items-center justify-center w-full rounded-2xl bg-primary py-4 text-base font-semibold text-primary-foreground active:opacity-80"
-              >
-                Start a Workout
-              </Link>
-              <Link
-                href="/cycles"
-                className="flex items-center justify-center w-full rounded-2xl bg-muted py-4 text-sm font-medium text-foreground active:opacity-70"
-              >
-                Set up a Training Cycle
-              </Link>
-            </div>
+          <div className="flex-1 flex flex-col items-center justify-center min-h-0">
+            <WeeklyGoalProgress thisWeekWorkouts={stats.thisWeekWorkouts} size="lg" />
           </div>
         )}
 
       </div>
+
+      {/* No-cycle actions — pinned above nav bar */}
+      {!info && (
+        <div className="px-6 pb-4 space-y-3 shrink-0">
+          <Link
+            href="/new-workout"
+            className="flex items-center justify-center w-full rounded-2xl bg-primary py-4 text-base font-semibold text-primary-foreground active:opacity-80"
+          >
+            Start a Workout
+          </Link>
+          <Link
+            href="/cycles"
+            className="flex items-center justify-center w-full rounded-2xl bg-muted py-4 text-sm font-medium text-foreground active:opacity-70"
+          >
+            Set up a Training Cycle
+          </Link>
+        </div>
+      )}
+
     </div>
   );
 }

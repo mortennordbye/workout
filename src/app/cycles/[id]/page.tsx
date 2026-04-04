@@ -40,7 +40,7 @@ export default async function CycleDetailPage({
     cycle.scheduleType === "day_of_week" ? "Day of week" : "Rotation";
 
   return (
-    <div className="h-[100dvh] bg-background flex flex-col overflow-y-auto pb-24">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-y-auto pb-nav-safe-lg">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-8 pb-4">
         <Link

@@ -102,7 +102,7 @@ function FinishContent() {
   };
 
   return (
-    <div className="h-[100dvh] bg-background flex flex-col pb-16">
+    <div className="h-[100dvh] bg-background flex flex-col pb-nav-safe">
       {/* Header */}
       <div className="px-4 pt-6 pb-4 shrink-0 text-center">
         <div className="text-lg font-bold">Workout Complete</div>

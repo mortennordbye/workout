@@ -25,7 +25,7 @@ export default async function NewWorkoutPage() {
   const programs = programsResult.success ? programsResult.data : [];
 
   return (
-    <div className="h-[100dvh] pb-16 bg-background flex flex-col overflow-hidden">
+    <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-2 shrink-0">
         <Link href="/" className="text-primary text-sm font-medium">
