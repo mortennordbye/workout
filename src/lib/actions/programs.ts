@@ -29,7 +29,7 @@ import type {
   ProgramSet,
   ProgramWithExercises,
 } from "@/types/workout";
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -472,7 +472,7 @@ export async function importProgram(
 
   const importedExercises = parsed.data.program.exercises;
 
-  // Resolve exercises by name (single query)
+  // Resolve exercises by name — only system exercises and the user's own custom ones
   const names = [...new Set(importedExercises.map((e) => e.exercise.name))];
   const exerciseMap = new Map<string, number>(); // name → id
 
@@ -480,7 +480,12 @@ export async function importProgram(
     const matched = await db
       .select({ id: exercises.id, name: exercises.name })
       .from(exercises)
-      .where(inArray(exercises.name, names));
+      .where(
+        and(
+          inArray(exercises.name, names),
+          or(isNull(exercises.userId), eq(exercises.userId, auth.user.id)),
+        ),
+      );
     for (const ex of matched) {
       exerciseMap.set(ex.name, ex.id);
     }
@@ -497,6 +502,7 @@ export async function importProgram(
         name: exName,
         category: slot.exercise.category,
         isCustom: true,
+        userId: auth.user.id,
         bodyArea: slot.exercise.bodyArea ?? undefined,
         muscleGroup: slot.exercise.muscleGroup ?? undefined,
         equipment: slot.exercise.equipment ?? undefined,

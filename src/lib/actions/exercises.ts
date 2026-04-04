@@ -1,58 +1,46 @@
 "use server";
 
-/**
- * Exercise Server Actions
- *
- * Server actions for managing exercises.
- * Handles both system exercises and user-created custom exercises.
- */
-
 import { db } from "@/db";
 import { exercises } from "@/db/schema";
+import { requireSession } from "@/lib/utils/session";
 import { createExerciseSchema } from "@/lib/validators/workout";
 import type { ActionResult, Exercise } from "@/types/workout";
+import { asc, eq, isNull, or, and } from "drizzle-orm";
 
 /**
- * Get all exercises
- *
- * Fetches all available exercises, both system and custom.
- * Used to populate exercise selection dropdowns.
- *
- * @returns All exercises in the database
+ * Get exercises visible to the current user:
+ * all system exercises (userId IS NULL) plus the user's own custom exercises.
  */
 export async function getAllExercises(): Promise<ActionResult<Exercise[]>> {
+  const auth = await requireSession();
   try {
-    const allExercises = await db.query.exercises.findMany({
-      orderBy: (exercises, { asc }) => [asc(exercises.name)],
-    });
+    const rows = await db
+      .select()
+      .from(exercises)
+      .where(
+        or(
+          isNull(exercises.userId),
+          eq(exercises.userId, auth.user.id),
+        ),
+      )
+      .orderBy(asc(exercises.name));
 
-    return {
-      success: true,
-      data: allExercises,
-    };
+    return { success: true, data: rows };
   } catch (error) {
     console.error("Error fetching exercises:", error);
-    return {
-      success: false,
-      error: "Failed to fetch exercises",
-    };
+    return { success: false, error: "Failed to fetch exercises" };
   }
 }
 
 /**
- * Create a custom exercise
- *
- * Allows users to add their own exercises beyond the system defaults.
- *
- * @returns The created exercise on success
+ * Create a custom exercise owned by the current user.
  */
 export async function createCustomExercise(
   data: unknown,
 ): Promise<ActionResult<Exercise>> {
+  const auth = await requireSession();
   try {
-    // Validate input
     const validation = createExerciseSchema.safeParse(data);
-
     if (!validation.success) {
       return {
         success: false,
@@ -61,11 +49,15 @@ export async function createCustomExercise(
       };
     }
 
-    const { name, category, isCustom, bodyArea, muscleGroup, equipment, movementPattern } = validation.data;
+    const { name, category, bodyArea, muscleGroup, equipment, movementPattern } = validation.data;
 
-    // Check if exercise already exists
+    // Name must not clash with a system exercise or the user's own custom exercises.
     const existing = await db.query.exercises.findFirst({
-      where: (exercises, { eq }) => eq(exercises.name, name),
+      where: (ex, { eq, or, isNull, and }) =>
+        and(
+          eq(ex.name, name),
+          or(isNull(ex.userId), eq(ex.userId, auth.user.id)),
+        ),
     });
 
     if (existing) {
@@ -75,13 +67,13 @@ export async function createCustomExercise(
       };
     }
 
-    // Insert exercise
     const [exercise] = await db
       .insert(exercises)
       .values({
         name,
         category,
-        isCustom,
+        isCustom: true,
+        userId: auth.user.id,
         bodyArea,
         muscleGroup,
         equipment,
@@ -89,15 +81,9 @@ export async function createCustomExercise(
       })
       .returning();
 
-    return {
-      success: true,
-      data: exercise,
-    };
+    return { success: true, data: exercise };
   } catch (error) {
     console.error("Error creating exercise:", error);
-    return {
-      success: false,
-      error: "Failed to create exercise. Please try again.",
-    };
+    return { success: false, error: "Failed to create exercise. Please try again." };
   }
 }
