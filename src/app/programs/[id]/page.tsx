@@ -6,10 +6,12 @@ export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ editing?: string }>;
 };
 
-export default async function ProgramDetailPage({ params }: Props) {
+export default async function ProgramDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { editing } = await searchParams;
   const programId = Number(id);
   if (isNaN(programId)) notFound();
 
@@ -28,6 +30,7 @@ export default async function ProgramDetailPage({ params }: Props) {
       programId={programId}
       programName={program.name}
       exercises={exercises}
+      initialEditing={editing === "true"}
     />
   );
 }

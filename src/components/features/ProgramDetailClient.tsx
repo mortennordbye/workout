@@ -38,6 +38,7 @@ type Props = {
   programId: number;
   programName: string;
   exercises: ProgramExItem[];
+  initialEditing?: boolean;
 };
 
 
@@ -124,9 +125,10 @@ export function ProgramDetailClient({
   programId,
   programName,
   exercises: initial,
+  initialEditing = false,
 }: Props) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(initialEditing);
   const [saving, setSaving] = useState(false);
   const [exercises, setExercises] = useState(initial);
   // Snapshot of exercise order when entering edit mode — used for Cancel
@@ -139,6 +141,15 @@ export function ProgramDetailClient({
       setExercises(initial);
     }
   }, [initial, isEditing]);
+
+  // Strip ?editing=true from URL after mounting so refresh doesn't re-trigger edit mode
+  useEffect(() => {
+    if (initialEditing) {
+      setPreEditExercises(initial);
+      router.replace(`/programs/${programId}`);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),

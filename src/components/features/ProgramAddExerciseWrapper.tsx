@@ -17,7 +17,7 @@ export function ProgramAddExerciseWrapper({ programId, exercises }: Props) {
 
   async function handleSelect(exercise: Exercise) {
     await addExerciseToProgram({ programId, exerciseId: exercise.id });
-    router.push(`/programs/${programId}`);
+    router.push(`/programs/${programId}?editing=true`);
   }
 
   return (

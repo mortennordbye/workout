@@ -416,34 +416,13 @@ export function ExercisesClient({
     );
   }
 
-  // Menu view — global search across all exercises
-  if (menuSearch.trim()) {
-    const searchFiltered = exercises.filter((ex) =>
-      ex.name.toLowerCase().includes(menuSearch.trim().toLowerCase())
-    );
-    return (
-      <>
-        <SearchBar value={menuSearch} onChange={setMenuSearch} />
-        <div className="bg-card rounded-2xl overflow-hidden mt-4">
-          {searchFiltered.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No exercises found.</p>
-          ) : (
-            searchFiltered.map((ex) => (
-              <ExerciseRow
-                key={ex.id}
-                exercise={ex}
-                onOpen={setSelectedExercise}
-                onSelect={onSelectExercise ? handleSelectExercise : undefined}
-                selectLoading={selectLoading}
-              />
-            ))
-          )}
-        </div>
-      </>
-    );
-  }
-
   // Menu view
+  const searchFiltered = menuSearch.trim()
+    ? exercises.filter((ex) =>
+        ex.name.toLowerCase().includes(menuSearch.trim().toLowerCase())
+      )
+    : null;
+
   return (
     <>
       <div className="flex items-center justify-between mb-3">
@@ -545,21 +524,39 @@ export function ExercisesClient({
         </div>
       )}
 
-      <div className="bg-card rounded-2xl overflow-hidden mt-3">
-        {MENU_ITEMS.map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            onClick={() => setView(id)}
-            className="flex items-center gap-2.5 w-full px-4 py-2.5 min-h-[44px] border-b border-border/50 last:border-0 active:bg-muted/50 transition-colors"
-          >
-            <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-              <Icon className="w-4 h-4 text-primary" />
-            </div>
-            <span className="flex-1 text-left font-medium">{label}</span>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          </button>
-        ))}
-      </div>
+      {searchFiltered ? (
+        <div className="bg-card rounded-2xl overflow-hidden mt-4">
+          {searchFiltered.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">No exercises found.</p>
+          ) : (
+            searchFiltered.map((ex) => (
+              <ExerciseRow
+                key={ex.id}
+                exercise={ex}
+                onOpen={setSelectedExercise}
+                onSelect={onSelectExercise ? handleSelectExercise : undefined}
+                selectLoading={selectLoading}
+              />
+            ))
+          )}
+        </div>
+      ) : (
+        <div className="bg-card rounded-2xl overflow-hidden mt-3">
+          {MENU_ITEMS.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={() => setView(id)}
+              className="flex items-center gap-2.5 w-full px-4 py-2.5 min-h-[44px] border-b border-border/50 last:border-0 active:bg-muted/50 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                <Icon className="w-4 h-4 text-primary" />
+              </div>
+              <span className="flex-1 text-left font-medium">{label}</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+          ))}
+        </div>
+      )}
 
     </>
   );
