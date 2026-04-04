@@ -138,3 +138,37 @@ export type SessionContextProps = {
   sessionId: number;
   userId: string;
 };
+
+// ============================================================================
+// Program Import/Export
+// ============================================================================
+
+export type ExportedProgram = {
+  version: 1;
+  exportedAt: string;
+  program: {
+    name: string;
+    exercises: Array<{
+      orderIndex: number;
+      notes: string | null;
+      overloadIncrementKg: number;
+      overloadIncrementReps: number;
+      progressionMode: string;
+      exercise: {
+        name: string;
+        category: string;
+        bodyArea: string | null;
+        muscleGroup: string | null;
+        equipment: string | null;
+        movementPattern: string | null;
+      };
+      sets: Array<{
+        setNumber: number;
+        targetReps: number | null;
+        weightKg: number | null;
+        durationSeconds: number | null;
+        restTimeSeconds: number;
+      }>;
+    }>;
+  };
+};

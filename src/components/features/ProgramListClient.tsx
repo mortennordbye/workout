@@ -1,11 +1,12 @@
 "use client";
 
-import { createProgram, deleteProgram, updateProgram } from "@/lib/actions/programs";
+import { createProgram, deleteProgram, importProgram, updateProgram } from "@/lib/actions/programs";
 import type { Program } from "@/types/workout";
-import { ChevronRightIcon, Minus, PlusIcon } from "lucide-react";
+import { BottomSheet } from "@/components/ui/BottomSheet";
+import { ChevronRightIcon, Minus, PlusIcon, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
   programs: Program[];
@@ -28,6 +29,12 @@ export function ProgramListClient({ programs: initial }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+
+  // Import state
+  const [importSheetOpen, setImportSheetOpen] = useState(false);
+  const [importStatus, setImportStatus] = useState<"idle" | "reading" | "uploading" | "error">("idle");
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleDelete(programId: number) {
     setDeleting(true);
@@ -65,6 +72,37 @@ export function ProgramListClient({ programs: initial }: Props) {
     }
   }
 
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportStatus("reading");
+    const text = await file.text();
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      setImportStatus("error");
+      setImportError("Invalid JSON file.");
+      return;
+    }
+    setImportStatus("uploading");
+    const result = await importProgram(parsed);
+    if (!result.success) {
+      setImportStatus("error");
+      setImportError(result.error);
+      return;
+    }
+    setImportSheetOpen(false);
+    setImportStatus("idle");
+    router.refresh();
+  }
+
+  function closeImportSheet() {
+    setImportSheetOpen(false);
+    setImportStatus("idle");
+    setImportError(null);
+  }
+
   return (
     <>
       {/* Header */}
@@ -87,6 +125,14 @@ export function ProgramListClient({ programs: initial }: Props) {
                 className="text-primary text-sm font-medium min-h-[44px] px-1"
               >
                 Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => setImportSheetOpen(true)}
+                className="flex items-center justify-center w-10 h-10 text-muted-foreground active:opacity-60"
+                aria-label="Import program"
+              >
+                <Upload className="w-5 h-5" />
               </button>
               <button
                 type="button"
@@ -213,6 +259,61 @@ export function ProgramListClient({ programs: initial }: Props) {
           </form>
         )}
       </div>
+
+      {/* Import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="sr-only"
+        onChange={handleFileChange}
+      />
+      <BottomSheet open={importSheetOpen} onClose={closeImportSheet}>
+        <div className="bg-background rounded-t-2xl px-4 pt-5 pb-10">
+          <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-5" />
+          <h2 className="text-xl font-bold mb-1">Import Program</h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Select a .json file exported from this app.
+          </p>
+          {importStatus === "idle" && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="w-full rounded-2xl bg-primary py-4 text-sm font-semibold text-primary-foreground active:opacity-80"
+            >
+              Choose File
+            </button>
+          )}
+          {(importStatus === "reading" || importStatus === "uploading") && (
+            <p className="text-center text-sm text-muted-foreground py-4">
+              {importStatus === "reading" ? "Reading file…" : "Importing…"}
+            </p>
+          )}
+          {importStatus === "error" && (
+            <>
+              <p className="text-sm text-destructive mb-4">{importError}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setImportStatus("idle");
+                  setImportError(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                className="w-full rounded-2xl bg-muted py-4 text-sm font-medium active:opacity-70"
+              >
+                Try Again
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={closeImportSheet}
+            className="w-full mt-3 py-3 text-sm text-muted-foreground"
+          >
+            Cancel
+          </button>
+        </div>
+      </BottomSheet>
     </>
   );
 }

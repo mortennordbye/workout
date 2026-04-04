@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  exportProgram,
   removeExerciseFromProgram,
   reorderProgramExercises,
   updateProgram,
@@ -24,7 +25,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { ChevronLeft, ChevronRight, GripVertical, Minus, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, Minus, Plus, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -131,6 +132,7 @@ export function ProgramDetailClient({
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(initialEditing);
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [exercises, setExercises] = useState(initial);
   // Snapshot of exercise order when entering edit mode — used for Cancel
   const [preEditExercises, setPreEditExercises] = useState<ProgramExItem[]>([]);
@@ -196,6 +198,20 @@ export function ProgramDetailClient({
     router.refresh();
   }
 
+  async function handleExport() {
+    setExporting(true);
+    const result = await exportProgram(programId);
+    setExporting(false);
+    if (!result.success) return;
+    const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name.replace(/\s+/g, "-").toLowerCase()}-program.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -233,7 +249,18 @@ export function ProgramDetailClient({
           )}
         </div>
         <div className="flex-1" />
-        <div className="w-20 shrink-0 flex justify-end">
+        <div className="shrink-0 flex items-center gap-3">
+          {!isEditing && (
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={exporting}
+              className="text-muted-foreground disabled:opacity-40"
+              aria-label="Export program"
+            >
+              <Share2 className="w-5 h-5" />
+            </button>
+          )}
           {isEditing ? (
             <button
               type="button"

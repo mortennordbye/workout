@@ -207,3 +207,91 @@ export type CompleteWorkoutSessionInput = z.infer<
   typeof completeWorkoutSessionSchema
 >;
 export type CreateExerciseInput = z.infer<typeof createExerciseSchema>;
+
+/**
+ * Program Import/Export Schemas
+ */
+export const importProgramSchema = z.object({
+  version: z.literal(1),
+  exportedAt: z.string().optional(),
+  program: z.object({
+    name: z.string().min(1).max(100),
+    exercises: z
+      .array(
+        z.object({
+          orderIndex: z.number().int().min(0),
+          notes: z.string().max(500).nullable().optional(),
+          overloadIncrementKg: z.number().min(0).max(100).default(2.5),
+          overloadIncrementReps: z.number().int().min(0).max(100).default(0),
+          progressionMode: z
+            .enum(["manual", "weight", "smart", "reps"])
+            .default("weight"),
+          exercise: z.object({
+            name: z.string().min(1).max(100),
+            category: z.enum(["strength", "cardio", "flexibility"]),
+            bodyArea: z
+              .enum(["upper_body", "lower_body", "core", "full_body", "cardio"])
+              .nullable()
+              .optional(),
+            muscleGroup: z
+              .enum([
+                "chest",
+                "back",
+                "shoulders",
+                "biceps",
+                "triceps",
+                "forearms",
+                "quads",
+                "hamstrings",
+                "glutes",
+                "calves",
+                "abs",
+                "lower_back",
+                "full_body",
+                "cardio",
+              ])
+              .nullable()
+              .optional(),
+            equipment: z
+              .enum([
+                "barbell",
+                "dumbbell",
+                "machine",
+                "cable",
+                "bodyweight",
+                "kettlebell",
+                "bands",
+                "other",
+              ])
+              .nullable()
+              .optional(),
+            movementPattern: z
+              .enum([
+                "push",
+                "pull",
+                "hinge",
+                "squat",
+                "carry",
+                "rotation",
+                "isometric",
+                "cardio",
+              ])
+              .nullable()
+              .optional(),
+          }),
+          sets: z.array(
+            z.object({
+              setNumber: z.number().int().positive(),
+              targetReps: z.number().int().positive().nullable().optional(),
+              weightKg: z.number().min(0).max(1000).nullable().optional(),
+              durationSeconds: z.number().int().min(0).nullable().optional(),
+              restTimeSeconds: z.number().int().min(0).max(3600).default(60),
+            }),
+          ),
+        }),
+      )
+      .max(50),
+  }),
+});
+
+export type ImportProgramInput = z.infer<typeof importProgramSchema>;

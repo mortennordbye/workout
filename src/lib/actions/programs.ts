@@ -7,13 +7,14 @@
  */
 
 import { db } from "@/db";
-import { programExercises, programSets, programs } from "@/db/schema";
+import { exercises, programExercises, programSets, programs } from "@/db/schema";
 import { requireSession } from "@/lib/utils/session";
 import {
   addExerciseToProgramSchema,
   addProgramSetSchema,
   createProgramSchema,
   deleteProgramSetSchema,
+  importProgramSchema,
   removeExerciseFromProgramSchema,
   reorderProgramExercisesSchema,
   reorderProgramSetsSchema,
@@ -22,12 +23,13 @@ import {
 } from "@/lib/validators/workout";
 import type {
   ActionResult,
+  ExportedProgram,
   Program,
   ProgramExercise,
   ProgramSet,
   ProgramWithExercises,
 } from "@/types/workout";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -403,6 +405,163 @@ export async function reorderProgramSets(
       );
     }
     return { success: true, data: undefined };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Program Import / Export
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function exportProgram(
+  programId: number,
+): Promise<ActionResult<ExportedProgram>> {
+  const auth = await requireSession();
+
+  const result = await getProgramWithExercises(programId);
+  if (!result.success) return result;
+
+  const program = result.data;
+  if (program.userId !== auth.user.id) {
+    return { success: false, error: "Program not found" };
+  }
+
+  const payload: ExportedProgram = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    program: {
+      name: program.name,
+      exercises: program.programExercises.map((pe, i) => ({
+        orderIndex: pe.orderIndex ?? i,
+        notes: pe.notes ?? null,
+        overloadIncrementKg: Number(pe.overloadIncrementKg ?? 2.5),
+        overloadIncrementReps: pe.overloadIncrementReps ?? 0,
+        progressionMode: pe.progressionMode ?? "weight",
+        exercise: {
+          name: pe.exercise.name,
+          category: pe.exercise.category,
+          bodyArea: pe.exercise.bodyArea ?? null,
+          muscleGroup: pe.exercise.muscleGroup ?? null,
+          equipment: pe.exercise.equipment ?? null,
+          movementPattern: pe.exercise.movementPattern ?? null,
+        },
+        sets: pe.programSets.map((s) => ({
+          setNumber: s.setNumber,
+          targetReps: s.targetReps ?? null,
+          weightKg: s.weightKg != null ? Number(s.weightKg) : null,
+          durationSeconds: s.durationSeconds ?? null,
+          restTimeSeconds: s.restTimeSeconds ?? 60,
+        })),
+      })),
+    },
+  };
+
+  return { success: true, data: payload };
+}
+
+export async function importProgram(
+  data: unknown,
+): Promise<ActionResult<{ programId: number; programName: string }>> {
+  const auth = await requireSession();
+
+  const parsed = importProgramSchema.safeParse(data);
+  if (!parsed.success) {
+    return { success: false, error: "Invalid program file. Make sure it was exported from this app." };
+  }
+
+  const importedExercises = parsed.data.program.exercises;
+
+  // Resolve exercises by name (single query)
+  const names = [...new Set(importedExercises.map((e) => e.exercise.name))];
+  const exerciseMap = new Map<string, number>(); // name → id
+
+  if (names.length > 0) {
+    const matched = await db
+      .select({ id: exercises.id, name: exercises.name })
+      .from(exercises)
+      .where(inArray(exercises.name, names));
+    for (const ex of matched) {
+      exerciseMap.set(ex.name, ex.id);
+    }
+  }
+
+  // Create any unrecognised exercises as custom
+  for (const slot of importedExercises) {
+    const exName = slot.exercise.name;
+    if (exerciseMap.has(exName)) continue;
+
+    const rows = await db
+      .insert(exercises)
+      .values({
+        name: exName,
+        category: slot.exercise.category,
+        isCustom: true,
+        bodyArea: slot.exercise.bodyArea ?? undefined,
+        muscleGroup: slot.exercise.muscleGroup ?? undefined,
+        equipment: slot.exercise.equipment ?? undefined,
+        movementPattern: slot.exercise.movementPattern ?? undefined,
+      })
+      .onConflictDoNothing()
+      .returning({ id: exercises.id });
+
+    if (rows.length > 0) {
+      exerciseMap.set(exName, rows[0].id);
+    } else {
+      // Race condition: another request inserted it first
+      const [existing] = await db
+        .select({ id: exercises.id })
+        .from(exercises)
+        .where(eq(exercises.name, exName))
+        .limit(1);
+      if (existing) exerciseMap.set(exName, existing.id);
+    }
+  }
+
+  // Create the program and all exercises/sets in a transaction
+  try {
+    const programId = await db.transaction(async (tx) => {
+      const [program] = await tx
+        .insert(programs)
+        .values({ name: parsed.data.program.name, userId: auth.user.id })
+        .returning({ id: programs.id });
+
+      for (const slot of importedExercises) {
+        const exerciseId = exerciseMap.get(slot.exercise.name);
+        if (!exerciseId) continue; // skip if exercise couldn't be resolved
+
+        const [pe] = await tx
+          .insert(programExercises)
+          .values({
+            programId: program.id,
+            exerciseId,
+            orderIndex: slot.orderIndex,
+            notes: slot.notes ?? undefined,
+            overloadIncrementKg: slot.overloadIncrementKg.toString(),
+            overloadIncrementReps: slot.overloadIncrementReps,
+            progressionMode: slot.progressionMode,
+          })
+          .returning({ id: programExercises.id });
+
+        if (slot.sets.length > 0) {
+          await tx.insert(programSets).values(
+            slot.sets.map((s) => ({
+              programExerciseId: pe.id,
+              setNumber: s.setNumber,
+              targetReps: s.targetReps ?? undefined,
+              weightKg: s.weightKg != null ? s.weightKg.toString() : undefined,
+              durationSeconds: s.durationSeconds ?? undefined,
+              restTimeSeconds: s.restTimeSeconds,
+            })),
+          );
+        }
+      }
+
+      return program.id;
+    });
+
+    revalidatePath("/programs");
+    return { success: true, data: { programId, programName: parsed.data.program.name } };
   } catch (err) {
     return { success: false, error: String(err) };
   }
