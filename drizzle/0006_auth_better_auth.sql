@@ -48,7 +48,7 @@ DROP TYPE IF EXISTS "public"."workout_feeling";
 --> statement-breakpoint
 
 -- Better Auth core tables
-CREATE TABLE "user" (
+CREATE TABLE IF NOT EXISTS "user" (
 	"id" text PRIMARY KEY NOT NULL,
 	"name" text NOT NULL,
 	"email" text NOT NULL,
@@ -63,7 +63,7 @@ CREATE TABLE "user" (
 	CONSTRAINT "user_email_unique" UNIQUE("email")
 );
 --> statement-breakpoint
-CREATE TABLE "session" (
+CREATE TABLE IF NOT EXISTS "session" (
 	"id" text PRIMARY KEY NOT NULL,
 	"expires_at" timestamp NOT NULL,
 	"token" text NOT NULL,
@@ -76,7 +76,7 @@ CREATE TABLE "session" (
 	CONSTRAINT "session_token_unique" UNIQUE("token")
 );
 --> statement-breakpoint
-CREATE TABLE "account" (
+CREATE TABLE IF NOT EXISTS "account" (
 	"id" text PRIMARY KEY NOT NULL,
 	"account_id" text NOT NULL,
 	"provider_id" text NOT NULL,
@@ -92,7 +92,7 @@ CREATE TABLE "account" (
 	"updated_at" timestamp NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "verification" (
+CREATE TABLE IF NOT EXISTS "verification" (
 	"id" text PRIMARY KEY NOT NULL,
 	"identifier" text NOT NULL,
 	"value" text NOT NULL,
@@ -103,18 +103,19 @@ CREATE TABLE "verification" (
 --> statement-breakpoint
 
 -- Domain tables rebuilt with text user_id
-DROP TYPE IF EXISTS "public"."workout_feeling";
+DO $$ BEGIN
+  CREATE TYPE "public"."workout_feeling" AS ENUM('Tired', 'OK', 'Good', 'Awesome');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 --> statement-breakpoint
-CREATE TYPE "public"."workout_feeling" AS ENUM('Tired', 'OK', 'Good', 'Awesome');
---> statement-breakpoint
-CREATE TABLE "programs" (
+CREATE TABLE IF NOT EXISTS "programs" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"name" text NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "program_exercises" (
+CREATE TABLE IF NOT EXISTS "program_exercises" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"program_id" integer NOT NULL,
 	"exercise_id" integer NOT NULL,
@@ -125,7 +126,7 @@ CREATE TABLE "program_exercises" (
 	"progression_mode" text DEFAULT 'weight'
 );
 --> statement-breakpoint
-CREATE TABLE "program_sets" (
+CREATE TABLE IF NOT EXISTS "program_sets" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"program_exercise_id" integer NOT NULL,
 	"set_number" integer NOT NULL,
@@ -135,7 +136,7 @@ CREATE TABLE "program_sets" (
 	"rest_time_seconds" integer DEFAULT 60 NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "training_cycles" (
+CREATE TABLE IF NOT EXISTS "training_cycles" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"name" text NOT NULL,
@@ -148,7 +149,7 @@ CREATE TABLE "training_cycles" (
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "training_cycle_slots" (
+CREATE TABLE IF NOT EXISTS "training_cycle_slots" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"training_cycle_id" integer NOT NULL,
 	"day_of_week" integer,
@@ -160,7 +161,7 @@ CREATE TABLE "training_cycle_slots" (
 	CONSTRAINT "uniq_cycle_order" UNIQUE("training_cycle_id","order_index")
 );
 --> statement-breakpoint
-CREATE TABLE "workout_sessions" (
+CREATE TABLE IF NOT EXISTS "workout_sessions" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"program_id" integer,
@@ -172,7 +173,7 @@ CREATE TABLE "workout_sessions" (
 	"is_completed" boolean DEFAULT false NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "workout_sets" (
+CREATE TABLE IF NOT EXISTS "workout_sets" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"session_id" integer NOT NULL,
 	"exercise_id" integer NOT NULL,
@@ -188,25 +189,25 @@ CREATE TABLE "workout_sets" (
 --> statement-breakpoint
 
 -- Foreign keys
-ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+DO $$ BEGIN ALTER TABLE "session" ADD CONSTRAINT "session_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 --> statement-breakpoint
-ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+DO $$ BEGIN ALTER TABLE "account" ADD CONSTRAINT "account_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 --> statement-breakpoint
-ALTER TABLE "programs" ADD CONSTRAINT "programs_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+DO $$ BEGIN ALTER TABLE "programs" ADD CONSTRAINT "programs_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 --> statement-breakpoint
-ALTER TABLE "program_exercises" ADD CONSTRAINT "program_exercises_program_id_programs_id_fk" FOREIGN KEY ("program_id") REFERENCES "public"."programs"("id") ON DELETE cascade ON UPDATE no action;
+DO $$ BEGIN ALTER TABLE "program_exercises" ADD CONSTRAINT "program_exercises_program_id_programs_id_fk" FOREIGN KEY ("program_id") REFERENCES "public"."programs"("id") ON DELETE cascade ON UPDATE no action; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 --> statement-breakpoint
-ALTER TABLE "program_exercises" ADD CONSTRAINT "program_exercises_exercise_id_exercises_id_fk" FOREIGN KEY ("exercise_id") REFERENCES "public"."exercises"("id") ON DELETE cascade ON UPDATE no action;
+DO $$ BEGIN ALTER TABLE "program_exercises" ADD CONSTRAINT "program_exercises_exercise_id_exercises_id_fk" FOREIGN KEY ("exercise_id") REFERENCES "public"."exercises"("id") ON DELETE cascade ON UPDATE no action; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 --> statement-breakpoint
-ALTER TABLE "program_sets" ADD CONSTRAINT "program_sets_program_exercise_id_program_exercises_id_fk" FOREIGN KEY ("program_exercise_id") REFERENCES "public"."program_exercises"("id") ON DELETE cascade ON UPDATE no action;
+DO $$ BEGIN ALTER TABLE "program_sets" ADD CONSTRAINT "program_sets_program_exercise_id_program_exercises_id_fk" FOREIGN KEY ("program_exercise_id") REFERENCES "public"."program_exercises"("id") ON DELETE cascade ON UPDATE no action; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 --> statement-breakpoint
-ALTER TABLE "training_cycles" ADD CONSTRAINT "training_cycles_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+DO $$ BEGIN ALTER TABLE "training_cycles" ADD CONSTRAINT "training_cycles_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 --> statement-breakpoint
-ALTER TABLE "training_cycle_slots" ADD CONSTRAINT "training_cycle_slots_training_cycle_id_training_cycles_id_fk" FOREIGN KEY ("training_cycle_id") REFERENCES "public"."training_cycles"("id") ON DELETE cascade ON UPDATE no action;
+DO $$ BEGIN ALTER TABLE "training_cycle_slots" ADD CONSTRAINT "training_cycle_slots_training_cycle_id_training_cycles_id_fk" FOREIGN KEY ("training_cycle_id") REFERENCES "public"."training_cycles"("id") ON DELETE cascade ON UPDATE no action; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 --> statement-breakpoint
-ALTER TABLE "training_cycle_slots" ADD CONSTRAINT "training_cycle_slots_program_id_programs_id_fk" FOREIGN KEY ("program_id") REFERENCES "public"."programs"("id") ON DELETE set null ON UPDATE no action;
+DO $$ BEGIN ALTER TABLE "training_cycle_slots" ADD CONSTRAINT "training_cycle_slots_program_id_programs_id_fk" FOREIGN KEY ("program_id") REFERENCES "public"."programs"("id") ON DELETE set null ON UPDATE no action; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 --> statement-breakpoint
-ALTER TABLE "workout_sessions" ADD CONSTRAINT "workout_sessions_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action;
+DO $$ BEGIN ALTER TABLE "workout_sessions" ADD CONSTRAINT "workout_sessions_user_id_user_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."user"("id") ON DELETE cascade ON UPDATE no action; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 --> statement-breakpoint
 ALTER TABLE "workout_sessions" ADD CONSTRAINT "workout_sessions_program_id_programs_id_fk" FOREIGN KEY ("program_id") REFERENCES "public"."programs"("id") ON DELETE no action ON UPDATE no action;
 --> statement-breakpoint
