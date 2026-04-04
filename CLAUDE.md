@@ -26,10 +26,33 @@ pnpm test src/__tests__/format.test.ts -t "name" # Single test by name
 docker-compose exec app pnpm lint          # ESLint
 docker-compose exec app pnpm build         # Production build check
 docker-compose exec app pnpm db:push       # Push schema changes to DB
-docker-compose exec app pnpm db:generate   # Generate migration files after schema change
 docker-compose exec app pnpm db:seed       # Seed database
 docker-compose exec app pnpm db:studio     # Drizzle Studio GUI
 ```
+
+## Database migrations
+
+Migration files in `drizzle/` are committed to git and **must never be regenerated at Docker build time**. The Dockerfile does not run `pnpm db:generate`.
+
+**Workflow when changing the schema:**
+1. Edit files in `src/db/schema/`
+2. Run `pnpm db:generate` — answer the interactive prompts carefully (create vs rename)
+3. Commit the generated `drizzle/*.sql` file alongside the schema change
+4. Push — GitHub Action builds, ArgoCD deploys, migrations run automatically
+
+`pnpm db:generate` is intentionally NOT run by `dev.sh` — it requires human judgment on interactive prompts and must not be automated.
+
+**Critical rules:**
+- Never add `pnpm db:generate` back to the Dockerfile — it caused non-interactive prompt failures and generated non-idempotent SQL in CI
+- `drizzle/` must not be in `.dockerignore` — the committed files must be copied into the image
+- All `CREATE TYPE` statements in migration SQL must use a DO block to be idempotent:
+  ```sql
+  DO $$ BEGIN
+    CREATE TYPE "public"."my_type" AS ENUM(...);
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END $$;
+  ```
+  See `drizzle/0006_auth_better_auth.sql` for the reference pattern.
 
 ## Architecture
 

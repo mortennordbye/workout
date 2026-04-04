@@ -43,7 +43,6 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV DATABASE_URL=postgresql://placeholder:placeholder@placeholder:5432/placeholder
-RUN pnpm db:generate
 ENV SERWIST_SUPPRESS_TURBOPACK_WARNING=1
 RUN pnpm build
 

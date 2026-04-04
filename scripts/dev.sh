@@ -82,6 +82,8 @@ if [ "$RUN_TESTS" = true ]; then
   echo -e "${GREEN}✅ All tests passed${NC}"
 fi
 
+echo -e "${YELLOW}💡 If you changed src/db/schema/, run: pnpm db:generate && git add drizzle/${NC}"
+
 echo -e "${YELLOW}🛑 Stopping existing containers...${NC}"
 docker-compose down 2>/dev/null || true
 
