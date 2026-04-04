@@ -43,6 +43,13 @@
       "when": 1775204018587,
       "tag": "0005_odd_rafael_vega",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775204018588,
+      "tag": "0006_auth_better_auth",
+      "breakpoints": true
     }
   ]
 }
