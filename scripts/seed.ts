@@ -34,6 +34,7 @@ const EXERCISES = [
   { name: "Single-Arm Cable Row",  category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "cable",      movementPattern: "pull" },
   { name: "Face Pull",             category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "cable",      movementPattern: "pull" },
   { name: "Straight-Arm Pulldown", category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "cable",      movementPattern: "pull" },
+  { name: "Lat Pushdown",          category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "cable",      movementPattern: "pull" },
   { name: "Renegade Row",          category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "back",       equipment: "dumbbell",   movementPattern: "pull" },
   { name: "Hyperextension",        category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "lower_back", equipment: "bodyweight", movementPattern: "hinge" },
 
