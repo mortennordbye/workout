@@ -1,18 +1,19 @@
 "use client";
 
 import { createProgram, deleteProgram, importProgram, updateProgram } from "@/lib/actions/programs";
-import type { Program } from "@/types/workout";
+import type { Exercise, Program } from "@/types/workout";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { ChevronRightIcon, Minus, PlusIcon, Upload } from "lucide-react";
+import { Check, ChevronRightIcon, Copy, Minus, PlusIcon, Sparkles, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 type Props = {
   programs: Program[];
+  exercises: Exercise[];
 };
 
-export function ProgramListClient({ programs: initial }: Props) {
+export function ProgramListClient({ programs: initial, exercises }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [programs, setPrograms] = useState(initial);
@@ -29,6 +30,13 @@ export function ProgramListClient({ programs: initial }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+
+  // AI tip state
+  const [aiTipOpen, setAiTipOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [pasteJson, setPasteJson] = useState("");
+  const [pasteStatus, setPasteStatus] = useState<"idle" | "importing" | "error">("idle");
+  const [pasteError, setPasteError] = useState<string | null>(null);
 
   // Import state
   const [importSheetOpen, setImportSheetOpen] = useState(false);
@@ -101,6 +109,94 @@ export function ProgramListClient({ programs: initial }: Props) {
     setImportSheetOpen(false);
     setImportStatus("idle");
     setImportError(null);
+  }
+
+  const exerciseListText = exercises.length > 0
+    ? `\nAvailable exercises in my library (use these names exactly when possible):\n${exercises
+        .map((e) => `- ${e.name} (${[e.muscleGroup, e.equipment, e.movementPattern].filter(Boolean).join(", ")})`)
+        .join("\n")}`
+    : "";
+
+  const aiPrompt = `Create a workout program in JSON format that I can import into my workout tracking app.
+
+Use this exact structure:
+
+{
+  "version": 1,
+  "program": {
+    "name": "Program Name",
+    "exercises": [
+      {
+        "orderIndex": 0,
+        "progressionMode": "weight",
+        "overloadIncrementKg": 2.5,
+        "overloadIncrementReps": 0,
+        "exercise": {
+          "name": "Bench Press",
+          "category": "strength",
+          "bodyArea": "upper_body",
+          "muscleGroup": "chest",
+          "equipment": "barbell",
+          "movementPattern": "push"
+        },
+        "sets": [
+          { "setNumber": 1, "targetReps": 8, "weightKg": 60, "restTimeSeconds": 90 },
+          { "setNumber": 2, "targetReps": 8, "weightKg": 60, "restTimeSeconds": 90 },
+          { "setNumber": 3, "targetReps": 8, "weightKg": 60, "restTimeSeconds": 90 }
+        ]
+      }
+    ]
+  }
+}
+
+Rules:
+- category: "strength", "cardio", or "flexibility"
+- bodyArea: "upper_body", "lower_body", "core", "full_body", or "cardio"
+- muscleGroup: "chest", "back", "shoulders", "biceps", "triceps", "forearms", "quads", "hamstrings", "glutes", "calves", "abs", "lower_back", "full_body", or "cardio"
+- equipment: "barbell", "dumbbell", "machine", "cable", "bodyweight", "kettlebell", "bands", or "other"
+- movementPattern: "push", "pull", "hinge", "squat", "carry", "rotation", "isometric", or "cardio"
+- progressionMode: "manual", "weight", "smart", or "reps"
+- weightKg: use 0 for bodyweight, null if unknown
+- restTimeSeconds: rest between sets in seconds (e.g. 90)
+- orderIndex: 0-based index for exercise order in the program
+${exerciseListText}
+Now create: [DESCRIBE YOUR PROGRAM HERE — e.g. "a 3-day push/pull/legs split for intermediate lifters, hypertrophy focus, 4 sets per exercise"]`;
+
+  function handleCopyPrompt() {
+    navigator.clipboard.writeText(aiPrompt);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handlePasteImport() {
+    if (!pasteJson.trim()) return;
+    setPasteStatus("importing");
+    setPasteError(null);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(pasteJson.trim());
+    } catch {
+      setPasteStatus("error");
+      setPasteError("Invalid JSON — make sure you copied the full response from the AI.");
+      return;
+    }
+    const result = await importProgram(parsed);
+    if (!result.success) {
+      setPasteStatus("error");
+      setPasteError(result.error);
+      return;
+    }
+    setPasteJson("");
+    setPasteStatus("idle");
+    setAiTipOpen(false);
+    router.refresh();
+  }
+
+  function closeAiSheet() {
+    setAiTipOpen(false);
+    setPasteJson("");
+    setPasteStatus("idle");
+    setPasteError(null);
   }
 
   return (
@@ -259,6 +355,80 @@ export function ProgramListClient({ programs: initial }: Props) {
           </form>
         )}
       </div>
+
+      {/* AI tip card */}
+      {!isEditing && (
+        <div className="px-4 pb-4">
+          <button
+            type="button"
+            onClick={() => setAiTipOpen(true)}
+            className="w-full flex items-center gap-3 rounded-2xl bg-primary/10 px-4 py-3.5 active:opacity-70 transition-opacity text-left"
+          >
+            <Sparkles className="w-5 h-5 text-primary flex-none" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-primary">Create programs with AI</p>
+              <p className="text-xs text-primary/70 mt-0.5">Get a prompt to generate ready-to-import programs</p>
+            </div>
+          </button>
+        </div>
+      )}
+
+      {/* AI tip sheet */}
+      <BottomSheet open={aiTipOpen} onClose={closeAiSheet} blur>
+        <div className="bg-background rounded-t-2xl px-4 pt-5 pb-10 flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary flex-none" />
+            <h2 className="text-lg font-semibold">Create programs with AI</h2>
+          </div>
+
+          {/* Step 1 — copy prompt */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Step 1 — Copy the prompt</p>
+            <div className="rounded-xl bg-muted px-3 py-3 max-h-36 overflow-y-auto mb-2">
+              <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">{aiPrompt}</pre>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyPrompt}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? "Copied!" : "Copy Prompt"}
+            </button>
+          </div>
+
+          {/* Step 2 — paste response */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Step 2 — Paste the JSON response</p>
+            <textarea
+              value={pasteJson}
+              onChange={(e) => { setPasteJson(e.target.value); setPasteStatus("idle"); setPasteError(null); }}
+              placeholder='Paste the JSON from your AI here…'
+              rows={5}
+              className="w-full rounded-xl bg-muted px-3 py-3 text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
+            />
+            {pasteError && (
+              <p className="text-xs text-destructive mt-1">{pasteError}</p>
+            )}
+            <button
+              type="button"
+              onClick={handlePasteImport}
+              disabled={!pasteJson.trim() || pasteStatus === "importing"}
+              className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80 disabled:opacity-50"
+            >
+              {pasteStatus === "importing" ? "Importing…" : "Import Program"}
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={closeAiSheet}
+            className="w-full py-2 text-sm text-muted-foreground"
+          >
+            Close
+          </button>
+        </div>
+      </BottomSheet>
 
       {/* Import */}
       <input

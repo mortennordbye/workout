@@ -7,6 +7,7 @@
  */
 
 import { ProgramListClient } from "@/components/features/ProgramListClient";
+import { getAllExercises } from "@/lib/actions/exercises";
 import { getPrograms } from "@/lib/actions/programs";
 import { requireSession } from "@/lib/utils/session";
 
@@ -14,12 +15,16 @@ export const dynamic = "force-dynamic";
 
 export default async function ProgramsPage() {
   const session = await requireSession();
-  const result = await getPrograms(session.user.id);
-  const programList = result.success ? result.data : [];
+  const [programResult, exerciseResult] = await Promise.all([
+    getPrograms(session.user.id),
+    getAllExercises(),
+  ]);
+  const programList = programResult.success ? programResult.data : [];
+  const exerciseList = exerciseResult.success ? exerciseResult.data : [];
 
   return (
     <div className="h-[100dvh] bg-background overflow-y-auto pb-nav-safe">
-      <ProgramListClient programs={programList} />
+      <ProgramListClient programs={programList} exercises={exerciseList} />
     </div>
   );
 }

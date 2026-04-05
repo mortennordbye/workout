@@ -1,0 +1,103 @@
+{
+  "version": 1,
+  "program": {
+    "name": "Push Day - Hypertrophy Focus",
+    "exercises": [
+      {
+        "orderIndex": 0,
+        "progressionMode": "weight",
+        "overloadIncrementKg": 2.5,
+        "overloadIncrementReps": 0,
+        "exercise": {
+          "name": "Barbell Bench Press",
+          "category": "strength",
+          "bodyArea": "upper_body",
+          "muscleGroup": "chest",
+          "equipment": "barbell",
+          "movementPattern": "push"
+        },
+        "sets": [
+          { "setNumber": 1, "targetReps": 8, "weightKg": 60, "restTimeSeconds": 180 },
+          { "setNumber": 2, "targetReps": 8, "weightKg": 60, "restTimeSeconds": 180 },
+          { "setNumber": 3, "targetReps": 8, "weightKg": 60, "restTimeSeconds": 180 }
+        ]
+      },
+      {
+        "orderIndex": 1,
+        "progressionMode": "weight",
+        "overloadIncrementKg": 2.5,
+        "overloadIncrementReps": 0,
+        "exercise": {
+          "name": "Overhead Press",
+          "category": "strength",
+          "bodyArea": "upper_body",
+          "muscleGroup": "shoulders",
+          "equipment": "barbell",
+          "movementPattern": "push"
+        },
+        "sets": [
+          { "setNumber": 1, "targetReps": 10, "weightKg": 40, "restTimeSeconds": 120 },
+          { "setNumber": 2, "targetReps": 10, "weightKg": 40, "restTimeSeconds": 120 },
+          { "setNumber": 3, "targetReps": 10, "weightKg": 40, "restTimeSeconds": 120 }
+        ]
+      },
+      {
+        "orderIndex": 2,
+        "progressionMode": "weight",
+        "overloadIncrementKg": 2.0,
+        "overloadIncrementReps": 0,
+        "exercise": {
+          "name": "Incline Dumbbell Fly",
+          "category": "strength",
+          "bodyArea": "upper_body",
+          "muscleGroup": "chest",
+          "equipment": "dumbbell",
+          "movementPattern": "push"
+        },
+        "sets": [
+          { "setNumber": 1, "targetReps": 12, "weightKg": 14, "restTimeSeconds": 90 },
+          { "setNumber": 2, "targetReps": 12, "weightKg": 14, "restTimeSeconds": 90 },
+          { "setNumber": 3, "targetReps": 12, "weightKg": 14, "restTimeSeconds": 90 }
+        ]
+      },
+      {
+        "orderIndex": 3,
+        "progressionMode": "weight",
+        "overloadIncrementKg": 1.0,
+        "overloadIncrementReps": 0,
+        "exercise": {
+          "name": "Lateral Raises",
+          "category": "strength",
+          "bodyArea": "upper_body",
+          "muscleGroup": "shoulders",
+          "equipment": "dumbbell",
+          "movementPattern": "push"
+        },
+        "sets": [
+          { "setNumber": 1, "targetReps": 15, "weightKg": 8, "restTimeSeconds": 60 },
+          { "setNumber": 2, "targetReps": 15, "weightKg": 8, "restTimeSeconds": 60 },
+          { "setNumber": 3, "targetReps": 15, "weightKg": 8, "restTimeSeconds": 60 }
+        ]
+      },
+      {
+        "orderIndex": 4,
+        "progressionMode": "weight",
+        "overloadIncrementKg": 2.5,
+        "overloadIncrementReps": 0,
+        "exercise": {
+          "name": "Triceps Cable Pushdowns",
+          "category": "strength",
+          "bodyArea": "upper_body",
+          "muscleGroup": "triceps",
+          "equipment": "cable",
+          "movementPattern": "push"
+        },
+        "sets": [
+          { "setNumber": 1, "targetReps": 12, "weightKg": 20, "restTimeSeconds": 60 },
+          { "setNumber": 2, "targetReps": 12, "weightKg": 20, "restTimeSeconds": 60 },
+          { "setNumber": 3, "targetReps": 12, "weightKg": 20, "restTimeSeconds": 60 }
+        ]
+      }
+    ]
+  }
+}
