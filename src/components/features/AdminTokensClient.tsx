@@ -2,7 +2,7 @@
 
 import { createInviteToken, revokeInviteToken } from "@/lib/actions/invite-tokens";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { ChevronLeft, Key, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Key, Plus, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -24,7 +24,7 @@ export function AdminTokensClient({ tokens }: { tokens: InviteToken[] }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [form, setForm] = useState({ label: "", maxUses: "", expiresAt: "" });
+  const [form, setForm] = useState({ label: "", token: "", maxUses: "", expiresAt: "" });
 
   async function handleRevoke(id: string) {
     setLoadingId(id);
@@ -35,7 +35,7 @@ export function AdminTokensClient({ tokens }: { tokens: InviteToken[] }) {
   }
 
   function openCreate() {
-    setForm({ label: "", maxUses: "", expiresAt: "" });
+    setForm({ label: "", token: "", maxUses: "", expiresAt: "" });
     setCreateError(null);
     setCreateOpen(true);
   }
@@ -55,6 +55,7 @@ export function AdminTokensClient({ tokens }: { tokens: InviteToken[] }) {
 
       const result = await createInviteToken({
         label: form.label,
+        token: form.token.trim() || null,
         maxUses,
         expiresAt,
       });
@@ -223,6 +224,21 @@ export function AdminTokensClient({ tokens }: { tokens: InviteToken[] }) {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">
+                Token <span className="text-muted-foreground/60">(blank = auto-generated)</span>
+              </label>
+              <input
+                type="text"
+                autoComplete="off"
+                autoCapitalize="none"
+                autoCorrect="off"
+                value={form.token}
+                onChange={(e) => setForm((f) => ({ ...f, token: e.target.value }))}
+                placeholder="e.g. welcome2025"
+                className="w-full rounded-xl bg-muted px-4 py-3 text-base font-mono outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground mb-1 block">
                 Max uses <span className="text-muted-foreground/60">(blank = unlimited)</span>
               </label>
               <input
@@ -239,12 +255,23 @@ export function AdminTokensClient({ tokens }: { tokens: InviteToken[] }) {
               <label className="text-xs text-muted-foreground mb-1 block">
                 Expires <span className="text-muted-foreground/60">(optional)</span>
               </label>
-              <input
-                type="date"
-                value={form.expiresAt}
-                onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value }))}
-                className="w-full rounded-xl bg-muted px-4 py-3 text-base outline-none focus:ring-2 focus:ring-primary"
-              />
+              <div className="relative">
+                <input
+                  type="date"
+                  value={form.expiresAt}
+                  onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value }))}
+                  className="w-full rounded-xl bg-muted px-4 py-3 text-base outline-none focus:ring-2 focus:ring-primary pr-10"
+                />
+                {form.expiresAt && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, expiresAt: "" }))}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-muted-foreground/20 active:opacity-70"
+                  >
+                    <X className="w-3.5 h-3.5 text-muted-foreground" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

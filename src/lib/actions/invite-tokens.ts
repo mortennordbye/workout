@@ -114,6 +114,7 @@ export async function listInviteTokens(): Promise<ActionResult<InviteToken[]>> {
 
 export async function createInviteToken(data: {
   label: string;
+  token: string | null;
   maxUses: number | null;
   expiresAt: Date | null;
 }): Promise<ActionResult<InviteToken>> {
@@ -123,8 +124,16 @@ export async function createInviteToken(data: {
   }
 
   try {
-    const token = randomBytes(12).toString("base64url");
+    const token = data.token ?? randomBytes(12).toString("base64url");
     const id = randomBytes(8).toString("hex");
+
+    // Check for token collision
+    const existing = await db.query.inviteTokens.findFirst({
+      where: (t, { eq }) => eq(t.token, token),
+    });
+    if (existing) {
+      return { success: false, error: "A token with that value already exists" };
+    }
 
     const [row] = await db
       .insert(inviteTokens)

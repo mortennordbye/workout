@@ -33,6 +33,8 @@ export function BottomNav() {
   const pathname = usePathname();
   const workoutSession = useWorkoutSession();
   const workoutPath = workoutSession?.workoutPath ?? null;
+
+  if (pathname === "/login" || pathname === "/signup") return null;
   const lastWorkoutPath = workoutSession?.lastWorkoutPath ?? null;
 
   // Only match real workout routes like /programs/[id]/workout/..., not /new-workout
