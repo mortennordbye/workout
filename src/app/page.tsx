@@ -96,6 +96,7 @@ export default async function Home() {
               <div className="flex gap-2 flex-wrap">
                 <Link
                   href={`/programs/${todayProgram.id}/workout`}
+                  prefetch={true}
                   className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground active:opacity-80"
                 >
                   Start Today's Workout

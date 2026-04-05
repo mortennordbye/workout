@@ -82,6 +82,7 @@ export function BottomNav() {
             <Link
               key={item.label}
               href={href}
+              prefetch={true}
               suppressHydrationWarning
               className={`
                 flex flex-col items-center justify-center gap-1 flex-1 h-full
