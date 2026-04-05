@@ -4,8 +4,6 @@ import { getOptionalSession } from "@/lib/utils/session";
 import { eq } from "drizzle-orm";
 import { OnboardingTutorial } from "./OnboardingTutorial";
 
-const TUTORIAL_DAYS = 5;
-
 export async function OnboardingTutorialLoader() {
   const session = await getOptionalSession();
   if (!session) return null;
@@ -16,10 +14,7 @@ export async function OnboardingTutorialLoader() {
   });
   if (!user) return null;
 
-  if (user.tutorialDismissedAt) return null;
+  const defaultShow = !user.tutorialDismissedAt;
 
-  const cutoff = new Date(Date.now() - TUTORIAL_DAYS * 24 * 60 * 60 * 1000);
-  if (user.createdAt < cutoff) return null;
-
-  return <OnboardingTutorial />;
+  return <OnboardingTutorial defaultShow={defaultShow} />;
 }

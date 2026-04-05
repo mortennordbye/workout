@@ -52,7 +52,7 @@ const adminItem = {
 };
 
 export function MoreClient({ role }: { role: string }) {
-  const items = role === "admin" ? [...baseItems, adminItem] : baseItems;
+  const isAdmin = role === "admin";
   const { data: session } = authClient.useSession();
   const [stopping, setStopping] = useState(false);
   const isImpersonating = !!session?.session.impersonatedBy;
@@ -90,7 +90,7 @@ export function MoreClient({ role }: { role: string }) {
           </div>
         )}
         <div className="divide-y divide-border">
-          {items.map((item) => {
+          {baseItems.map((item) => {
             const Icon = item.icon;
             return (
               <Link
@@ -122,6 +122,19 @@ export function MoreClient({ role }: { role: string }) {
             </div>
             <ChevronRight className="w-4 h-4 text-muted-foreground flex-none" />
           </button>
+          {isAdmin && (
+            <Link
+              href={adminItem.href}
+              className="flex items-center gap-4 px-4 min-h-[56px] active:bg-muted/50 transition-colors"
+            >
+              <Shield className="w-5 h-5 text-muted-foreground flex-none" />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium">{adminItem.label}</div>
+                <div className="text-sm text-muted-foreground">{adminItem.description}</div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground flex-none" />
+            </Link>
+          )}
         </div>
       </main>
     </div>

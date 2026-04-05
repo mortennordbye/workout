@@ -2,7 +2,7 @@
 
 import { useTheme } from "@/components/ui/theme-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { CheckIcon, ChevronLeft } from "lucide-react";
+import { BookOpen, CheckIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { useRef } from "react";
 
@@ -231,6 +231,24 @@ export function SettingsClient() {
               </div>
             </Row>
 
+          </div>
+        </div>
+
+        {/* ── Help ───────────────────────────────────── */}
+        <div>
+          <SectionLabel>Help</SectionLabel>
+          <div className="rounded-2xl bg-card overflow-hidden">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("show-onboarding"))}
+              className="w-full flex items-center gap-3 px-4 py-3.5 active:opacity-60 transition-opacity text-left"
+            >
+              <BookOpen className="w-5 h-5 text-muted-foreground flex-none" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">View intro</p>
+                <p className="text-xs text-muted-foreground">Replay the getting started guide</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground flex-none" />
+            </button>
           </div>
         </div>
 
