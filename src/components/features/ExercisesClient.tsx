@@ -97,33 +97,9 @@ function SearchBar({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
-// ─── Back Button ──────────────────────────────────────────────────────────────
-
-function BackButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-0.5 min-h-[44px] text-primary active:opacity-70 -ml-1"
-    >
-      <ChevronLeft className="w-5 h-5" />
-      <span className="text-base">{label}</span>
-    </button>
-  );
-}
-
 // ─── Detail View ──────────────────────────────────────────────────────────────
 
-function DetailView({
-  exercise,
-  backLabel,
-  onBack,
-  onEdit,
-}: {
-  exercise: Exercise;
-  backLabel: string;
-  onBack: () => void;
-  onEdit?: () => void;
-}) {
+function DetailView({ exercise }: { exercise: Exercise }) {
   const rows: { label: string; value: string }[] = [
     { label: "Title", value: exercise.name },
     { label: "Exercise Type", value: exerciseType(exercise.category) },
@@ -135,19 +111,7 @@ function DetailView({
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <BackButton label={backLabel} onClick={onBack} />
-        {exercise.isCustom && onEdit && (
-          <button
-            onClick={onEdit}
-            className="flex items-center gap-1.5 min-h-[44px] px-1 text-primary active:opacity-70"
-          >
-            <Pencil className="w-4 h-4" />
-            <span className="text-base">Edit</span>
-          </button>
-        )}
-      </div>
-      <h1 className="text-3xl font-bold tracking-tight mt-1 mb-6">
+      <h1 className="text-3xl font-bold tracking-tight mb-6">
         {exercise.name}
         {exercise.isCustom && (
           <span className="ml-2 text-sm font-medium text-primary bg-primary/10 px-2 py-0.5 rounded align-middle">
@@ -213,17 +177,13 @@ function ExerciseRow({
 
 function FlatExerciseList({
   title,
-  backLabel,
   exercises,
-  onBack,
   onOpen,
   onSelect,
   selectLoading,
 }: {
   title: string;
-  backLabel: string;
   exercises: Exercise[];
-  onBack: () => void;
   onOpen: (exercise: Exercise) => void;
   onSelect?: (exercise: Exercise) => void;
   selectLoading?: boolean;
@@ -235,8 +195,7 @@ function FlatExerciseList({
 
   return (
     <>
-      <BackButton label={backLabel} onClick={onBack} />
-      <h1 className="text-3xl font-bold tracking-tight mt-1 mb-4">{title}</h1>
+      <h1 className="text-3xl font-bold tracking-tight mb-4">{title}</h1>
       <SearchBar value={search} onChange={setSearch} />
       <div className="bg-card rounded-2xl overflow-hidden mt-4">
         {filtered.length === 0 ? (
@@ -261,15 +220,11 @@ function FlatExerciseList({
 
 function CategoryList({
   title,
-  backLabel,
   items,
-  onBack,
   onSelect,
 }: {
   title: string;
-  backLabel: string;
   items: { key: string; label: string }[];
-  onBack: () => void;
   onSelect: (key: string) => void;
 }) {
   const [search, setSearch] = useState("");
@@ -279,8 +234,7 @@ function CategoryList({
 
   return (
     <>
-      <BackButton label={backLabel} onClick={onBack} />
-      <h1 className="text-3xl font-bold tracking-tight mt-1 mb-4">{title}</h1>
+      <h1 className="text-3xl font-bold tracking-tight mb-4">{title}</h1>
       <SearchBar value={search} onChange={setSearch} />
       <div className="bg-card rounded-2xl overflow-hidden mt-4">
         {filtered.map((item) => (
@@ -294,6 +248,106 @@ function CategoryList({
           </button>
         ))}
       </div>
+    </>
+  );
+}
+
+// ─── Exercise Form Fields ─────────────────────────────────────────────────────
+
+function ExerciseFormFields({
+  name, setName,
+  category, setCategory,
+  bodyArea, setBodyArea,
+  muscleGroup, setMuscleGroup,
+  equipment, setEquipment,
+  movementPattern, setMovementPattern,
+  error,
+  loading,
+  submitLabel,
+}: {
+  name: string; setName: (v: string) => void;
+  category: Category; setCategory: (v: Category) => void;
+  bodyArea: BodyArea | ""; setBodyArea: (v: BodyArea | "") => void;
+  muscleGroup: MuscleGroup | ""; setMuscleGroup: (v: MuscleGroup | "") => void;
+  equipment: Equipment | ""; setEquipment: (v: Equipment | "") => void;
+  movementPattern: MovementPattern | ""; setMovementPattern: (v: MovementPattern | "") => void;
+  error: string;
+  loading: boolean;
+  submitLabel: string;
+}) {
+  return (
+    <>
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Exercise name"
+        className="w-full rounded-xl bg-muted px-4 py-3 text-base outline-none focus:ring-2 ring-primary"
+      />
+      <div className="grid grid-cols-3 gap-2">
+        {(["strength", "cardio", "flexibility"] as Category[]).map((cat) => (
+          <button
+            key={cat}
+            type="button"
+            onClick={() => setCategory(cat)}
+            className={`py-2.5 rounded-xl text-sm font-semibold capitalize transition-colors ${
+              category === cat
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-foreground active:opacity-70"
+            }`}
+          >
+            {cat}
+          </button>
+        ))}
+      </div>
+      <select
+        value={bodyArea}
+        onChange={(e) => setBodyArea(e.target.value as BodyArea | "")}
+        className="w-full rounded-xl bg-muted px-4 py-3 text-base outline-none focus:ring-2 ring-primary"
+      >
+        <option value="">Body area (optional)</option>
+        {BODY_AREA_ORDER.map((val) => (
+          <option key={val} value={val}>{BODY_AREA_LABELS[val]}</option>
+        ))}
+      </select>
+      <select
+        value={muscleGroup}
+        onChange={(e) => setMuscleGroup(e.target.value as MuscleGroup | "")}
+        className="w-full rounded-xl bg-muted px-4 py-3 text-base outline-none focus:ring-2 ring-primary"
+      >
+        <option value="">Muscle group (optional)</option>
+        {MUSCLE_ORDER.map((val) => (
+          <option key={val} value={val}>{MUSCLE_LABELS[val]}</option>
+        ))}
+      </select>
+      <select
+        value={equipment}
+        onChange={(e) => setEquipment(e.target.value as Equipment | "")}
+        className="w-full rounded-xl bg-muted px-4 py-3 text-base outline-none focus:ring-2 ring-primary"
+      >
+        <option value="">Equipment (optional)</option>
+        {EQUIPMENT_ORDER.map((val) => (
+          <option key={val} value={val}>{EQUIPMENT_LABELS[val]}</option>
+        ))}
+      </select>
+      <select
+        value={movementPattern}
+        onChange={(e) => setMovementPattern(e.target.value as MovementPattern | "")}
+        className="w-full rounded-xl bg-muted px-4 py-3 text-base outline-none focus:ring-2 ring-primary"
+      >
+        <option value="">Movement pattern (optional)</option>
+        {MOVEMENT_ORDER.map((val) => (
+          <option key={val} value={val}>{MOVEMENT_LABELS[val]}</option>
+        ))}
+      </select>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+      <button
+        type="submit"
+        disabled={loading || !name.trim()}
+        className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+      >
+        {submitLabel}
+      </button>
     </>
   );
 }
@@ -349,25 +403,24 @@ export function ExercisesClient({
     setError("");
   }
 
+  function resetForm() {
+    setName(""); setCategory("strength"); setBodyArea("");
+    setMuscleGroup(""); setEquipment(""); setMovementPattern("");
+    setError("");
+  }
+
   async function handleUpdate(e: React.FormEvent) {
     e.preventDefault();
     if (!editingExercise || !name.trim()) return;
     setLoading(true);
     setError("");
     const result = await updateCustomExercise(editingExercise.id, {
-      name: name.trim(),
-      category,
-      isCustom: true,
-      bodyArea: bodyArea || undefined,
-      muscleGroup: muscleGroup || undefined,
-      equipment: equipment || undefined,
-      movementPattern: movementPattern || undefined,
+      name: name.trim(), category, isCustom: true,
+      bodyArea: bodyArea || undefined, muscleGroup: muscleGroup || undefined,
+      equipment: equipment || undefined, movementPattern: movementPattern || undefined,
     });
     setLoading(false);
-    if (!result.success) {
-      setError(result.error ?? "Failed to update exercise");
-      return;
-    }
+    if (!result.success) { setError(result.error ?? "Failed to update exercise"); return; }
     setSelectedExercise(result.data);
     closeEdit();
     router.refresh();
@@ -379,331 +432,194 @@ export function ExercisesClient({
     setLoading(true);
     setError("");
     const result = await createCustomExercise({
-      name: name.trim(),
-      category,
-      isCustom: true,
-      bodyArea: bodyArea || undefined,
-      muscleGroup: muscleGroup || undefined,
-      equipment: equipment || undefined,
-      movementPattern: movementPattern || undefined,
+      name: name.trim(), category, isCustom: true,
+      bodyArea: bodyArea || undefined, muscleGroup: muscleGroup || undefined,
+      equipment: equipment || undefined, movementPattern: movementPattern || undefined,
     });
     setLoading(false);
-    if (!result.success) {
-      setError(result.error ?? "Failed to create exercise");
-      return;
-    }
-    setName(""); setCategory("strength"); setBodyArea("");
-    setMuscleGroup(""); setEquipment(""); setMovementPattern("");
+    if (!result.success) { setError(result.error ?? "Failed to create exercise"); return; }
+    resetForm();
     setShowForm(false);
     router.refresh();
   }
 
+  // ── Compute back action based on current navigation depth ──────────────────
+  function handleBack() {
+    if (editingExercise) { closeEdit(); return; }
+    if (selectedExercise) { setSelectedExercise(null); return; }
+    if (subCategory !== null) { setSubCategory(null); return; }
+    if (view !== "menu") { setView("menu"); return; }
+    router.push("/more");
+  }
+
+  // ── Compute right header action ────────────────────────────────────────────
+  const headerRight = selectedExercise?.isCustom && !editingExercise ? (
+    <button
+      onClick={() => openEdit(selectedExercise)}
+      className="flex items-center gap-1.5 min-h-[44px] px-1 text-primary active:opacity-70"
+    >
+      <Pencil className="w-4 h-4" />
+      <span className="text-base">Edit</span>
+    </button>
+  ) : null;
+
+  // ── Compute scrollable content ─────────────────────────────────────────────
   const viewLabel = MENU_ITEMS.find((m) => m.id === view)?.label ?? "My Exercises";
 
-  // Edit form
+  let content: React.ReactNode;
+
   if (editingExercise) {
-    return (
+    content = (
       <>
-        <div className="flex items-center justify-between mb-4">
-          <BackButton label={editingExercise.name} onClick={closeEdit} />
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight mt-1 mb-6">Edit Exercise</h1>
+        <h1 className="text-3xl font-bold tracking-tight mb-6">Edit Exercise</h1>
         <div className="bg-card rounded-2xl p-4 space-y-3">
           <form onSubmit={handleUpdate} className="space-y-3">
-            <input
-              autoFocus
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Exercise name"
-              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
+            <ExerciseFormFields
+              name={name} setName={setName}
+              category={category} setCategory={setCategory}
+              bodyArea={bodyArea} setBodyArea={setBodyArea}
+              muscleGroup={muscleGroup} setMuscleGroup={setMuscleGroup}
+              equipment={equipment} setEquipment={setEquipment}
+              movementPattern={movementPattern} setMovementPattern={setMovementPattern}
+              error={error} loading={loading} submitLabel={loading ? "Saving…" : "Save Changes"}
             />
-            <div className="grid grid-cols-3 gap-2">
-              {(["strength", "cardio", "flexibility"] as Category[]).map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setCategory(cat)}
-                  className={`py-2.5 rounded-xl text-sm font-semibold capitalize transition-colors ${
-                    category === cat
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground active:opacity-70"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-            <select
-              value={bodyArea}
-              onChange={(e) => setBodyArea(e.target.value as BodyArea | "")}
-              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
-            >
-              <option value="">Body area (optional)</option>
-              {BODY_AREA_ORDER.map((val) => (
-                <option key={val} value={val}>{BODY_AREA_LABELS[val]}</option>
-              ))}
-            </select>
-            <select
-              value={muscleGroup}
-              onChange={(e) => setMuscleGroup(e.target.value as MuscleGroup | "")}
-              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
-            >
-              <option value="">Muscle group (optional)</option>
-              {MUSCLE_ORDER.map((val) => (
-                <option key={val} value={val}>{MUSCLE_LABELS[val]}</option>
-              ))}
-            </select>
-            <select
-              value={equipment}
-              onChange={(e) => setEquipment(e.target.value as Equipment | "")}
-              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
-            >
-              <option value="">Equipment (optional)</option>
-              {EQUIPMENT_ORDER.map((val) => (
-                <option key={val} value={val}>{EQUIPMENT_LABELS[val]}</option>
-              ))}
-            </select>
-            <select
-              value={movementPattern}
-              onChange={(e) => setMovementPattern(e.target.value as MovementPattern | "")}
-              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
-            >
-              <option value="">Movement pattern (optional)</option>
-              {MOVEMENT_ORDER.map((val) => (
-                <option key={val} value={val}>{MOVEMENT_LABELS[val]}</option>
-              ))}
-            </select>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading || !name.trim()}
-              className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-            >
-              {loading ? "Saving…" : "Save Changes"}
-            </button>
           </form>
         </div>
       </>
     );
-  }
-
-  // Detail view
-  if (selectedExercise) {
-    const backLabel = subCategory
-      ? capitalize(subCategory)
-      : view === "menu" ? "Exercises" : viewLabel;
-    return (
-      <DetailView
-        exercise={selectedExercise}
-        backLabel={backLabel}
-        onBack={() => setSelectedExercise(null)}
-        onEdit={() => openEdit(selectedExercise)}
-      />
-    );
-  }
-
-  // Sub-category drill-down (exercises filtered by a specific category value)
-  if (view !== "menu" && subCategory !== null) {
+  } else if (selectedExercise) {
+    content = <DetailView exercise={selectedExercise} />;
+  } else if (view !== "menu" && subCategory !== null) {
     const config = GROUP_CONFIG[view as keyof typeof GROUP_CONFIG];
-    const filtered = config
-      ? exercises.filter((ex) => ex[config.key] === subCategory)
-      : [];
+    const filtered = config ? exercises.filter((ex) => ex[config.key] === subCategory) : [];
     const subLabel = config?.labels[subCategory] ?? capitalize(subCategory);
-    return (
+    content = (
       <FlatExerciseList
         title={subLabel}
-        backLabel={viewLabel}
         exercises={filtered}
-        onBack={() => setSubCategory(null)}
         onOpen={setSelectedExercise}
         onSelect={onSelectExercise ? handleSelectExercise : undefined}
         selectLoading={selectLoading}
       />
     );
-  }
-
-  // Category list views (bodyArea, muscles, equipment, function)
-  if (view !== "menu" && view in GROUP_CONFIG) {
+  } else if (view !== "menu" && view in GROUP_CONFIG) {
     const config = GROUP_CONFIG[view as keyof typeof GROUP_CONFIG];
     const present = new Set(exercises.map((ex) => ex[config.key] as string).filter(Boolean));
-    const items = config.order
-      .filter((k) => present.has(k))
-      .map((k) => ({ key: k, label: config.labels[k] }));
-    return (
-      <CategoryList
-        title={viewLabel}
-        backLabel="Exercises"
-        items={items}
-        onBack={() => setView("menu")}
-        onSelect={(key) => setSubCategory(key)}
-      />
-    );
-  }
-
-  // Flat list views (all, timed, custom)
-  if (view !== "menu") {
+    const items = config.order.filter((k) => present.has(k)).map((k) => ({ key: k, label: config.labels[k] }));
+    content = <CategoryList title={viewLabel} items={items} onSelect={(key) => setSubCategory(key)} />;
+  } else if (view !== "menu") {
     const filtered =
-      view === "timed"
-        ? exercises.filter((ex) => ex.category === "cardio")
-        : view === "custom"
-        ? exercises.filter((ex) => ex.isCustom)
-        : exercises;
-    return (
+      view === "timed" ? exercises.filter((ex) => ex.category === "cardio") :
+      view === "custom" ? exercises.filter((ex) => ex.isCustom) :
+      exercises;
+    content = (
       <FlatExerciseList
         title={viewLabel}
-        backLabel="Exercises"
         exercises={filtered}
-        onBack={() => setView("menu")}
         onOpen={setSelectedExercise}
         onSelect={onSelectExercise ? handleSelectExercise : undefined}
         selectLoading={selectLoading}
       />
     );
+  } else {
+    // Menu view
+    const searchFiltered = menuSearch.trim()
+      ? exercises.filter((ex) => ex.name.toLowerCase().includes(menuSearch.trim().toLowerCase()))
+      : null;
+
+    content = (
+      <>
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-3xl font-bold tracking-tight">Exercises</h1>
+          <button
+            onClick={() => { setShowForm(true); setError(""); }}
+            className="flex items-center justify-center w-10 h-10 rounded-full border border-border text-foreground active:opacity-70"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
+        </div>
+        <SearchBar value={menuSearch} onChange={setMenuSearch} />
+
+        {showForm && (
+          <div className="bg-card rounded-2xl p-4 mt-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">New Exercise</p>
+              <button
+                onClick={() => setShowForm(false)}
+                className="text-muted-foreground min-h-[44px] min-w-[44px] flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleCreate} className="space-y-3">
+              <ExerciseFormFields
+                name={name} setName={setName}
+                category={category} setCategory={setCategory}
+                bodyArea={bodyArea} setBodyArea={setBodyArea}
+                muscleGroup={muscleGroup} setMuscleGroup={setMuscleGroup}
+                equipment={equipment} setEquipment={setEquipment}
+                movementPattern={movementPattern} setMovementPattern={setMovementPattern}
+                error={error} loading={loading} submitLabel={loading ? "Creating…" : "Create Exercise"}
+              />
+            </form>
+          </div>
+        )}
+
+        {searchFiltered ? (
+          <div className="bg-card rounded-2xl overflow-hidden mt-4">
+            {searchFiltered.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No exercises found.</p>
+            ) : (
+              searchFiltered.map((ex) => (
+                <ExerciseRow
+                  key={ex.id}
+                  exercise={ex}
+                  onOpen={setSelectedExercise}
+                  onSelect={onSelectExercise ? handleSelectExercise : undefined}
+                  selectLoading={selectLoading}
+                />
+              ))
+            )}
+          </div>
+        ) : (
+          <div className="bg-card rounded-2xl overflow-hidden mt-3">
+            {MENU_ITEMS.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                onClick={() => setView(id)}
+                className="flex items-center gap-2.5 w-full px-4 py-2.5 min-h-[44px] border-b border-border/50 last:border-0 active:bg-muted/50 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+                  <Icon className="w-4 h-4 text-primary" />
+                </div>
+                <span className="flex-1 text-left font-medium">{label}</span>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+            ))}
+          </div>
+        )}
+      </>
+    );
   }
 
-  // Menu view
-  const searchFiltered = menuSearch.trim()
-    ? exercises.filter((ex) =>
-        ex.name.toLowerCase().includes(menuSearch.trim().toLowerCase())
-      )
-    : null;
-
   return (
-    <>
-      <div className="flex items-center justify-between mb-3">
-        <h1 className="text-2xl font-bold tracking-tight">Exercises</h1>
+    <div className="h-full flex flex-col">
+      {/* Fixed header — back button never moves */}
+      <div className="shrink-0 flex items-center justify-between px-4 pt-6 pb-2 min-h-[56px]">
         <button
-          onClick={() => { setShowForm(true); setError(""); }}
-          className="flex items-center justify-center w-10 h-10 rounded-full border border-border text-foreground active:opacity-70"
+          onClick={handleBack}
+          className="flex items-center gap-0.5 min-h-[44px] text-primary active:opacity-70 -ml-1"
         >
-          <Plus className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5" />
+          <span className="text-base">Back</span>
         </button>
+        {headerRight}
       </div>
-      <SearchBar value={menuSearch} onChange={setMenuSearch} />
 
-      {showForm && (
-        <div className="bg-card rounded-2xl p-4 mb-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold">New Exercise</p>
-            <button
-              onClick={() => setShowForm(false)}
-              className="text-muted-foreground min-h-[44px] min-w-[44px] flex items-center justify-center"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <form onSubmit={handleCreate} className="space-y-3">
-            <input
-              autoFocus
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Exercise name"
-              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
-            />
-            <div className="grid grid-cols-3 gap-2">
-              {(["strength", "cardio", "flexibility"] as Category[]).map((cat) => (
-                <button
-                  key={cat}
-                  type="button"
-                  onClick={() => setCategory(cat)}
-                  className={`py-2.5 rounded-xl text-sm font-semibold capitalize transition-colors ${
-                    category === cat
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground active:opacity-70"
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-            <select
-              value={bodyArea}
-              onChange={(e) => setBodyArea(e.target.value as BodyArea | "")}
-              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
-            >
-              <option value="">Body area (optional)</option>
-              {BODY_AREA_ORDER.map((val) => (
-                <option key={val} value={val}>{BODY_AREA_LABELS[val]}</option>
-              ))}
-            </select>
-            <select
-              value={muscleGroup}
-              onChange={(e) => setMuscleGroup(e.target.value as MuscleGroup | "")}
-              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
-            >
-              <option value="">Muscle group (optional)</option>
-              {MUSCLE_ORDER.map((val) => (
-                <option key={val} value={val}>{MUSCLE_LABELS[val]}</option>
-              ))}
-            </select>
-            <select
-              value={equipment}
-              onChange={(e) => setEquipment(e.target.value as Equipment | "")}
-              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
-            >
-              <option value="">Equipment (optional)</option>
-              {EQUIPMENT_ORDER.map((val) => (
-                <option key={val} value={val}>{EQUIPMENT_LABELS[val]}</option>
-              ))}
-            </select>
-            <select
-              value={movementPattern}
-              onChange={(e) => setMovementPattern(e.target.value as MovementPattern | "")}
-              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
-            >
-              <option value="">Movement pattern (optional)</option>
-              {MOVEMENT_ORDER.map((val) => (
-                <option key={val} value={val}>{MOVEMENT_LABELS[val]}</option>
-              ))}
-            </select>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading || !name.trim()}
-              className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-            >
-              {loading ? "Creating…" : "Create Exercise"}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {searchFiltered ? (
-        <div className="bg-card rounded-2xl overflow-hidden mt-4">
-          {searchFiltered.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No exercises found.</p>
-          ) : (
-            searchFiltered.map((ex) => (
-              <ExerciseRow
-                key={ex.id}
-                exercise={ex}
-                onOpen={setSelectedExercise}
-                onSelect={onSelectExercise ? handleSelectExercise : undefined}
-                selectLoading={selectLoading}
-              />
-            ))
-          )}
-        </div>
-      ) : (
-        <div className="bg-card rounded-2xl overflow-hidden mt-3">
-          {MENU_ITEMS.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => setView(id)}
-              className="flex items-center gap-2.5 w-full px-4 py-2.5 min-h-[44px] border-b border-border/50 last:border-0 active:bg-muted/50 transition-colors"
-            >
-              <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-                <Icon className="w-4 h-4 text-primary" />
-              </div>
-              <span className="flex-1 text-left font-medium">{label}</span>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </button>
-          ))}
-        </div>
-      )}
-
-    </>
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto px-4 pb-32">
+        {content}
+      </div>
+    </div>
   );
 }
