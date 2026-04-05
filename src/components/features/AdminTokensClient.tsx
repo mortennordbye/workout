@@ -2,7 +2,7 @@
 
 import { createInviteToken, revokeInviteToken } from "@/lib/actions/invite-tokens";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { ChevronLeft, Key, Plus, Trash2, X } from "lucide-react";
+import { ChevronLeft, Key, Plus, Share2, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -84,6 +84,16 @@ export function AdminTokensClient({ tokens }: { tokens: InviteToken[] }) {
 
   function isExpired(token: InviteToken) {
     return token.expiresAt !== null && token.expiresAt < new Date();
+  }
+
+  function handleShare(token: InviteToken) {
+    const url = `${window.location.origin}/signup?token=${encodeURIComponent(token.token)}`;
+    const text = `Hey! I'd like to invite you to try LogEveryLift — a workout tracking app I use.\n\nSign up here: ${url}`;
+    if (navigator.share) {
+      navigator.share({ text });
+    } else {
+      navigator.clipboard.writeText(text);
+    }
   }
 
   return (
@@ -174,6 +184,13 @@ export function AdminTokensClient({ tokens }: { tokens: InviteToken[] }) {
                         )}
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => handleShare(token)}
+                      className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg active:bg-muted/50"
+                    >
+                      <Share2 className="w-4 h-4 text-muted-foreground" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => setConfirmRevokeId(token.id)}

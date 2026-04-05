@@ -4,13 +4,15 @@ import { validateInviteToken, registerWithToken } from "@/lib/actions/invite-tok
 import { authClient } from "@/lib/auth-client";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 type Step = "token" | "details";
 
 export function SignupForm() {
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>("token");
-  const [token, setToken] = useState("");
+  const [token, setToken] = useState(searchParams.get("token") ?? "");
   const [validatedToken, setValidatedToken] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
