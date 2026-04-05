@@ -106,7 +106,7 @@ export function ProgramListClient({ programs: initial }: Props) {
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-8 pb-2">
+      <div className="flex items-center justify-between px-4 pt-6 pb-2">
         <h1 className="text-3xl font-bold tracking-tight">Programs</h1>
         <div className="flex items-center gap-3">
           {isEditing ? (

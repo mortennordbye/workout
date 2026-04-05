@@ -242,7 +242,7 @@ export function ProgramDetailClient({
               Cancel
             </button>
           ) : (
-            <Link href="/programs" className="flex items-center gap-1 text-primary">
+            <Link href="/programs" className="flex items-center gap-0.5 text-primary active:opacity-70 -ml-1 min-h-[44px]">
               <ChevronLeft className="h-5 w-5" />
               <span className="text-sm font-medium">Back</span>
             </Link>
@@ -288,10 +288,10 @@ export function ProgramDetailClient({
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="text-3xl font-bold text-center w-full bg-transparent outline-none border-b-2 border-primary pb-1"
+            className="text-3xl font-bold tracking-tight w-full bg-transparent outline-none border-b-2 border-primary pb-1"
           />
         ) : (
-          <h1 className="text-3xl font-bold text-center">{name}</h1>
+          <h1 className="text-3xl font-bold tracking-tight">{name}</h1>
         )}
       </div>
 

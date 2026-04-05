@@ -176,7 +176,7 @@ export function WorkoutSetsClient({
           ) : (
             <Link
               href={isWorkout ? `/programs/${programId}/workout` : `/programs/${programId}`}
-              className="flex items-center gap-1 text-primary"
+              className="flex items-center gap-0.5 text-primary active:opacity-70 -ml-1 min-h-[44px]"
             >
               <ChevronLeftIcon className="h-5 w-5" />
               <span className="text-sm font-medium">Back</span>
@@ -206,7 +206,7 @@ export function WorkoutSetsClient({
 
       {/* Exercise title */}
       <div className="px-4 pb-4 shrink-0">
-        <h1 className="text-3xl font-bold text-center">{exerciseName}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{exerciseName}</h1>
       </div>
 
       {/* Single progression badge */}

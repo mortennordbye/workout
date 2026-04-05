@@ -173,7 +173,7 @@ export function CyclesListClient({ cycles: initial }: Props) {
   return (
     <div className="min-h-screen bg-background flex flex-col pb-nav-safe-lg">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-8 pb-2">
+      <div className="flex items-center justify-between px-4 pt-6 pb-2">
         <h1 className="text-3xl font-bold tracking-tight">Cycles</h1>
         <div className="flex items-center gap-3">
           <button

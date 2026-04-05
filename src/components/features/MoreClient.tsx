@@ -64,9 +64,9 @@ export function MoreClient({ role }: { role: string }) {
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden">
-      <header className="flex-none px-4 py-4 border-b border-border">
-        <h1 className="text-xl font-semibold">More</h1>
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
+      <header className="flex-none px-4 pt-6 pb-4 border-b border-border">
+        <h1 className="text-3xl font-bold tracking-tight">More</h1>
       </header>
 
       <main className="flex-1 overflow-y-auto">

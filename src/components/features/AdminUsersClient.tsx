@@ -73,7 +73,7 @@ export function AdminUsersClient({ users }: { users: User[] }) {
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 pt-6 pb-2 shrink-0">
         <Link href="/more/admin" className="flex items-center gap-0.5 text-primary active:opacity-70 -ml-1">
           <ChevronLeft className="w-5 h-5" />
@@ -109,7 +109,7 @@ export function AdminUsersClient({ users }: { users: User[] }) {
                   </button>
                   <button
                     onClick={() => handleDelete(user.id)}
-                    className="px-3 py-1.5 text-sm rounded-lg bg-destructive text-destructive-foreground active:opacity-80 shrink-0"
+                    className="px-3 py-1.5 text-sm rounded-lg bg-destructive text-destructive-foreground active:opacity-70 shrink-0"
                   >
                     Delete
                   </button>
@@ -175,7 +175,7 @@ export function AdminUsersClient({ users }: { users: User[] }) {
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="Full name"
-                className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-xl bg-muted px-4 py-3 text-base outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
@@ -186,7 +186,7 @@ export function AdminUsersClient({ users }: { users: User[] }) {
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                 placeholder="user@example.com"
-                className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-xl bg-muted px-4 py-3 text-base outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
@@ -196,7 +196,7 @@ export function AdminUsersClient({ users }: { users: User[] }) {
                 value={form.password}
                 onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                 placeholder="Temporary password"
-                className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary"
+                className="w-full rounded-xl bg-muted px-4 py-3 text-base outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>

@@ -41,7 +41,7 @@ export function AdminInsightsClient({ data }: { data: AdminInsightsData }) {
   ];
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       <div className="flex items-center px-4 pt-6 pb-2 shrink-0">
         <Link
           href="/more/admin"

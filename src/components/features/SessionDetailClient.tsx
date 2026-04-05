@@ -54,16 +54,16 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
   }
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
-        <Link href="/history" className="flex items-center gap-1 text-primary">
+        <Link href="/history" className="flex items-center gap-0.5 text-primary active:opacity-70 -ml-1 min-h-[44px]">
           <ChevronLeftIcon className="h-5 w-5" />
           <span className="text-sm font-medium">Back</span>
         </Link>
         <button
           onClick={() => setShowDeleteConfirm(true)}
-          className="w-10 h-10 flex items-center justify-center text-destructive active:opacity-60 transition-opacity"
+          className="w-10 h-10 flex items-center justify-center text-destructive active:opacity-70 transition-opacity"
         >
           <Trash2 className="h-5 w-5" />
         </button>
@@ -71,7 +71,7 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
 
       <div className="flex-1 overflow-y-auto px-4 pb-nav-safe">
         {/* Date + program heading */}
-        <h1 className="text-2xl font-bold">{formatDate(startTime)}</h1>
+        <h1 className="text-3xl font-bold tracking-tight">{formatDate(startTime)}</h1>
         <p className="text-muted-foreground mt-1">
           {detail.programName ?? "Ad hoc workout"}
         </p>

@@ -130,7 +130,7 @@ export function WorkoutSessionClient({
             Finished
           </button>
         )}
-        <h1 className="text-xl font-bold">Workout</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Workout</h1>
         <div className="flex items-center gap-3">
           {!isEditing && (
             <button

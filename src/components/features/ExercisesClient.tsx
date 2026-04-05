@@ -617,7 +617,7 @@ export function ExercisesClient({
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-4 pb-32">
+      <div className="flex-1 overflow-y-auto px-4 pb-nav-safe">
         {content}
       </div>
     </div>
