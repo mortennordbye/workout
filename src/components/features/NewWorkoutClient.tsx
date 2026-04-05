@@ -30,7 +30,7 @@ export default function NewWorkoutClient({ activeCycleInfo, programs }: Props) {
       {hasCycleProgram && cycleProgram && (
         <>
           {/* Cycle card */}
-          <div className="rounded-xl bg-muted p-5 mb-3">
+          <div className="rounded-2xl bg-card p-5 mb-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
               Today&apos;s Cycle
             </p>
@@ -70,12 +70,12 @@ export default function NewWorkoutClient({ activeCycleInfo, programs }: Props) {
 
       {/* Program list */}
       {(!hasCycleProgram || showAllPrograms) && programs.length > 0 && (
-        <div className="flex flex-col divide-y divide-border rounded-xl bg-muted overflow-hidden mb-4">
+        <div className="flex flex-col divide-y divide-border rounded-2xl bg-card overflow-hidden mb-4">
           {programs.map((program) => (
             <Link
               key={program.id}
               href={`/programs/${program.id}/workout`}
-              className="flex items-center justify-between px-5 py-4 active:bg-muted/50 transition-colors"
+              className="flex items-center justify-between px-4 py-3.5 active:bg-muted/50 transition-colors"
             >
               <span className="text-base font-medium">{program.name}</span>
               <ChevronRightIcon className="h-5 w-5 text-muted-foreground" />

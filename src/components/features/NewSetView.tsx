@@ -101,7 +101,7 @@ export function NewSetView({
           <div className="w-full bg-card rounded-t-3xl pb-10">
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-6 pb-5">
-              <span className="text-sm font-semibold uppercase tracking-widest text-foreground">
+              <span className="text-sm font-semibold uppercase tracking-wider text-foreground">
                 Select Reps
               </span>
               <button
@@ -162,7 +162,7 @@ export function NewSetView({
           <div className="w-full bg-card rounded-t-3xl pb-10">
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-6 pb-5">
-              <span className="text-sm font-semibold uppercase tracking-widest text-foreground">
+              <span className="text-sm font-semibold uppercase tracking-wider text-foreground">
                 Select Weight
               </span>
               <button

@@ -138,7 +138,7 @@ function SortableExerciseRow({
         transition,
         opacity: isDragging ? 0.4 : 1,
       }}
-      className="flex items-center gap-3 py-4 border-b border-border"
+      className="flex items-center gap-3 py-3.5 border-b border-border"
     >
       {isEditing && (
         <button

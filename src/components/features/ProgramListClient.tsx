@@ -149,7 +149,7 @@ export function ProgramListClient({ programs: initial }: Props) {
 
       <div className="px-4 pt-4">
         {programs.length > 0 && (
-          <div className="flex flex-col divide-y divide-border rounded-xl bg-muted overflow-hidden mb-4">
+          <div className="flex flex-col divide-y divide-border rounded-2xl bg-card overflow-hidden mb-4">
             {programs.map((program) => {
               const isPending = pendingDeleteId === program.id;
 
@@ -200,13 +200,13 @@ export function ProgramListClient({ programs: initial }: Props) {
                         onChange={(e) => setRenamingValue(e.target.value)}
                         onBlur={() => commitRename(program)}
                         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                        className="flex-1 py-4 text-base font-medium bg-transparent outline-none border-b border-primary"
+                        className="flex-1 py-3.5 text-base font-medium bg-transparent outline-none border-b border-primary"
                       />
                     ) : (
                       <button
                         type="button"
                         onClick={() => startRenaming(program)}
-                        className="flex-1 py-4 text-left text-base font-medium"
+                        className="flex-1 py-3.5 text-left text-base font-medium"
                       >
                         {program.name}
                       </button>
@@ -214,7 +214,7 @@ export function ProgramListClient({ programs: initial }: Props) {
                   ) : (
                     <Link
                       href={`/programs/${program.id}`}
-                      className="flex-1 flex items-center justify-between py-4 active:opacity-70 transition-opacity"
+                      className="flex-1 flex items-center justify-between py-3.5 active:opacity-70 transition-opacity"
                     >
                       <span className="text-base font-medium">{program.name}</span>
                       <ChevronRightIcon className="h-5 w-5 text-muted-foreground" />
@@ -240,7 +240,7 @@ export function ProgramListClient({ programs: initial }: Props) {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Program name…"
-              className="flex-1 rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
+              className="flex-1 rounded-xl bg-muted px-4 py-3 text-base outline-none focus:ring-2 ring-primary"
             />
             <button
               type="submit"

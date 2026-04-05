@@ -31,18 +31,18 @@ export function WorkoutAddExerciseClient({ programId, exercises }: Props) {
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-6 pb-4 shrink-0">
+      <div className="flex items-center px-4 pt-6 pb-2 shrink-0">
         <button
           type="button"
           onClick={() => router.back()}
-          className="flex items-center gap-1 text-primary text-sm font-medium min-h-[44px] min-w-[44px]"
+          className="flex items-center gap-0.5 text-primary text-sm font-medium min-h-[44px] -ml-1 active:opacity-70"
         >
           <ChevronLeft className="w-5 h-5" />
-          Cancel
+          Back
         </button>
-        <h1 className="flex-1 text-center text-xl font-bold">Add Exercise</h1>
-        {/* Spacer to balance header */}
-        <div className="w-16" />
+      </div>
+      <div className="px-4 pb-4 shrink-0">
+        <h1 className="text-3xl font-bold tracking-tight">Add Exercise</h1>
       </div>
 
       {/* Search */}
@@ -54,7 +54,7 @@ export function WorkoutAddExerciseClient({ programId, exercises }: Props) {
             placeholder="Search exercises…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full rounded-xl bg-muted pl-9 pr-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
+            className="w-full rounded-xl bg-muted pl-9 pr-4 py-3 text-base outline-none focus:ring-2 ring-primary"
           />
         </div>
       </div>

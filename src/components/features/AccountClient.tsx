@@ -29,7 +29,7 @@ export function AccountClient({ name, email, role }: AccountClientProps) {
       {/* Profile */}
       <div>
         <SectionLabel>Profile</SectionLabel>
-        <div className="rounded-xl bg-muted overflow-hidden divide-y divide-border/50">
+        <div className="rounded-2xl bg-card overflow-hidden divide-y divide-border/50">
           <div className="px-4 py-3.5">
             <p className="text-xs text-muted-foreground mb-0.5">Name</p>
             <p className="text-sm font-medium">{name}</p>
@@ -48,7 +48,7 @@ export function AccountClient({ name, email, role }: AccountClientProps) {
       {/* Sign out */}
       <div>
         <SectionLabel>Session</SectionLabel>
-        <div className="rounded-xl bg-muted overflow-hidden">
+        <div className="rounded-2xl bg-card overflow-hidden">
           <button
             onClick={handleSignOut}
             className="flex items-center gap-3 w-full px-4 py-3.5 active:opacity-60"

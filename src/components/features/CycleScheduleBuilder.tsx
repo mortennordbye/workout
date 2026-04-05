@@ -138,7 +138,7 @@ function DayOfWeekBuilder({
 
   return (
     <>
-      <div className="flex flex-col divide-y divide-border rounded-2xl bg-muted overflow-hidden">
+      <div className="flex flex-col divide-y divide-border rounded-2xl bg-card overflow-hidden">
         {DAY_LABELS.map((dayLabel, i) => {
           const dayOfWeek = i + 1; // 1=Mon…7=Sun
           const slot = slotByDay[dayOfWeek];

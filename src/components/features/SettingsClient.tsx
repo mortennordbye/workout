@@ -78,7 +78,7 @@ export function SettingsClient() {
         {/* ── Appearance ─────────────────────────────── */}
         <div>
           <SectionLabel>Appearance</SectionLabel>
-          <div className="rounded-xl bg-muted overflow-hidden">
+          <div className="rounded-2xl bg-card overflow-hidden">
 
             <Row>
               <div className="flex items-center justify-between">
@@ -149,7 +149,7 @@ export function SettingsClient() {
         {/* ── Workout ────────────────────────────────── */}
         <div>
           <SectionLabel>Workout</SectionLabel>
-          <div className="rounded-xl bg-muted overflow-hidden">
+          <div className="rounded-2xl bg-card overflow-hidden">
 
             <Row>
               <RowLabel>Weekly Goal</RowLabel>

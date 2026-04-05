@@ -34,7 +34,7 @@ function ActiveCycleCard({ cycle }: { cycle: TrainingCycle }) {
   const endDate = formatEndDate(cycle);
   return (
     <Link href={`/cycles/${cycle.id}`}>
-      <div className="rounded-2xl bg-muted p-4 active:opacity-80 transition-opacity">
+      <div className="rounded-2xl bg-card p-4 active:opacity-70 transition-opacity">
         <div className="flex items-start justify-between mb-3">
           <h3 className="font-semibold text-base">{cycle.name}</h3>
           <span className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0" />
@@ -57,7 +57,7 @@ function DraftCycleRow({ cycle }: { cycle: TrainingCycle }) {
   return (
     <Link
       href={`/cycles/${cycle.id}`}
-      className="flex items-center justify-between px-4 py-3 active:opacity-80 transition-opacity"
+      className="flex items-center justify-between px-4 py-3.5 active:opacity-70 transition-opacity"
     >
       <div>
         <span className="text-sm font-medium">{cycle.name}</span>
@@ -74,7 +74,7 @@ function PastCycleRow({ cycle }: { cycle: TrainingCycle }) {
   return (
     <Link
       href={`/cycles/${cycle.id}`}
-      className="flex items-center justify-between px-4 py-3 active:opacity-80 transition-opacity"
+      className="flex items-center justify-between px-4 py-3.5 active:opacity-70 transition-opacity"
     >
       <div>
         <span className="text-sm font-medium text-muted-foreground">{cycle.name}</span>
@@ -217,7 +217,7 @@ export function CyclesListClient({ cycles: initial }: Props) {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-2">
               Draft
             </p>
-            <div className="flex flex-col divide-y divide-border rounded-2xl bg-muted overflow-hidden">
+            <div className="flex flex-col divide-y divide-border rounded-2xl bg-card overflow-hidden">
               {drafts.map((c) => (
                 <EditableItem key={c.id} cycle={c}>
                   <DraftCycleRow cycle={c} />
@@ -233,7 +233,7 @@ export function CyclesListClient({ cycles: initial }: Props) {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-2">
               Past
             </p>
-            <div className="flex flex-col divide-y divide-border rounded-2xl bg-muted overflow-hidden">
+            <div className="flex flex-col divide-y divide-border rounded-2xl bg-card overflow-hidden">
               {past.map((c) => (
                 <EditableItem key={c.id} cycle={c}>
                   <PastCycleRow cycle={c} />

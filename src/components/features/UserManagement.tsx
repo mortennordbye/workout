@@ -167,7 +167,7 @@ export function UserManagement() {
         ) : users.length === 0 ? (
           <p className="text-sm text-muted-foreground px-1">No accounts yet.</p>
         ) : (
-          <div className="rounded-xl bg-muted overflow-hidden divide-y divide-border/50">
+          <div className="rounded-2xl bg-card overflow-hidden divide-y divide-border/50">
             {users.map((user) => (
               <div key={user.id} className="px-4 py-3.5 flex items-center justify-between gap-3">
                 <div className="min-w-0">

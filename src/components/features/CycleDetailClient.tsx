@@ -36,7 +36,7 @@ export function StartCycleButton({ cycle }: { cycle: TrainingCycle }) {
     <button
       onClick={handleStart}
       disabled={loading}
-      className="flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 active:scale-[0.98] transition-transform"
+      className="flex items-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 active:scale-95 transition-transform"
     >
       <PlayIcon className="w-4 h-4" />
       {loading ? "Starting…" : "Start Cycle"}

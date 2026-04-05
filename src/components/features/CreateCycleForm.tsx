@@ -170,7 +170,7 @@ export function CreateCycleForm() {
       <button
         type="submit"
         disabled={loading || !name.trim()}
-        className="rounded-xl bg-primary py-4 text-base font-semibold text-primary-foreground disabled:opacity-50 active:scale-[0.98] transition-transform"
+        className="rounded-xl bg-primary py-4 text-base font-semibold text-primary-foreground disabled:opacity-50 active:scale-95 transition-transform"
       >
         {loading ? "Creating…" : "Create Cycle"}
       </button>
