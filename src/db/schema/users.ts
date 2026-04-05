@@ -13,4 +13,5 @@ export const users = pgTable("user", {
   banExpires: timestamp("ban_expires"),
   createdAt: timestamp("created_at").notNull(),
   updatedAt: timestamp("updated_at").notNull(),
+  tutorialDismissedAt: timestamp("tutorial_dismissed_at"),
 });

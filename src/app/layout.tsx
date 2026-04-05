@@ -1,10 +1,12 @@
 import { BottomNav } from "@/components/ui/bottom-nav";
 import { ImpersonationBanner } from "@/components/features/ImpersonationBanner";
+import { OnboardingTutorialLoader } from "@/components/features/OnboardingTutorialLoader";
 import { PageTransition } from "@/components/features/PageTransition";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { WorkoutSessionProvider } from "@/contexts/workout-session-context";
 import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 
 const inter = Inter({
@@ -51,6 +53,9 @@ export default function RootLayout({
           <WorkoutSessionProvider>
             <PageTransition>{children}</PageTransition>
             <BottomNav />
+            <Suspense fallback={null}>
+              <OnboardingTutorialLoader />
+            </Suspense>
           </WorkoutSessionProvider>
         </ThemeProvider>
       </body>

@@ -1,7 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
-import { BarChart2, CalendarDays, ChevronRight, Clock, Library, LogOut, Settings, Shield, UserCircle } from "lucide-react";
+import { BarChart2, BookOpen, CalendarDays, ChevronRight, Clock, Library, LogOut, Settings, Shield, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -111,6 +111,17 @@ export function MoreClient({ role }: { role: string }) {
               </Link>
             );
           })}
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("show-onboarding"))}
+            className="flex items-center gap-4 px-4 min-h-[56px] w-full active:bg-muted/50 transition-colors text-left"
+          >
+            <BookOpen className="w-5 h-5 text-muted-foreground flex-none" />
+            <div className="flex-1 min-w-0">
+              <div className="font-medium">View intro</div>
+              <div className="text-sm text-muted-foreground">Replay the getting started guide</div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground flex-none" />
+          </button>
         </div>
       </main>
     </div>
