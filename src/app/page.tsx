@@ -98,7 +98,7 @@ export default async function Home() {
                   href={`/programs/${todayProgram.id}/workout`}
                   className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground active:opacity-80"
                 >
-                  Start Today's Workout ▶
+                  Start Today's Workout
                 </Link>
                 <Link
                   href="/new-workout"

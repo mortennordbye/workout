@@ -87,3 +87,59 @@ export async function createCustomExercise(
     return { success: false, error: "Failed to create exercise. Please try again." };
   }
 }
+
+/**
+ * Update a custom exercise owned by the current user.
+ */
+export async function updateCustomExercise(
+  id: string,
+  data: unknown,
+): Promise<ActionResult<Exercise>> {
+  const auth = await requireSession();
+  try {
+    const validation = createExerciseSchema.safeParse(data);
+    if (!validation.success) {
+      return {
+        success: false,
+        error: "Invalid input data",
+        fieldErrors: validation.error.flatten().fieldErrors,
+      };
+    }
+
+    const { name, category, bodyArea, muscleGroup, equipment, movementPattern } = validation.data;
+
+    // Verify ownership
+    const existing = await db.query.exercises.findFirst({
+      where: (ex, { eq, and }) => and(eq(ex.id, id), eq(ex.userId, auth.user.id)),
+    });
+
+    if (!existing) {
+      return { success: false, error: "Exercise not found or not editable" };
+    }
+
+    // Name clash check (exclude self)
+    const clash = await db.query.exercises.findFirst({
+      where: (ex, { eq, or, isNull, and, ne }) =>
+        and(
+          eq(ex.name, name),
+          ne(ex.id, id),
+          or(isNull(ex.userId), eq(ex.userId, auth.user.id)),
+        ),
+    });
+
+    if (clash) {
+      return { success: false, error: "An exercise with this name already exists" };
+    }
+
+    const [updated] = await db
+      .update(exercises)
+      .set({ name, category, bodyArea: bodyArea ?? null, muscleGroup: muscleGroup ?? null, equipment: equipment ?? null, movementPattern: movementPattern ?? null })
+      .where(and(eq(exercises.id, id), eq(exercises.userId, auth.user.id)))
+      .returning();
+
+    return { success: true, data: updated };
+  } catch (error) {
+    console.error("Error updating exercise:", error);
+    return { success: false, error: "Failed to update exercise. Please try again." };
+  }
+}

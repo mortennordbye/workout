@@ -1,6 +1,6 @@
 "use client";
 
-import { createCustomExercise } from "@/lib/actions/exercises";
+import { createCustomExercise, updateCustomExercise } from "@/lib/actions/exercises";
 import type { Exercise } from "@/types/workout";
 import {
   Activity,
@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Dumbbell,
   Eye,
+  Pencil,
   PersonStanding,
   Plus,
   Search,
@@ -116,10 +117,12 @@ function DetailView({
   exercise,
   backLabel,
   onBack,
+  onEdit,
 }: {
   exercise: Exercise;
   backLabel: string;
   onBack: () => void;
+  onEdit?: () => void;
 }) {
   const rows: { label: string; value: string }[] = [
     { label: "Title", value: exercise.name },
@@ -132,7 +135,18 @@ function DetailView({
 
   return (
     <>
-      <BackButton label={backLabel} onClick={onBack} />
+      <div className="flex items-center justify-between">
+        <BackButton label={backLabel} onClick={onBack} />
+        {exercise.isCustom && onEdit && (
+          <button
+            onClick={onEdit}
+            className="flex items-center gap-1.5 min-h-[44px] px-1 text-primary active:opacity-70"
+          >
+            <Pencil className="w-4 h-4" />
+            <span className="text-base">Edit</span>
+          </button>
+        )}
+      </div>
       <h1 className="text-3xl font-bold tracking-tight mt-1 mb-6">
         {exercise.name}
         {exercise.isCustom && (
@@ -298,6 +312,7 @@ export function ExercisesClient({
   const [subCategory, setSubCategory] = useState<string | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [name, setName] = useState("");
   const [category, setCategory] = useState<Category>("strength");
   const [bodyArea, setBodyArea] = useState<BodyArea | "">("");
@@ -314,6 +329,48 @@ export function ExercisesClient({
     setSelectLoading(true);
     await onSelectExercise(exercise);
     setSelectLoading(false);
+  }
+
+  function openEdit(exercise: Exercise) {
+    setEditingExercise(exercise);
+    setName(exercise.name);
+    setCategory(exercise.category as Category);
+    setBodyArea((exercise.bodyArea as BodyArea | "") ?? "");
+    setMuscleGroup((exercise.muscleGroup as MuscleGroup | "") ?? "");
+    setEquipment((exercise.equipment as Equipment | "") ?? "");
+    setMovementPattern((exercise.movementPattern as MovementPattern | "") ?? "");
+    setError("");
+  }
+
+  function closeEdit() {
+    setEditingExercise(null);
+    setName(""); setCategory("strength"); setBodyArea("");
+    setMuscleGroup(""); setEquipment(""); setMovementPattern("");
+    setError("");
+  }
+
+  async function handleUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingExercise || !name.trim()) return;
+    setLoading(true);
+    setError("");
+    const result = await updateCustomExercise(editingExercise.id, {
+      name: name.trim(),
+      category,
+      isCustom: true,
+      bodyArea: bodyArea || undefined,
+      muscleGroup: muscleGroup || undefined,
+      equipment: equipment || undefined,
+      movementPattern: movementPattern || undefined,
+    });
+    setLoading(false);
+    if (!result.success) {
+      setError(result.error ?? "Failed to update exercise");
+      return;
+    }
+    setSelectedExercise(result.data);
+    closeEdit();
+    router.refresh();
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -343,6 +400,94 @@ export function ExercisesClient({
 
   const viewLabel = MENU_ITEMS.find((m) => m.id === view)?.label ?? "My Exercises";
 
+  // Edit form
+  if (editingExercise) {
+    return (
+      <>
+        <div className="flex items-center justify-between mb-4">
+          <BackButton label={editingExercise.name} onClick={closeEdit} />
+        </div>
+        <h1 className="text-3xl font-bold tracking-tight mt-1 mb-6">Edit Exercise</h1>
+        <div className="bg-card rounded-2xl p-4 space-y-3">
+          <form onSubmit={handleUpdate} className="space-y-3">
+            <input
+              autoFocus
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Exercise name"
+              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
+            />
+            <div className="grid grid-cols-3 gap-2">
+              {(["strength", "cardio", "flexibility"] as Category[]).map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setCategory(cat)}
+                  className={`py-2.5 rounded-xl text-sm font-semibold capitalize transition-colors ${
+                    category === cat
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground active:opacity-70"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            <select
+              value={bodyArea}
+              onChange={(e) => setBodyArea(e.target.value as BodyArea | "")}
+              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
+            >
+              <option value="">Body area (optional)</option>
+              {BODY_AREA_ORDER.map((val) => (
+                <option key={val} value={val}>{BODY_AREA_LABELS[val]}</option>
+              ))}
+            </select>
+            <select
+              value={muscleGroup}
+              onChange={(e) => setMuscleGroup(e.target.value as MuscleGroup | "")}
+              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
+            >
+              <option value="">Muscle group (optional)</option>
+              {MUSCLE_ORDER.map((val) => (
+                <option key={val} value={val}>{MUSCLE_LABELS[val]}</option>
+              ))}
+            </select>
+            <select
+              value={equipment}
+              onChange={(e) => setEquipment(e.target.value as Equipment | "")}
+              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
+            >
+              <option value="">Equipment (optional)</option>
+              {EQUIPMENT_ORDER.map((val) => (
+                <option key={val} value={val}>{EQUIPMENT_LABELS[val]}</option>
+              ))}
+            </select>
+            <select
+              value={movementPattern}
+              onChange={(e) => setMovementPattern(e.target.value as MovementPattern | "")}
+              className="w-full rounded-xl bg-muted px-4 py-3 text-sm outline-none focus:ring-2 ring-primary"
+            >
+              <option value="">Movement pattern (optional)</option>
+              {MOVEMENT_ORDER.map((val) => (
+                <option key={val} value={val}>{MOVEMENT_LABELS[val]}</option>
+              ))}
+            </select>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading || !name.trim()}
+              className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              {loading ? "Saving…" : "Save Changes"}
+            </button>
+          </form>
+        </div>
+      </>
+    );
+  }
+
   // Detail view
   if (selectedExercise) {
     const backLabel = subCategory
@@ -353,6 +498,7 @@ export function ExercisesClient({
         exercise={selectedExercise}
         backLabel={backLabel}
         onBack={() => setSelectedExercise(null)}
+        onEdit={() => openEdit(selectedExercise)}
       />
     );
   }
