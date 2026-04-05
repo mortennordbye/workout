@@ -13,11 +13,11 @@ import { Pool } from "pg";
 import * as schema from "./schema";
 
 // Create PostgreSQL connection pool
-// In production, consider adding SSL configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Uncomment for production with SSL
-  // ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
 });
 
 // Initialize Drizzle ORM with schema for relational queries

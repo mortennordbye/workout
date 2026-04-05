@@ -20,7 +20,6 @@ export function DeleteProgramButton({ programId, programName }: Props) {
     setDeleting(true);
     await deleteProgram(programId);
     router.push("/programs");
-    router.refresh();
   };
 
   return (

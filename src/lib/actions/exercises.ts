@@ -6,25 +6,31 @@ import { requireSession } from "@/lib/utils/session";
 import { createExerciseSchema } from "@/lib/validators/workout";
 import type { ActionResult, Exercise } from "@/types/workout";
 import { asc, eq, isNull, or, and } from "drizzle-orm";
+import { unstable_cache, revalidateTag } from "next/cache";
+
+function exerciseCacheTag(userId: string) {
+  return `exercises-${userId}`;
+}
 
 /**
  * Get exercises visible to the current user:
  * all system exercises (userId IS NULL) plus the user's own custom exercises.
+ * Results are cached per-user and invalidated when the user creates/edits an exercise.
  */
 export async function getAllExercises(): Promise<ActionResult<Exercise[]>> {
   const auth = await requireSession();
   try {
-    const rows = await db
-      .select()
-      .from(exercises)
-      .where(
-        or(
-          isNull(exercises.userId),
-          eq(exercises.userId, auth.user.id),
-        ),
-      )
-      .orderBy(asc(exercises.name));
-
+    const fetchExercises = unstable_cache(
+      async () =>
+        db
+          .select()
+          .from(exercises)
+          .where(or(isNull(exercises.userId), eq(exercises.userId, auth.user.id)))
+          .orderBy(asc(exercises.name)),
+      ["exercises", auth.user.id],
+      { tags: [exerciseCacheTag(auth.user.id)] },
+    );
+    const rows = await fetchExercises();
     return { success: true, data: rows };
   } catch (error) {
     console.error("Error fetching exercises:", error);
@@ -81,6 +87,7 @@ export async function createCustomExercise(
       })
       .returning();
 
+    revalidateTag(exerciseCacheTag(auth.user.id));
     return { success: true, data: exercise };
   } catch (error) {
     console.error("Error creating exercise:", error);
@@ -137,6 +144,7 @@ export async function updateCustomExercise(
       .where(and(eq(exercises.id, id), eq(exercises.userId, auth.user.id)))
       .returning();
 
+    revalidateTag(exerciseCacheTag(auth.user.id));
     return { success: true, data: updated };
   } catch (error) {
     console.error("Error updating exercise:", error);
