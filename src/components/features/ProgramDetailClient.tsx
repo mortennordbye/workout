@@ -298,9 +298,11 @@ export function ProgramDetailClient({
       {/* Exercises — scrollable */}
       <div className="flex-1 overflow-y-auto px-4">
         {exercises.length === 0 && !isEditing && (
-          <p className="text-muted-foreground text-sm py-4">
-            No exercises yet. Tap Edit to add one.
-          </p>
+          <div className="flex flex-col items-center gap-3 pt-16 text-center">
+            <p className="text-muted-foreground text-sm">
+              No exercises yet. Tap Edit to add one.
+            </p>
+          </div>
         )}
 
         {exercises.length > 0 && (

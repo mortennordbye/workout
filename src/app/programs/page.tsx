@@ -18,7 +18,7 @@ export default async function ProgramsPage() {
   const programList = result.success ? result.data : [];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col pb-nav-safe-lg">
+    <div className="h-[100dvh] bg-background overflow-y-auto pb-nav-safe">
       <ProgramListClient programs={programList} />
     </div>
   );

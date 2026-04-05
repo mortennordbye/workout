@@ -69,7 +69,7 @@ export function AdminPanelClient() {
         <h1 className="text-3xl font-bold tracking-tight">Admin Tools</h1>
       </div>
 
-      <main className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+      <main className="flex-1 overflow-y-auto px-4 py-6 space-y-6 pb-nav-safe">
         {status && (
           <div
             className={`px-4 py-3 rounded-lg text-sm ${

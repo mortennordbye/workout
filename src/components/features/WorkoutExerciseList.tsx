@@ -20,7 +20,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, ChevronRightIcon, GripVertical, Minus } from "lucide-react";
+import { Check, ChevronRightIcon, Dumbbell, GripVertical, Minus } from "lucide-react";
 import Link from "next/link";
 
 type Exercise = {
@@ -75,6 +75,17 @@ export function WorkoutExerciseList({
     } else {
       exercise.sets.forEach((s) => workoutSession.addCompletedSet(s.id));
     }
+  }
+
+  if (exercises.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 pt-16 text-center">
+        <Dumbbell className="w-10 h-10 text-muted-foreground/40" />
+        <p className="text-muted-foreground text-sm">
+          No exercises yet. Tap + to add one.
+        </p>
+      </div>
+    );
   }
 
   return (

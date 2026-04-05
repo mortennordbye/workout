@@ -92,7 +92,7 @@ export async function createCustomExercise(
  * Update a custom exercise owned by the current user.
  */
 export async function updateCustomExercise(
-  id: string,
+  id: number,
   data: unknown,
 ): Promise<ActionResult<Exercise>> {
   const auth = await requireSession();

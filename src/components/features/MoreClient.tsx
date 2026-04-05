@@ -69,7 +69,7 @@ export function MoreClient({ role }: { role: string }) {
         <h1 className="text-3xl font-bold tracking-tight">More</h1>
       </header>
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto pb-nav-safe">
         {isImpersonating && (
           <div className="px-4 pt-4 pb-2">
             <button

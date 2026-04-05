@@ -2,7 +2,7 @@
 
 import { deleteWorkoutSession } from "@/lib/actions/workout-sessions";
 import type { SessionDetail } from "@/types/workout";
-import { ChevronLeftIcon, Trash2 } from "lucide-react";
+import { ChevronLeftIcon, Dumbbell, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -124,9 +124,12 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
           ))}
 
           {detail.setsByExercise.length === 0 && (
-            <p className="text-muted-foreground text-center py-8">
-              No sets logged for this session.
-            </p>
+            <div className="flex flex-col items-center gap-3 pt-16 text-center">
+              <Dumbbell className="w-10 h-10 text-muted-foreground/40" />
+              <p className="text-muted-foreground text-sm">
+                No sets logged for this session.
+              </p>
+            </div>
           )}
         </div>
       </div>
