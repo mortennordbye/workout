@@ -2,6 +2,7 @@
 
 import { authClient } from "@/lib/auth-client";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
@@ -89,6 +90,13 @@ function LoginFormContent() {
           "Sign In"
         )}
       </button>
+
+      <p className="text-center text-sm text-muted-foreground">
+        Have an invite?{" "}
+        <Link href="/signup" className="text-primary font-medium">
+          Create account
+        </Link>
+      </p>
     </form>
   );
 }

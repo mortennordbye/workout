@@ -15,6 +15,13 @@
       "when": 1775332132176,
       "tag": "0001_curly_the_executioner",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775388732124,
+      "tag": "0002_safe_madame_masque",
+      "breakpoints": true
     }
   ]
 }
