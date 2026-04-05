@@ -1,7 +1,9 @@
 "use client";
 
-import { BarChart2, CalendarDays, ChevronRight, Clock, Library, Settings, Shield, UserCircle } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
+import { BarChart2, CalendarDays, ChevronRight, Clock, Library, LogOut, Settings, Shield, UserCircle } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 const baseItems = [
   {
@@ -51,6 +53,15 @@ const adminItem = {
 
 export function MoreClient({ role }: { role: string }) {
   const items = role === "admin" ? [...baseItems, adminItem] : baseItems;
+  const { data: session } = authClient.useSession();
+  const [stopping, setStopping] = useState(false);
+  const isImpersonating = !!session?.session.impersonatedBy;
+
+  async function handleStopImpersonating() {
+    setStopping(true);
+    await authClient.admin.stopImpersonating();
+    window.location.href = "/more/admin/users";
+  }
 
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden">
@@ -59,6 +70,25 @@ export function MoreClient({ role }: { role: string }) {
       </header>
 
       <main className="flex-1 overflow-y-auto">
+        {isImpersonating && (
+          <div className="px-4 pt-4 pb-2">
+            <button
+              onClick={handleStopImpersonating}
+              disabled={stopping}
+              className="flex items-center gap-3 w-full rounded-2xl bg-orange-500/10 border border-orange-500/30 px-4 py-3.5 active:opacity-70 disabled:opacity-50"
+            >
+              <LogOut className="w-5 h-5 text-orange-500 flex-none" />
+              <div className="flex-1 text-left">
+                <div className="font-medium text-orange-500">
+                  {stopping ? "Returning…" : "Return to your account"}
+                </div>
+                <div className="text-sm text-orange-500/70">
+                  Viewing as {session?.user.name}
+                </div>
+              </div>
+            </button>
+          </div>
+        )}
         <div className="divide-y divide-border">
           {items.map((item) => {
             const Icon = item.icon;

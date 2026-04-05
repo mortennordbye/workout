@@ -72,8 +72,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Load persisted preferences and apply to DOM after hydration
   useEffect(() => {
-    const storedTheme = (localStorage.getItem("theme") as Theme | null) ??
-      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    const storedTheme = (localStorage.getItem("theme") as Theme | null) ?? "dark";
     const storedAccent = (localStorage.getItem("accentColor") as AccentColor | null) ?? "blue";
     const storedCustomHex = localStorage.getItem("customAccentHex") ?? "#5B8FFF";
     const storedGoal = localStorage.getItem("weeklyGoal");

@@ -121,9 +121,8 @@ export function SettingsClient() {
                     )}
                   </button>
                 ))}
-                <button
-                  onClick={() => colorInputRef.current?.click()}
-                  className="relative w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-transform overflow-hidden"
+                <label
+                  className="relative w-12 h-12 rounded-full flex items-center justify-center active:scale-90 transition-transform overflow-hidden cursor-pointer"
                   style={{
                     background: accentColor === "custom"
                       ? customAccentHex
@@ -133,14 +132,14 @@ export function SettingsClient() {
                   {accentColor === "custom" && (
                     <CheckIcon className="h-5 w-5 text-black" strokeWidth={3} />
                   )}
-                </button>
-                <input
-                  ref={colorInputRef}
-                  type="color"
-                  className="sr-only"
-                  value={customAccentHex}
-                  onChange={(e) => setCustomAccentHex(e.target.value)}
-                />
+                  <input
+                    ref={colorInputRef}
+                    type="color"
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    value={customAccentHex}
+                    onChange={(e) => setCustomAccentHex(e.target.value)}
+                  />
+                </label>
               </div>
             </Row>
 
