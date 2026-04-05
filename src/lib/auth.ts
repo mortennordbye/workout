@@ -21,6 +21,12 @@ export const auth = betterAuth({
     // 30 days — refreshed on each request so active users stay logged in
     expiresIn: 60 * 60 * 24 * 30,
     updateAge: 60 * 60 * 24, // refresh session cookie daily
+    cookieCache: {
+      // Cache session data in an encrypted cookie for 5 minutes.
+      // Skips the DB session-validation query on repeat page loads within that window.
+      enabled: true,
+      maxAge: 5 * 60,
+    },
   },
   plugins: [
     admin({

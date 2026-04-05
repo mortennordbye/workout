@@ -18,6 +18,15 @@ const nextConfig: NextConfig = {
   // Explicitly enable Turbopack (Next.js 16 default)
   // Empty config silences the webpack/turbopack conflict warning
   turbopack: {},
+
+  // Cache dynamic page payloads in the client-side router cache for 30 seconds.
+  // Navigating back to a recently visited tab shows data instantly without
+  // hitting the server again.
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+    },
+  },
 };
 
 export default withSerwist(nextConfig);

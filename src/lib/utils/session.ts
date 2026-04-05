@@ -1,6 +1,14 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
+
+// Deduplicate getSession() calls within a single server render.
+// If multiple server functions call requireSession() in the same request,
+// the DB lookup only happens once.
+const getSessionCached = cache(async () => {
+  return auth.api.getSession({ headers: await headers() });
+});
 
 /**
  * Verifies the current request has a valid session.
@@ -8,7 +16,7 @@ import { redirect } from "next/navigation";
  * Use this in Server Components and Server Actions.
  */
 export async function requireSession() {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSessionCached();
   if (!session) redirect("/login");
   return session;
 }
