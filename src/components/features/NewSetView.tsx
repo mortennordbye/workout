@@ -5,7 +5,7 @@ import { addProgramSet } from "@/lib/actions/programs";
 import type { ProgramSet } from "@/types/workout";
 import { Loader2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // Interpolates orange → yellow → green across the range
 function gradientColor(index: number, total: number): string {
@@ -50,6 +50,27 @@ export function NewSetView({
   const [reps, setReps] = useState(lastSet?.targetReps ?? 10);
   const [weight, setWeight] = useState(Number(lastSet?.weightKg ?? 0));
   const [duration, setDuration] = useState(Number(lastSet?.durationSeconds ?? 60));
+  const [repsStr, setRepsStr] = useState(String(lastSet?.targetReps ?? 10));
+  const [weightStr, setWeightStr] = useState(String(Number(lastSet?.weightKg ?? 0)));
+  const [durationStr, setDurationStr] = useState(String(Number(lastSet?.durationSeconds ?? 60)));
+  const weightScrollRef = useRef<HTMLDivElement>(null);
+
+  const WEIGHT_OPTIONS = [0, ...Array.from({ length: 60 }, (_, i) => (i + 1) * 2.5)];
+  const closestWeight = WEIGHT_OPTIONS.reduce((prev, curr) =>
+    Math.abs(curr - weight) < Math.abs(prev - weight) ? curr : prev
+  );
+
+  useEffect(() => {
+    if (!showWeightPicker) return;
+    requestAnimationFrame(() => {
+      const el = weightScrollRef.current;
+      if (!el) return;
+      const index = WEIGHT_OPTIONS.indexOf(closestWeight);
+      const itemWidth = 52; // w-11 (44px) + gap-2 (8px)
+      el.scrollLeft = Math.max(0, index * itemWidth - el.clientWidth / 2 + 22);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showWeightPicker]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -153,7 +174,7 @@ export function NewSetView({
             {DURATION_OPTIONS.map((seconds) => (
               <button
                 key={seconds}
-                onClick={() => { setDuration(seconds); setShowDurationPicker(false); }}
+                onClick={() => { setDuration(seconds); setDurationStr(String(seconds)); setShowDurationPicker(false); }}
                 className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all active:scale-95 ${
                   duration === seconds ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
                 }`}
@@ -170,9 +191,15 @@ export function NewSetView({
           </div>
           <div className="px-5 pt-2">
             <input
-              type="number"
-              value={duration}
-              onChange={(e) => setDuration(Number(e.target.value))}
+              type="text"
+              inputMode="numeric"
+              value={durationStr}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, "");
+                setDurationStr(val);
+                setDuration(Math.max(0, parseInt(val) || 0));
+              }}
+              onBlur={() => { const n = Math.max(0, parseInt(durationStr) || 0); setDuration(n); setDurationStr(String(n)); }}
               className="w-full rounded-xl bg-background border border-border px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
             />
           </div>
@@ -189,6 +216,7 @@ export function NewSetView({
               </span>
               <button
                 onClick={() => {
+                  if (!showRepsKeypad) setRepsStr(String(reps));
                   setShowRepsKeypad((v) => !v);
                   setTimeout(() => repsInputRef.current?.focus(), 50);
                 }}
@@ -227,12 +255,15 @@ export function NewSetView({
               <div className="px-5 pt-2 pb-1">
                 <input
                   ref={repsInputRef}
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  value={reps}
-                  onChange={(e) =>
-                    setReps(Math.max(1, Number(e.target.value) || 1))
-                  }
+                  value={repsStr}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setRepsStr(val);
+                    setReps(Math.max(1, parseInt(val) || 1));
+                  }}
+                  onBlur={() => { const n = Math.max(1, parseInt(repsStr) || 1); setReps(n); setRepsStr(String(n)); }}
                   className="w-full rounded-xl bg-background border border-border px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
                 />
               </div>
@@ -250,6 +281,7 @@ export function NewSetView({
               </span>
               <button
                 onClick={() => {
+                  if (!showWeightKeypad) setWeightStr(String(weight));
                   setShowWeightKeypad((v) => !v);
                   setTimeout(() => weightInputRef.current?.focus(), 50);
                 }}
@@ -260,12 +292,11 @@ export function NewSetView({
             </div>
 
             {/* Scroll wheel */}
-            <div className="flex gap-2 overflow-x-auto px-5 pb-3 no-scrollbar cursor-grab active:cursor-grabbing">
-              {[0, ...Array.from({ length: 60 }, (_, i) => (i + 1) * 2.5)].map(
-                (num, idx) => {
+            <div ref={weightScrollRef} className="flex gap-2 overflow-x-auto px-5 pb-3 no-scrollbar cursor-grab active:cursor-grabbing">
+              {WEIGHT_OPTIONS.map((num, idx) => {
                   const total = 61;
                   const color = gradientColor(idx, total);
-                  const selected = weight === num;
+                  const selected = num === closestWeight;
                   return (
                     <button
                       key={num}
@@ -282,8 +313,7 @@ export function NewSetView({
                       {num % 1 === 0 ? num : num.toFixed(1)}
                     </button>
                   );
-                },
-              )}
+              })}
             </div>
 
             {/* Manual input */}
@@ -291,13 +321,16 @@ export function NewSetView({
               <div className="px-5 pt-2 pb-1">
                 <input
                   ref={weightInputRef}
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  step="0.5"
-                  value={weight}
-                  onChange={(e) =>
-                    setWeight(Math.max(0, Number(e.target.value) || 0))
-                  }
+                  value={weightStr}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^\d.]/g, "");
+                    setWeightStr(val);
+                    const n = parseFloat(val);
+                    if (!isNaN(n)) setWeight(Math.max(0, n));
+                  }}
+                  onBlur={() => { const n = parseFloat(weightStr) || 0; setWeight(n); setWeightStr(String(n)); }}
                   className="w-full rounded-xl bg-background border border-border px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
                 />
               </div>

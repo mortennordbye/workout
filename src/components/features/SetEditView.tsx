@@ -6,7 +6,7 @@ import { useWorkoutSession } from "@/contexts/workout-session-context";
 import type { ProgramSet } from "@/types/workout";
 import { Loader2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Props = {
   set: ProgramSet;
@@ -29,6 +29,41 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
   const [reps, setReps] = useState(override?.targetReps ?? set.targetReps ?? 10);
   const [weight, setWeight] = useState(override?.weightKg ?? Number(set.weightKg ?? 0));
   const [duration, setDuration] = useState(Number(set.durationSeconds ?? 60));
+  const [repsStr, setRepsStr] = useState(String(override?.targetReps ?? set.targetReps ?? 10));
+  const [weightStr, setWeightStr] = useState(String(override?.weightKg ?? Number(set.weightKg ?? 0)));
+  const [durationStr, setDurationStr] = useState(String(Number(set.durationSeconds ?? 60)));
+  const weightScrollRef = useRef<HTMLDivElement>(null);
+  const repsScrollRef = useRef<HTMLDivElement>(null);
+
+  const WEIGHT_OPTIONS = Array.from({ length: 40 }, (_, i) => (i + 1) * 2.5);
+  const closestWeight = WEIGHT_OPTIONS.reduce((prev, curr) =>
+    Math.abs(curr - weight) < Math.abs(prev - weight) ? curr : prev
+  );
+
+  // Scroll reps circles to current value when picker opens or reps change
+  useEffect(() => {
+    if (!showRepsPicker) return;
+    requestAnimationFrame(() => {
+      const el = repsScrollRef.current;
+      if (!el) return;
+      const index = Math.min(19, Math.max(0, reps - 1));
+      const itemWidth = 72; // w-16 (64px) + gap-2 (8px)
+      el.scrollLeft = Math.max(0, index * itemWidth - el.clientWidth / 2 + 32);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRepsPicker, reps]);
+
+  useEffect(() => {
+    if (!showWeightPicker) return;
+    requestAnimationFrame(() => {
+      const el = weightScrollRef.current;
+      if (!el) return;
+      const index = WEIGHT_OPTIONS.indexOf(closestWeight);
+      const itemWidth = 88; // w-20 (80px) + gap-2 (8px)
+      el.scrollLeft = Math.max(0, index * itemWidth - el.clientWidth / 2 + 40);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showWeightPicker]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -49,7 +84,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
         {isTimed ? (
           /* Duration row for timed exercises */
           <button
-            onClick={() => setShowDurationPicker(true)}
+            onClick={() => { setDurationStr(String(duration)); setShowDurationPicker(true); }}
             className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
           >
             <span className="text-base font-medium">Duration</span>
@@ -65,7 +100,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
           <>
             {/* Reps */}
             <button
-              onClick={() => setShowRepsPicker(true)}
+              onClick={() => { setRepsStr(String(reps)); setShowRepsPicker(true); }}
               className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
             >
               <span className="text-base font-medium">Reps</span>
@@ -74,7 +109,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
 
             {/* Weight */}
             <button
-              onClick={() => setShowWeightPicker(true)}
+              onClick={() => { setWeightStr(String(weight)); setShowWeightPicker(true); }}
               className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
             >
               <span className="text-base font-medium">Weight (kg)</span>
@@ -141,9 +176,15 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
             {/* Manual input */}
             <div className="mt-4">
               <input
-                type="number"
-                value={reps}
-                onChange={(e) => setReps(Number(e.target.value))}
+                type="text"
+                inputMode="numeric"
+                value={repsStr}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  setRepsStr(val);
+                  setReps(Math.max(1, parseInt(val) || 1));
+                }}
+                onBlur={() => { const n = Math.max(1, parseInt(repsStr) || 1); setReps(n); setRepsStr(String(n)); }}
                 className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
               />
             </div>
@@ -201,9 +242,15 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
             </div>
             <div className="mt-4">
               <input
-                type="number"
-                value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
+                type="text"
+                inputMode="numeric"
+                value={durationStr}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  setDurationStr(val);
+                  setDuration(Math.max(0, parseInt(val) || 0));
+                }}
+                onBlur={() => { const n = Math.max(0, parseInt(durationStr) || 0); setDuration(n); setDurationStr(String(n)); }}
                 className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
               />
             </div>
@@ -226,35 +273,39 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
             </div>
 
             {/* Weight picker */}
-            <div className="flex gap-2 overflow-x-auto pb-4">
-              {Array.from({ length: 40 }, (_, i) => (i + 1) * 2.5).map(
-                (num) => (
-                  <button
-                    key={num}
-                    onClick={() => {
-                      setWeight(num);
-                      setShowWeightPicker(false);
-                    }}
-                    className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all hover:scale-105 active:scale-95 ${
-                      weight === num
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground hover:bg-muted/80 active:bg-muted"
-                    }`}
-                  >
-                    <span className="text-lg">{num}</span>
-                    <span className="text-xs opacity-70">kg</span>
-                  </button>
-                ),
-              )}
+            <div ref={weightScrollRef} className="flex gap-2 overflow-x-auto pb-4">
+              {WEIGHT_OPTIONS.map((num) => (
+                <button
+                  key={num}
+                  onClick={() => {
+                    setWeight(num);
+                    setShowWeightPicker(false);
+                  }}
+                  className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all hover:scale-105 active:scale-95 ${
+                    num === closestWeight
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground hover:bg-muted/80 active:bg-muted"
+                  }`}
+                >
+                  <span className="text-lg">{num}</span>
+                  <span className="text-xs opacity-70">kg</span>
+                </button>
+              ))}
             </div>
 
             {/* Manual input */}
             <div className="mt-4">
               <input
-                type="number"
-                step="0.5"
-                value={weight}
-                onChange={(e) => setWeight(Number(e.target.value))}
+                type="text"
+                inputMode="decimal"
+                value={weightStr}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^\d.]/g, "");
+                  setWeightStr(val);
+                  const n = parseFloat(val);
+                  if (!isNaN(n)) setWeight(n);
+                }}
+                onBlur={() => { const n = parseFloat(weightStr) || 0; setWeight(n); setWeightStr(String(n)); }}
                 className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
               />
             </div>

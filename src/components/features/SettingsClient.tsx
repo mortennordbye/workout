@@ -233,6 +233,7 @@ export function SettingsClient() {
                 <span className="text-xs text-muted-foreground">Custom</span>
                 <input
                   type="number"
+                  inputMode="decimal"
                   min="0"
                   step="0.5"
                   placeholder="e.g. 7.5"
@@ -267,6 +268,7 @@ export function SettingsClient() {
                 <span className="text-xs text-muted-foreground">Custom</span>
                 <input
                   type="number"
+                  inputMode="numeric"
                   min="0"
                   step="1"
                   placeholder="e.g. 5"

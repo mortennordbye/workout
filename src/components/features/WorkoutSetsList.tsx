@@ -480,45 +480,46 @@ export function WorkoutSetsList({
 
       {/* Exercise timer overlay */}
       {exerciseTimer !== null && (
-        <div className="fixed inset-0 bg-background z-50 flex flex-col items-center justify-center gap-8">
-          <div className="flex flex-col items-center gap-6">
-            {/* Circular progress ring */}
-            <div className="relative w-56 h-56">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="44"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  className="text-primary/20"
-                />
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="44"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  className="text-primary transition-all duration-1000"
-                  strokeDasharray={`${2 * Math.PI * 44}`}
-                  strokeDashoffset={`${2 * Math.PI * 44 * (1 - exerciseTimer.remaining / exerciseTimer.total)}`}
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-7xl font-bold tabular-nums">
-                  {formatTime(exerciseTimer.remaining)}
-                </span>
-              </div>
+        <div className="fixed inset-0 bg-background z-50 flex flex-col items-center justify-center gap-12">
+          {/* Circular progress ring */}
+          <div className="relative w-80 h-80">
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+              <circle
+                cx="50"
+                cy="50"
+                r="44"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                className="text-primary/15"
+              />
+              <circle
+                cx="50"
+                cy="50"
+                r="44"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                className="text-primary transition-all duration-1000"
+                strokeDasharray={`${2 * Math.PI * 44}`}
+                strokeDashoffset={`${2 * Math.PI * 44 * (1 - exerciseTimer.remaining / exerciseTimer.total)}`}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+              <span className="text-8xl font-bold tabular-nums tracking-tight">
+                {formatTime(exerciseTimer.remaining)}
+              </span>
+              <span className="text-sm text-muted-foreground font-medium">
+                of {formatTime(exerciseTimer.total)}
+              </span>
             </div>
           </div>
 
-          <div className="flex gap-6">
+          <div className="flex gap-4">
             <button
               onClick={() => setExerciseTimer(null)}
-              className="px-8 py-4 rounded-2xl bg-muted text-foreground text-base font-semibold active:scale-95 transition-all"
+              className="px-10 py-4 rounded-2xl bg-muted text-foreground text-base font-semibold active:scale-95 transition-all"
             >
               Cancel
             </button>
@@ -527,7 +528,7 @@ export function WorkoutSetsList({
                 void toggleSet(exerciseTimer.setId);
                 setExerciseTimer(null);
               }}
-              className="px-8 py-4 rounded-2xl bg-primary text-primary-foreground text-base font-semibold active:scale-95 transition-all flex items-center gap-2"
+              className="px-10 py-4 rounded-2xl bg-primary text-primary-foreground text-base font-semibold active:scale-95 transition-all flex items-center gap-2"
             >
               <Check className="w-5 h-5" />
               Done
@@ -738,38 +739,20 @@ function SortableSetRow({
       )}
 
       {isWorkout && (
-        isTimed && !isCompleted ? (
-          /* Timed incomplete: play starts timer, check circle marks complete directly */
-          <>
-            <button
-              onClick={handlePlayClick}
-              className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 border-primary bg-transparent"
-            >
-              <Play className="w-3 h-3 text-primary fill-primary" />
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onToggle(); }}
-              className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 border-primary/40 bg-transparent"
-            >
-              <Check className="w-4 h-4 text-primary/40" />
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={handlePlayClick}
-            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 ${
-              isCompleted
-                ? "bg-primary border-primary"
-                : "border-primary bg-transparent"
-            }`}
-          >
-            {isCompleted ? (
-              <Check className="w-4 h-4 text-primary-foreground" />
-            ) : (
-              <Play className="w-3 h-3 text-primary fill-primary" />
-            )}
-          </button>
-        )
+        <button
+          onClick={handlePlayClick}
+          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 ${
+            isCompleted
+              ? "bg-primary border-primary"
+              : "border-primary bg-transparent"
+          }`}
+        >
+          {isCompleted ? (
+            <Check className="w-4 h-4 text-primary-foreground" />
+          ) : (
+            <Play className="w-3 h-3 text-primary fill-primary" />
+          )}
+        </button>
       )}
 
       <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
