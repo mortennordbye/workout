@@ -83,6 +83,26 @@ export async function createCustomExercise(
 }
 
 /**
+ * Delete a custom exercise owned by the current user.
+ */
+export async function deleteCustomExercise(id: number): Promise<ActionResult<undefined>> {
+  const auth = await requireSession();
+  try {
+    const existing = await db.query.exercises.findFirst({
+      where: (ex, { eq, and }) => and(eq(ex.id, id), eq(ex.userId, auth.user.id)),
+    });
+    if (!existing) {
+      return { success: false, error: "Exercise not found or not deletable" };
+    }
+    await db.delete(exercises).where(and(eq(exercises.id, id), eq(exercises.userId, auth.user.id)));
+    return { success: true, data: undefined };
+  } catch (error) {
+    console.error("Error deleting exercise:", error);
+    return { success: false, error: "Failed to delete exercise. Please try again." };
+  }
+}
+
+/**
  * Update a custom exercise owned by the current user.
  */
 export async function updateCustomExercise(

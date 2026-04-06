@@ -1,6 +1,6 @@
 "use client";
 
-import { createCustomExercise, updateCustomExercise } from "@/lib/actions/exercises";
+import { createCustomExercise, deleteCustomExercise, updateCustomExercise } from "@/lib/actions/exercises";
 import type { Exercise } from "@/types/workout";
 import {
   Activity,
@@ -8,11 +8,11 @@ import {
   ChevronRight,
   Dumbbell,
   Eye,
-  Pencil,
   PersonStanding,
   Plus,
   Search,
   Timer,
+  Trash2,
   Wrench,
   X,
   Zap,
@@ -403,6 +403,17 @@ export function ExercisesClient({
     setError("");
   }
 
+  async function handleDelete() {
+    if (!editingExercise) return;
+    setLoading(true);
+    const result = await deleteCustomExercise(editingExercise.id);
+    setLoading(false);
+    if (!result.success) { setError(result.error ?? "Failed to delete exercise"); return; }
+    closeEdit();
+    setSelectedExercise(null);
+    router.refresh();
+  }
+
   function resetForm() {
     setName(""); setCategory("strength"); setBodyArea("");
     setMuscleGroup(""); setEquipment(""); setMovementPattern("");
@@ -456,10 +467,9 @@ export function ExercisesClient({
   const headerRight = selectedExercise?.isCustom && !editingExercise ? (
     <button
       onClick={() => openEdit(selectedExercise)}
-      className="flex items-center gap-1.5 min-h-[44px] px-1 text-primary active:opacity-70"
+      className="min-h-[44px] px-1 text-primary text-base active:opacity-70"
     >
-      <Pencil className="w-4 h-4" />
-      <span className="text-base">Edit</span>
+      Edit
     </button>
   ) : null;
 
@@ -485,6 +495,14 @@ export function ExercisesClient({
             />
           </form>
         </div>
+        <button
+          onClick={handleDelete}
+          disabled={loading}
+          className="w-full mt-4 flex items-center justify-center gap-2 py-4 rounded-2xl text-destructive bg-destructive/10 active:bg-destructive/20 transition-colors disabled:opacity-50"
+        >
+          <Trash2 className="w-4 h-4" />
+          <span className="text-base font-semibold">Delete Exercise</span>
+        </button>
       </>
     );
   } else if (selectedExercise) {
