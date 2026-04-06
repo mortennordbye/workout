@@ -78,6 +78,7 @@ export const exercises = pgTable("exercises", {
   name: text("name").notNull().unique(),
   category: text("category", { enum: exerciseCategoryEnum }).notNull(),
   isCustom: boolean("is_custom").default(false).notNull(),
+  isTimed: boolean("is_timed").default(false).notNull(),
   userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
   bodyArea: text("body_area", { enum: bodyAreaEnum }),
   muscleGroup: text("muscle_group", { enum: muscleGroupEnum }),

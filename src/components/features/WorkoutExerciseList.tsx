@@ -1,6 +1,7 @@
 "use client";
 
 import { useWorkoutSession } from "@/contexts/workout-session-context";
+import { logWorkoutSet } from "@/lib/actions/workout-sets";
 import { buildSetSummary } from "@/lib/utils/format";
 import type { ProgramSet } from "@/types/workout";
 import {
@@ -25,6 +26,7 @@ import Link from "next/link";
 
 type Exercise = {
   id: number;
+  exerciseId: number;
   name: string;
   sets: ProgramSet[];
 };
@@ -68,12 +70,33 @@ export function WorkoutExerciseList({
     return exercise.sets.every((s) => workoutSession.completedSetIds.has(s.id));
   }
 
-  function toggleExercise(exercise: Exercise) {
+  async function toggleExercise(exercise: Exercise) {
     if (!workoutSession) return;
     if (isExerciseCompleted(exercise)) {
       exercise.sets.forEach((s) => workoutSession.removeCompletedSet(s.id));
     } else {
+      const { sessionId } = workoutSession;
+      const setsToLog = exercise.sets.filter(
+        (s) => !workoutSession.completedSetIds.has(s.id),
+      );
       exercise.sets.forEach((s) => workoutSession.addCompletedSet(s.id));
+      if (sessionId != null) {
+        await Promise.all(
+          setsToLog.map((s) =>
+            logWorkoutSet({
+              sessionId,
+              exerciseId: exercise.exerciseId,
+              setNumber: exercise.sets.indexOf(s) + 1,
+              targetReps: s.targetReps ?? undefined,
+              actualReps: s.targetReps ?? 0,
+              weightKg: Number(s.weightKg ?? 0),
+              rpe: 7,
+              restTimeSeconds: s.restTimeSeconds ?? 0,
+              isCompleted: true,
+            }),
+          ),
+        );
+      }
     }
   }
 
@@ -106,7 +129,7 @@ export function WorkoutExerciseList({
             isEditing={isEditing}
             isCompleted={isExerciseCompleted(exercise)}
             summary={buildSetSummary(exercise.sets)}
-            onToggle={() => toggleExercise(exercise)}
+            onToggle={() => { void toggleExercise(exercise); }}
             onDelete={() => onDeleteExercise?.(exercise.id)}
           />
         ))}

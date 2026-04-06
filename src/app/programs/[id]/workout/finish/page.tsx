@@ -76,7 +76,7 @@ function FinishContent() {
       await completeWorkoutSession({ sessionId: created.data.id, feeling });
     }
     workoutSession?.clearActiveWorkout();
-    router.push("/new-workout");
+    router.replace("/");
     return true;
   };
 

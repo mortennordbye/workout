@@ -46,6 +46,7 @@ type Props = {
   isWorkout?: boolean;
   loggedCount?: number;
   exerciseCategory?: string;
+  exerciseIsTimed?: boolean;
   suggestions?: Record<number, SetSuggestionDisplay>;
   overloadIncrementKg?: number;
   overloadIncrementReps?: number;
@@ -63,6 +64,7 @@ export function WorkoutSetsClient({
   isWorkout = false,
   loggedCount = 0,
   exerciseCategory,
+  exerciseIsTimed = false,
   suggestions,
   overloadIncrementKg: initialIncrement = 2.5,
   overloadIncrementReps: initialIncrementReps = 0,
@@ -250,7 +252,7 @@ export function WorkoutSetsClient({
             programExerciseId={programExerciseId}
             isEditing={isEditing}
             isWorkout={isWorkout}
-            isTimed={exerciseCategory === "cardio"}
+            isTimed={exerciseIsTimed || exerciseCategory === "cardio"}
             exerciseId={exerciseId}
             sessionId={workoutSession?.sessionId ?? undefined}
             onDeleteSet={handleDeleteSet}

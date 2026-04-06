@@ -70,7 +70,7 @@ export default async function ProgramSetEditPage({ params }: Props) {
       </div>
 
       {/* Edit view */}
-      <SetEditView set={set} />
+      <SetEditView set={set} isTimed={pe.exercise.isTimed || pe.exercise.category === "cardio"} />
     </div>
   );
 }

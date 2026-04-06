@@ -28,6 +28,7 @@ export default async function WorkoutSessionPage({ params }: Props) {
   const exercises = program.programExercises.map((pe) => ({
     id: pe.id,
     name: pe.exercise.name,
+    exerciseId: pe.exercise.id,
     sets: pe.programSets,
   }));
 

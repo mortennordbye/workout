@@ -23,6 +23,7 @@ function toDateString(d: Date): string {
 
 type Exercise = {
   id: number;
+  exerciseId: number;
   name: string;
   sets: ProgramSet[];
 };
@@ -99,7 +100,7 @@ export function WorkoutSessionClient({
       await deleteWorkoutSession(workoutSession.sessionId);
     }
     workoutSession?.clearActiveWorkout();
-    router.push('/new-workout');
+    router.replace('/');
   }
 
   async function handleReorder(orderedIds: number[]) {

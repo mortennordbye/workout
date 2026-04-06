@@ -74,8 +74,8 @@ function capitalize(s: string) {
   return s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function exerciseType(category: string) {
-  if (category === "cardio") return "Timed";
+function exerciseType(category: string, isTimed?: boolean) {
+  if (isTimed || category === "cardio") return "Timed";
   if (category === "flexibility") return "Flexibility";
   return "Reps Based";
 }
@@ -102,7 +102,7 @@ function SearchBar({ value, onChange }: { value: string; onChange: (v: string) =
 function DetailView({ exercise }: { exercise: Exercise }) {
   const rows: { label: string; value: string }[] = [
     { label: "Title", value: exercise.name },
-    { label: "Exercise Type", value: exerciseType(exercise.category) },
+    { label: "Exercise Type", value: exerciseType(exercise.category, exercise.isTimed) },
     ...(exercise.bodyArea ? [{ label: "Body Area", value: capitalize(exercise.bodyArea) }] : []),
     ...(exercise.muscleGroup ? [{ label: "Muscle Group", value: capitalize(exercise.muscleGroup) }] : []),
     ...(exercise.equipment ? [{ label: "Equipment", value: capitalize(exercise.equipment) }] : []),
@@ -509,7 +509,7 @@ export function ExercisesClient({
     content = <CategoryList title={viewLabel} items={items} onSelect={(key) => setSubCategory(key)} />;
   } else if (view !== "menu") {
     const filtered =
-      view === "timed" ? exercises.filter((ex) => ex.category === "cardio") :
+      view === "timed" ? exercises.filter((ex) => ex.isTimed || ex.category === "cardio") :
       view === "custom" ? exercises.filter((ex) => ex.isCustom) :
       exercises;
     content = (

@@ -169,24 +169,36 @@ export function WorkoutSetsList({
       });
       if (isWorkout && workoutSession) workoutSession.clearRestTimerEnd(setId);
     } else {
+      // Collect all preceding sets that aren't already completed (catch-up)
+      const precedingUncompleted = flatItems
+        .slice(0, flatIndex)
+        .filter((item): item is SetFlatItem =>
+          item.type === "set" && !activeCompletedSets.has(item.set.id),
+        );
+
+      // Mark preceding sets + current set complete in context
       if (completedSets) {
+        precedingUncompleted.forEach((item) => workoutSession!.addCompletedSet(item.set.id));
         workoutSession!.addCompletedSet(setId);
       } else {
-        setLocalCompletedSets((prev) => new Set(prev).add(setId));
+        setLocalCompletedSets((prev) => {
+          const s = new Set(prev);
+          precedingUncompleted.forEach((item) => s.add(item.set.id));
+          s.add(setId);
+          return s;
+        });
       }
-      const newCompleted = new Set(activeCompletedSets).add(setId);
-
       // Start timer from the rest item immediately after this set in the flat list
       const nextFlatItem = flatIndex >= 0 ? flatItems[flatIndex + 1] : undefined;
       const restSeconds =
         nextFlatItem?.type === "rest" ? nextFlatItem.seconds : 0;
 
-      // Auto-complete rest timers for all preceding sets (catch-up scenario)
+      // Zero out rest timers for ALL preceding sets (catch-up — no waiting)
       setRestTimers((timers) => {
         const t = new Map(timers);
         for (let i = 0; i < flatIndex; i++) {
           const item = flatItems[i];
-          if (item.type === "set" && (t.get(item.set.id) ?? 0) > 0) {
+          if (item.type === "set") {
             t.set(item.set.id, 0);
           }
         }
@@ -197,6 +209,24 @@ export function WorkoutSetsList({
       });
       if (restSeconds > 0 && isWorkout && workoutSession) {
         workoutSession.setRestTimerEnd(setId, Date.now() + restSeconds * 1000);
+      }
+
+      // Log preceding uncompleted sets to DB (catch-up, rest = 0)
+      if (isWorkout && sessionId != null && exerciseId != null) {
+        for (const item of precedingUncompleted) {
+          const sIdx = setItems.findIndex((s) => s.set.id === item.set.id);
+          void logWorkoutSet({
+            sessionId,
+            exerciseId,
+            setNumber: sIdx + 1,
+            targetReps: item.set.targetReps ?? undefined,
+            actualReps: item.set.targetReps ?? 0,
+            weightKg: Number(item.set.weightKg ?? 0),
+            rpe: 7,
+            restTimeSeconds: 0,
+            isCompleted: true,
+          });
+        }
       }
 
       // Log the completed set to the database

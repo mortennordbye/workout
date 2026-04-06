@@ -50,7 +50,7 @@ export default function NewWorkoutClient({ activeCycleInfo, programs }: Props) {
                 onClick={() => router.push(`/programs/${cycleProgram.id}/workout`)}
                 className="flex-1 py-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium active:opacity-80 transition-opacity"
               >
-                Start ▶
+                Start
               </button>
             </div>
           </div>

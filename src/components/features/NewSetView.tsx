@@ -18,11 +18,14 @@ function gradientColor(index: number, total: number): string {
   return `rgb(${Math.round(234 + (34 - 234) * t)},${Math.round(179 + (197 - 179) * t)},${Math.round(8 + (94 - 8) * t)})`;
 }
 
+const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 300, 600];
+
 type Props = {
   programId: number;
   programExerciseId: number;
   nextSetNumber: number;
   lastSet?: ProgramSet;
+  isTimed?: boolean;
 };
 
 export function NewSetView({
@@ -30,10 +33,12 @@ export function NewSetView({
   programExerciseId,
   nextSetNumber,
   lastSet,
+  isTimed = false,
 }: Props) {
   const router = useRouter();
   const [showRepsPicker, setShowRepsPicker] = useState(false);
   const [showWeightPicker, setShowWeightPicker] = useState(false);
+  const [showDurationPicker, setShowDurationPicker] = useState(false);
   const [showRepsKeypad, setShowRepsKeypad] = useState(false);
   const [showWeightKeypad, setShowWeightKeypad] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -42,40 +47,68 @@ export function NewSetView({
 
   const [reps, setReps] = useState(lastSet?.targetReps ?? 10);
   const [weight, setWeight] = useState(Number(lastSet?.weightKg ?? 0));
+  const [duration, setDuration] = useState(Number(lastSet?.durationSeconds ?? 60));
 
   const handleSave = async () => {
     setSaving(true);
-    await addProgramSet({
-      programExerciseId,
-      setNumber: nextSetNumber,
-      targetReps: reps,
-      weightKg: weight,
-      restTimeSeconds: 0,
-    });
+    if (isTimed) {
+      await addProgramSet({
+        programExerciseId,
+        setNumber: nextSetNumber,
+        durationSeconds: duration,
+        restTimeSeconds: 0,
+      });
+    } else {
+      await addProgramSet({
+        programExerciseId,
+        setNumber: nextSetNumber,
+        targetReps: reps,
+        weightKg: weight,
+        restTimeSeconds: 0,
+      });
+    }
     router.push(`/programs/${programId}/exercises/${programExerciseId}?edit=true`);
   };
 
   return (
     <>
       <div className="flex-1 px-4 animate-in fade-in duration-150">
-        {/* Reps */}
-        <button
-          onClick={() => setShowRepsPicker(true)}
-          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
-        >
-          <span className="text-base font-medium">Reps</span>
-          <span className="text-base text-muted-foreground">{reps}</span>
-        </button>
+        {isTimed ? (
+          /* Duration row for timed exercises */
+          <button
+            onClick={() => setShowDurationPicker(true)}
+            className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
+          >
+            <span className="text-base font-medium">Duration</span>
+            <span className="text-base text-muted-foreground">
+              {duration < 60
+                ? `${duration}s`
+                : duration % 60 === 0
+                  ? `${duration / 60}m`
+                  : `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, "0")}`}
+            </span>
+          </button>
+        ) : (
+          <>
+            {/* Reps */}
+            <button
+              onClick={() => setShowRepsPicker(true)}
+              className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
+            >
+              <span className="text-base font-medium">Reps</span>
+              <span className="text-base text-muted-foreground">{reps}</span>
+            </button>
 
-        {/* Weight */}
-        <button
-          onClick={() => setShowWeightPicker(true)}
-          className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
-        >
-          <span className="text-base font-medium">Weight (kg)</span>
-          <span className="text-base text-muted-foreground">{weight}</span>
-        </button>
-
+            {/* Weight */}
+            <button
+              onClick={() => setShowWeightPicker(true)}
+              className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
+            >
+              <span className="text-base font-medium">Weight (kg)</span>
+              <span className="text-base text-muted-foreground">{weight}</span>
+            </button>
+          </>
+        )}
       </div>
 
       {/* Save button */}
@@ -95,6 +128,50 @@ export function NewSetView({
           )}
         </button>
       </div>
+
+      {/* Duration Picker Modal */}
+      <BottomSheet open={showDurationPicker} onClose={() => setShowDurationPicker(false)} blur>
+        <div className="w-full bg-card rounded-t-3xl pb-10">
+          <div className="flex items-center justify-between px-5 pt-6 pb-5">
+            <span className="text-sm font-semibold uppercase tracking-wider text-foreground">
+              Select Duration
+            </span>
+            <button
+              onClick={() => setShowDurationPicker(false)}
+              className="px-4 py-1.5 rounded-full border border-primary text-primary text-sm font-medium active:bg-primary/10 transition-colors"
+            >
+              Done
+            </button>
+          </div>
+          <div className="flex gap-2 overflow-x-auto px-5 pb-3 no-scrollbar">
+            {DURATION_OPTIONS.map((seconds) => (
+              <button
+                key={seconds}
+                onClick={() => { setDuration(seconds); setShowDurationPicker(false); }}
+                className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all active:scale-95 ${
+                  duration === seconds ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                }`}
+              >
+                {seconds < 60 ? (
+                  <><span className="text-lg">{seconds}</span><span className="text-xs opacity-70">s</span></>
+                ) : seconds % 60 === 0 ? (
+                  <><span className="text-lg">{seconds / 60}</span><span className="text-xs opacity-70">m</span></>
+                ) : (
+                  <><span className="text-lg">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}</span><span className="text-xs opacity-70">m</span></>
+                )}
+              </button>
+            ))}
+          </div>
+          <div className="px-5 pt-2">
+            <input
+              type="number"
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+              className="w-full rounded-xl bg-background border border-border px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
+            />
+          </div>
+        </div>
+      </BottomSheet>
 
       {/* Reps Picker Modal */}
       <BottomSheet open={showRepsPicker} onClose={() => setShowRepsPicker(false)} blur>

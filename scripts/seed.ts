@@ -1,5 +1,6 @@
 import { db } from "../src/db";
 import { exercises } from "../src/db/schema";
+import { inArray } from "drizzle-orm";
 
 const EXERCISES = [
   // ── Chest ──────────────────────────────────────────────────────────────────
@@ -78,7 +79,7 @@ const EXERCISES = [
   // ── Forearms ───────────────────────────────────────────────────────────────
   { name: "Wrist Curl",            category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "forearms",   equipment: "dumbbell",   movementPattern: "pull" },
   { name: "Reverse Wrist Curl",    category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "forearms",   equipment: "dumbbell",   movementPattern: "pull" },
-  { name: "Dead Hang",             category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "forearms",   equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Dead Hang",             category: "strength", isCustom: false, isTimed: true, bodyArea: "upper_body", muscleGroup: "forearms",   equipment: "bodyweight", movementPattern: "isometric" },
   { name: "Plate Pinch",           category: "strength", isCustom: false, bodyArea: "upper_body", muscleGroup: "forearms",   equipment: "other",      movementPattern: "isometric" },
 
   // ── Quads ──────────────────────────────────────────────────────────────────
@@ -120,9 +121,9 @@ const EXERCISES = [
   { name: "Single-Leg Calf Raise", category: "strength", isCustom: false, bodyArea: "lower_body", muscleGroup: "calves",     equipment: "bodyweight", movementPattern: "push" },
 
   // ── Abs / Core ─────────────────────────────────────────────────────────────
-  { name: "Plank",                 category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
-  { name: "Side Plank",            category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
-  { name: "Hollow Hold",           category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Plank",                 category: "strength", isCustom: false, isTimed: true, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Side Plank",            category: "strength", isCustom: false, isTimed: true, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Hollow Hold",           category: "strength", isCustom: false, isTimed: true, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
   { name: "Dead Bug",              category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "bodyweight", movementPattern: "isometric" },
   { name: "Pallof Press",          category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "cable",      movementPattern: "isometric" },
   { name: "Ab Wheel Rollout",      category: "strength", isCustom: false, bodyArea: "core",       muscleGroup: "abs",        equipment: "other",      movementPattern: "isometric" },
@@ -156,7 +157,8 @@ const EXERCISES = [
   { name: "Sled Push",             category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "other",      movementPattern: "push" },
   { name: "Wall Ball",             category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "other",      movementPattern: "push" },
 
-  // ── Cardio ─────────────────────────────────────────────────────────────────
+  // ── Cardio / Warm-up ───────────────────────────────────────────────────────
+  { name: "Warm Up",               category: "cardio",   isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "cardio" },
   { name: "Running",               category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
   { name: "Walking",               category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
   { name: "Sprint",                category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
@@ -181,7 +183,7 @@ const EXERCISES = [
   { name: "Ring Push-up",              category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "other",      movementPattern: "push" },
   { name: "Pike Push-up",              category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "push" },
   { name: "Handstand Push-up",         category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "push" },
-  { name: "Handstand Hold",            category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Handstand Hold",            category: "strength",    isCustom: false, isTimed: true, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "isometric" },
   { name: "Handstand",                 category: "cardio",      isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "isometric" },
   { name: "Ring Dip",                  category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps",    equipment: "other",      movementPattern: "push" },
 
@@ -240,6 +242,20 @@ async function seed() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await db.insert(exercises).values([...EXERCISES]).onConflictDoNothing();
     console.log(`✅ Seeded ${EXERCISES.length} exercises (skipped duplicates)`);
+
+    // Mark inherently time-based exercises (isometric holds, warm-up) as isTimed.
+    // This also updates rows that existed before the is_timed column was added.
+    const timedExerciseNames = [
+      "Warm Up",
+      "Handstand Hold",
+      "Plank", "Side Plank", "Hollow Hold", "Dead Hang",
+      "L-sit", "Wall Sit", "Copenhagen Plank", "Arch Hold",
+      "Front Lever", "Back Lever", "Tuck Planche", "Human Flag", "Crow Pose",
+    ];
+    await db.update(exercises).set({ isTimed: true }).where(
+      inArray(exercises.name, timedExerciseNames),
+    );
+    console.log(`✅ Marked ${timedExerciseNames.length} exercises as timed`);
 
     console.log("✅ Seeding completed successfully");
     process.exit(0);
