@@ -26,6 +26,7 @@ type Props = {
   nextSetNumber: number;
   lastSet?: ProgramSet;
   isTimed?: boolean;
+  isWorkout?: boolean;
 };
 
 export function NewSetView({
@@ -34,6 +35,7 @@ export function NewSetView({
   nextSetNumber,
   lastSet,
   isTimed = false,
+  isWorkout = false,
 }: Props) {
   const router = useRouter();
   const [showRepsPicker, setShowRepsPicker] = useState(false);
@@ -67,7 +69,11 @@ export function NewSetView({
         restTimeSeconds: 0,
       });
     }
-    router.push(`/programs/${programId}/exercises/${programExerciseId}?edit=true`);
+    router.push(
+      isWorkout
+        ? `/programs/${programId}/workout/exercises/${programExerciseId}?edit=true`
+        : `/programs/${programId}/exercises/${programExerciseId}?edit=true`
+    );
   };
 
   return (

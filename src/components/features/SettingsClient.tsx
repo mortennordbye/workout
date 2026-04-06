@@ -2,9 +2,10 @@
 
 import { useTheme } from "@/components/ui/theme-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { BookOpen, CheckIcon, ChevronLeft, ChevronRight, Smartphone } from "lucide-react";
+import { requestNotificationPermission } from "@/lib/notifications";
+import { Bell, BookOpen, CheckIcon, ChevronLeft, ChevronRight, Smartphone } from "lucide-react";
 import Link from "next/link";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const accentColors = [
   { value: "blue", label: "Blue", color: "#5B8FFF" },
@@ -45,6 +46,61 @@ function RowLabel({ children }: { children: React.ReactNode }) {
 
 function RowDescription({ children }: { children: React.ReactNode }) {
   return <p className="text-xs text-muted-foreground mb-3">{children}</p>;
+}
+
+function NotificationsRow() {
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      setPermission("unsupported");
+    } else {
+      setPermission(Notification.permission);
+    }
+  }, []);
+
+  async function handleEnable() {
+    const granted = await requestNotificationPermission();
+    setPermission(granted ? "granted" : Notification.permission);
+  }
+
+  if (permission === "unsupported") return null;
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <Bell className="w-5 h-5 text-muted-foreground flex-none" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">Rest timer alerts</p>
+        <p className="text-xs text-muted-foreground">
+          {permission === "granted" && "You'll be notified when rest is done"}
+          {permission === "default" && "Tap Enable to get notified when rest ends"}
+          {permission === "denied" && (
+            <>
+              Blocked — go to{" "}
+              <span className="font-medium text-foreground">
+                iOS Settings → LogEveryLift → Notifications
+              </span>{" "}
+              to turn on
+            </>
+          )}
+        </p>
+      </div>
+      {permission === "granted" && (
+        <span className="text-xs font-semibold text-green-500 flex-none">On</span>
+      )}
+      {permission === "default" && (
+        <button
+          onClick={handleEnable}
+          className="text-xs font-semibold text-primary flex-none active:opacity-70"
+        >
+          Enable
+        </button>
+      )}
+      {permission === "denied" && (
+        <span className="text-xs font-semibold text-destructive flex-none">Blocked</span>
+      )}
+    </div>
+  );
 }
 
 export function SettingsClient() {
@@ -231,6 +287,16 @@ export function SettingsClient() {
               </div>
             </Row>
 
+          </div>
+        </div>
+
+        {/* ── Notifications ──────────────────────────── */}
+        <div>
+          <SectionLabel>Notifications</SectionLabel>
+          <div className="rounded-2xl bg-card overflow-hidden">
+            <Row last>
+              <NotificationsRow />
+            </Row>
           </div>
         </div>
 

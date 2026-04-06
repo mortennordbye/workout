@@ -190,7 +190,11 @@ export function WorkoutSetsClient({
         <div className="w-20 shrink-0 flex items-center justify-end">
           {isEditing ? (
             <Link
-              href={`/programs/${programId}/exercises/${programExerciseId}/sets/new`}
+              href={
+                isWorkout
+                  ? `/programs/${programId}/workout/exercises/${programExerciseId}/sets/new`
+                  : `/programs/${programId}/exercises/${programExerciseId}/sets/new`
+              }
               className="w-7 h-7 rounded-full border-2 border-primary flex items-center justify-center"
             >
               <Plus className="w-4 h-4 text-primary" />

@@ -28,7 +28,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Check, GripVertical, Minus, Play, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +69,8 @@ export function WorkoutSetsList({
 }: WorkoutSetsListProps) {
   const router = useRouter();
   const workoutSession = useWorkoutSession();
+  const workoutSessionRef = useRef(workoutSession);
+  useEffect(() => { workoutSessionRef.current = workoutSession; }, [workoutSession]);
   const [flatItems, setFlatItems] = useState<FlatItem[]>(() =>
     toFlatItems(sets),
   );
@@ -87,6 +89,8 @@ export function WorkoutSetsList({
   } | null>(null);
   const [editingRestItemId, setEditingRestItemId] = useState<string | null>(null);
   const [restDraft, setRestDraft] = useState(60);
+  const [restMinStr, setRestMinStr] = useState("1");
+  const [restSecStr, setRestSecStr] = useState("0");
 
   useEffect(() => {
     setFlatItems(toFlatItems(sets));
@@ -269,13 +273,22 @@ export function WorkoutSetsList({
 
   useEffect(() => {
     const interval = setInterval(() => {
+      const session = workoutSessionRef.current;
+      const now = Date.now();
       setRestTimers((timers) => {
+        if (timers.size === 0) return timers;
         const newTimers = new Map(timers);
         let changed = false;
         timers.forEach((remaining, id) => {
           if (remaining > 0) {
-            newTimers.set(id, remaining - 1);
-            changed = true;
+            const endMs = session?.restTimerEnds[id];
+            const next = endMs
+              ? Math.max(0, Math.ceil((endMs - now) / 1000))
+              : Math.max(0, remaining - 1);
+            if (next !== remaining) {
+              newTimers.set(id, next);
+              changed = true;
+            }
           }
         });
         return changed ? newTimers : timers;
@@ -283,6 +296,34 @@ export function WorkoutSetsList({
     }, 1000);
     return () => clearInterval(interval);
   }, []);
+
+  // Recalculate timers from stored timestamps when app returns to foreground
+  useEffect(() => {
+    if (!isWorkout) return;
+    const handleVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const session = workoutSessionRef.current;
+      if (!session) return;
+      const now = Date.now();
+      setRestTimers((timers) => {
+        const newTimers = new Map(timers);
+        let changed = false;
+        timers.forEach((remaining, id) => {
+          const endMs = session.restTimerEnds[id];
+          if (endMs && remaining > 0) {
+            const actual = Math.max(0, Math.ceil((endMs - now) / 1000));
+            if (actual !== remaining) {
+              newTimers.set(id, actual);
+              changed = true;
+            }
+          }
+        });
+        return changed ? newTimers : timers;
+      });
+    };
+    document.addEventListener('visibilitychange', handleVisible);
+    return () => document.removeEventListener('visibilitychange', handleVisible);
+  }, [isWorkout]);
 
   // ── Exercise timer countdown ─────────────────────────────────────────────────
 
@@ -318,6 +359,8 @@ export function WorkoutSetsList({
     ];
     setFlatItems(newItems);
     setRestDraft(60);
+    setRestMinStr("1");
+    setRestSecStr("0");
     setEditingRestItemId(newId);
   }
 
@@ -423,6 +466,8 @@ export function WorkoutSetsList({
                     onDelete={() => handleDeleteRest(item.id)}
                     onEdit={() => {
                       setRestDraft(item.seconds);
+                      setRestMinStr(String(Math.floor(item.seconds / 60)));
+                      setRestSecStr(String(item.seconds % 60));
                       setEditingRestItemId(item.id);
                     }}
                   />
@@ -513,7 +558,11 @@ export function WorkoutSetsList({
             {REST_OPTIONS.map((seconds) => (
               <button
                 key={seconds}
-                onClick={() => setRestDraft(seconds)}
+                onClick={() => {
+                  setRestDraft(seconds);
+                  setRestMinStr(String(Math.floor(seconds / 60)));
+                  setRestSecStr(String(seconds % 60));
+                }}
                 className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all active:scale-95 ${
                   restDraft === seconds
                     ? "bg-primary text-primary-foreground"
@@ -542,13 +591,40 @@ export function WorkoutSetsList({
               </button>
             ))}
           </div>
-          <div className="mt-4">
-            <input
-              type="number"
-              value={restDraft}
-              onChange={(e) => setRestDraft(Number(e.target.value))}
-              className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
-            />
+          <div className="mt-4 flex items-end justify-center gap-2">
+            <div className="flex flex-col items-center gap-1">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={restMinStr}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  setRestMinStr(val);
+                  const mins = Math.max(0, Math.min(59, parseInt(val) || 0));
+                  setRestDraft(mins * 60 + (restDraft % 60));
+                }}
+                onBlur={() => setRestMinStr(String(Math.floor(restDraft / 60)))}
+                className="w-24 rounded-xl bg-background border border-border px-2 py-3 text-center text-3xl font-bold outline-none focus:ring-2 ring-primary"
+              />
+              <span className="text-xs text-muted-foreground">min</span>
+            </div>
+            <span className="text-3xl font-bold pb-6">:</span>
+            <div className="flex flex-col items-center gap-1">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={restSecStr}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  setRestSecStr(val);
+                  const secs = Math.max(0, Math.min(59, parseInt(val) || 0));
+                  setRestDraft(Math.floor(restDraft / 60) * 60 + secs);
+                }}
+                onBlur={() => setRestSecStr(String(restDraft % 60))}
+                className="w-24 rounded-xl bg-background border border-border px-2 py-3 text-center text-3xl font-bold outline-none focus:ring-2 ring-primary"
+              />
+              <span className="text-xs text-muted-foreground">sec</span>
+            </div>
           </div>
         </div>
       </BottomSheet>
@@ -835,7 +911,7 @@ function SortableRestRow({
         <div onClick={isWorkout ? onEdit : undefined} className={isWorkout ? "cursor-pointer active:opacity-60 transition-opacity" : ""}>
           <div className="text-xs text-muted-foreground uppercase tracking-wider">
             REST{" "}
-            {restRemaining !== undefined
+            {restRemaining !== undefined && restRemaining > 0
               ? formatTime(restRemaining)
               : formatTime(seconds)}
           </div>

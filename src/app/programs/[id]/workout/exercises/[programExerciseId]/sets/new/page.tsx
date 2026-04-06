@@ -1,10 +1,10 @@
 /**
- * Set Edit Page
+ * Workout New Set Page
  *
- * Full-page edit view for a single set with picker-based input.
+ * Full-page view for adding a new set during an active workout.
  */
 
-import { SetEditView } from "@/components/features/SetEditView";
+import { NewSetView } from "@/components/features/NewSetView";
 import { getProgramWithExercises } from "@/lib/actions/programs";
 import { ChevronLeftIcon } from "lucide-react";
 import Link from "next/link";
@@ -16,17 +16,15 @@ type Props = {
   params: Promise<{
     id: string;
     programExerciseId: string;
-    setId: string;
   }>;
 };
 
-export default async function SetEditPage({ params }: Props) {
-  const { id, programExerciseId, setId } = await params;
+export default async function WorkoutNewSetPage({ params }: Props) {
+  const { id, programExerciseId } = await params;
   const programId = Number(id);
   const peId = Number(programExerciseId);
-  const setIdNum = Number(setId);
 
-  if (isNaN(programId) || isNaN(peId) || isNaN(setIdNum)) notFound();
+  if (isNaN(programId) || isNaN(peId)) notFound();
 
   const result = await getProgramWithExercises(programId);
   if (!result.success) notFound();
@@ -35,25 +33,22 @@ export default async function SetEditPage({ params }: Props) {
   const pe = program.programExercises.find((e) => e.id === peId);
   if (!pe) notFound();
 
-  const set = pe.programSets.find((s) => s.id === setIdNum);
-  if (!set) notFound();
-
-  const setIndex = pe.programSets.indexOf(set);
-  const totalSets = pe.programSets.length;
+  const nextSetNumber = pe.programSets.length + 1;
+  const lastSet = pe.programSets[pe.programSets.length - 1];
 
   return (
-    <div className="h-[100dvh] bg-background flex flex-col pb-nav-safe overflow-hidden">
+    <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-4">
         <Link
-          href={`/programs/${programId}/workout/exercises/${peId}`}
+          href={`/programs/${programId}/workout/exercises/${peId}?edit=true`}
           className="flex items-center gap-1 text-primary"
         >
           <ChevronLeftIcon className="h-5 w-5" />
-          <span className="text-sm font-medium">Sets</span>
+          <span className="text-sm font-medium">Back</span>
         </Link>
-        <div className="text-lg font-bold">Set Edit</div>
-        <div className="w-16" /> {/* Spacer for centering */}
+        <div className="text-xl font-bold">Add Set</div>
+        <div className="w-16" />
       </div>
 
       {/* Set indicator */}
@@ -62,15 +57,21 @@ export default async function SetEditPage({ params }: Props) {
           <span className="text-sm text-muted-foreground">SET</span>
           <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
             <span className="text-sm font-bold text-primary-foreground">
-              {setIndex + 1}
+              {nextSetNumber}
             </span>
           </div>
-          <span className="text-sm text-muted-foreground">OF {totalSets}</span>
         </div>
       </div>
 
-      {/* Edit view */}
-      <SetEditView set={set} isWorkout={true} isTimed={pe.exercise.isTimed || pe.exercise.category === "cardio"} />
+      {/* Add view */}
+      <NewSetView
+        programId={programId}
+        programExerciseId={peId}
+        nextSetNumber={nextSetNumber}
+        lastSet={lastSet}
+        isTimed={pe.exercise.isTimed || pe.exercise.category === "cardio"}
+        isWorkout={true}
+      />
     </div>
   );
 }
