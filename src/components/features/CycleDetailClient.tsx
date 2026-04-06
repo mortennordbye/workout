@@ -8,12 +8,14 @@
  * - Delete cycle
  */
 
+import { BottomSheet } from "@/components/ui/BottomSheet";
 import {
   deleteTrainingCycle,
+  restartTrainingCycle,
   startTrainingCycle,
 } from "@/lib/actions/training-cycles";
 import type { TrainingCycle } from "@/types/workout";
-import { PlayIcon, Trash2Icon } from "lucide-react";
+import { PlayIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -41,6 +43,71 @@ export function StartCycleButton({ cycle }: { cycle: TrainingCycle }) {
       <PlayIcon className="w-4 h-4" />
       {loading ? "Starting…" : "Start Cycle"}
     </button>
+  );
+}
+
+export function RestartCycleButton({ cycle }: { cycle: TrainingCycle }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  if (cycle.status === "draft") return null;
+
+  async function handleRestart() {
+    setLoading(true);
+    const result = await restartTrainingCycle(cycle.id);
+    setLoading(false);
+    if (result.success) {
+      setOpen(false);
+      router.refresh();
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex items-center gap-2 px-4 py-3 text-sm text-primary active:opacity-70"
+      >
+        <RotateCcwIcon className="w-4 h-4" />
+        Restart cycle
+      </button>
+
+      <BottomSheet open={open} onClose={() => setOpen(false)}>
+        <div className="w-full px-4 pb-8 space-y-4">
+          <div className="bg-card rounded-2xl overflow-hidden text-center">
+            <div className="px-4 pt-5 pb-2 border-b border-border">
+              <p className="font-semibold text-base">Restart this cycle?</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                The cycle will restart from today (Week 1).
+                {cycle.status === "completed" && " It will become active again."}
+              </p>
+            </div>
+            {cycle.scheduleType === "rotation" && (
+              <div className="px-4 py-3 border-b border-border">
+                <p className="text-xs text-muted-foreground">
+                  Rotation position is based on your total completed sessions — it won&apos;t reset when the cycle restarts.
+                </p>
+              </div>
+            )}
+            <button
+              onClick={handleRestart}
+              disabled={loading}
+              className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors border-b border-border disabled:opacity-50"
+            >
+              {loading ? "Restarting…" : "Yes, restart"}
+            </button>
+            <button
+              onClick={() => setOpen(false)}
+              className="w-full py-4 text-base font-medium text-muted-foreground active:bg-muted/50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
+    </>
   );
 }
 

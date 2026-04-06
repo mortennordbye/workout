@@ -217,6 +217,7 @@ export async function createTrainingCycle(
 export async function updateTrainingCycle(
   data: unknown,
 ): Promise<ActionResult<TrainingCycle>> {
+  const auth = await requireSession();
   try {
     const validation = updateTrainingCycleSchema.safeParse(data);
     if (!validation.success) {
@@ -224,6 +225,30 @@ export async function updateTrainingCycle(
     }
 
     const { id, ...rest } = validation.data;
+
+    // Verify ownership
+    const existing = await db.query.trainingCycles.findFirst({
+      where: and(
+        eq(trainingCycles.id, id),
+        eq(trainingCycles.userId, auth.user.id),
+      ),
+    });
+    if (!existing) return { success: false, error: "Cycle not found" };
+
+    // Guard: disallow shortening an active cycle past its elapsed time
+    if (rest.durationWeeks && existing.status === "active" && existing.startDate) {
+      const start = new Date(existing.startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const elapsed = Math.floor((today.getTime() - start.getTime()) / 86400000);
+      if (rest.durationWeeks * 7 <= elapsed) {
+        return {
+          success: false,
+          error: "New duration would end the cycle immediately — choose a longer duration",
+        };
+      }
+    }
+
     const [cycle] = await db
       .update(trainingCycles)
       .set(rest as Partial<typeof trainingCycles.$inferInsert>)
@@ -260,6 +285,49 @@ export async function startTrainingCycle(
 
   try {
     // Only one active cycle at a time — deactivate any current active cycle
+    await db
+      .update(trainingCycles)
+      .set({ status: "completed" })
+      .where(
+        and(
+          eq(trainingCycles.userId, userId),
+          eq(trainingCycles.status, "active"),
+        ),
+      );
+
+    const today = new Date().toISOString().split("T")[0];
+    const [cycle] = await db
+      .update(trainingCycles)
+      .set({ status: "active", startDate: today })
+      .where(eq(trainingCycles.id, cycleId))
+      .returning();
+
+    revalidatePath("/cycles");
+    revalidatePath(`/cycles/${cycleId}`);
+    revalidatePath("/");
+    return { success: true, data: cycle };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function restartTrainingCycle(
+  cycleId: number,
+): Promise<ActionResult<TrainingCycle>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
+
+  try {
+    // Verify ownership
+    const existing = await db.query.trainingCycles.findFirst({
+      where: and(
+        eq(trainingCycles.id, cycleId),
+        eq(trainingCycles.userId, userId),
+      ),
+    });
+    if (!existing) return { success: false, error: "Cycle not found" };
+
+    // Deactivate any currently active cycle
     await db
       .update(trainingCycles)
       .set({ status: "completed" })

@@ -5,7 +5,7 @@
  */
 
 import { CycleCompletionBanner } from "@/components/features/CycleCompletionBanner";
-import { DeleteCycleButton, StartCycleButton } from "@/components/features/CycleDetailClient";
+import { DeleteCycleButton, RestartCycleButton, StartCycleButton } from "@/components/features/CycleDetailClient";
 import { CycleScheduleBuilder } from "@/components/features/CycleScheduleBuilder";
 import { getTrainingCycleWithSlots } from "@/lib/actions/training-cycles";
 import { getPrograms } from "@/lib/actions/programs";
@@ -42,13 +42,19 @@ export default async function CycleDetailPage({
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-y-auto pb-nav-safe">
       {/* Header */}
-      <div className="flex items-center px-4 pt-6 pb-2 shrink-0">
+      <div className="flex items-center justify-between px-4 pt-6 pb-2 shrink-0">
         <Link
           href="/cycles"
           className="flex items-center gap-0.5 text-primary active:opacity-70 -ml-1 min-h-[44px]"
         >
           <ChevronLeftIcon className="w-5 h-5" />
           <span className="text-sm font-medium">Back</span>
+        </Link>
+        <Link
+          href={`/cycles/${cycle.id}/edit`}
+          className="text-primary text-sm font-medium min-h-[44px] flex items-center active:opacity-70"
+        >
+          Edit
         </Link>
       </div>
       <div className="px-4 pt-2 pb-4 shrink-0">
@@ -93,7 +99,8 @@ export default async function CycleDetailPage({
         </div>
 
         {/* Destructive zone */}
-        <div className="flex justify-center pt-4">
+        <div className="flex flex-col items-center pt-4 gap-1">
+          <RestartCycleButton cycle={cycle} />
           <DeleteCycleButton cycleId={cycle.id} />
         </div>
       </div>
