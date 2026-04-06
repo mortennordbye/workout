@@ -462,18 +462,20 @@ export async function exportProgram(
 
 export async function importProgram(
   data: unknown,
-): Promise<ActionResult<{ programId: number; programName: string }>> {
+): Promise<ActionResult<{ count: number; programNames: string[] }>> {
   const auth = await requireSession();
 
   const parsed = importProgramSchema.safeParse(data);
   if (!parsed.success) {
-    return { success: false, error: "Invalid program file. Make sure it was exported from this app." };
+    return { success: false, error: "Invalid program data. Make sure you copied the full response from the AI." };
   }
 
-  const importedExercises = parsed.data.program.exercises;
+  // Normalise to array regardless of single vs multi format
+  const programList = "programs" in parsed.data ? parsed.data.programs : [parsed.data.program];
 
-  // Resolve exercises by name — only system exercises and the user's own custom ones
-  const names = [...new Set(importedExercises.map((e) => e.exercise.name))];
+  // Collect all unique exercise names across all programs
+  const allSlots = programList.flatMap((p) => p.exercises);
+  const names = [...new Set(allSlots.map((e) => e.exercise.name))];
   const exerciseMap = new Map<string, number>(); // name → id
 
   if (names.length > 0) {
@@ -491,8 +493,8 @@ export async function importProgram(
     }
   }
 
-  // Create any unrecognised exercises as custom
-  for (const slot of importedExercises) {
+  // Create any unrecognised exercises as custom (only if not already in library)
+  for (const slot of allSlots) {
     const exName = slot.exercise.name;
     if (exerciseMap.has(exName)) continue;
 
@@ -524,50 +526,52 @@ export async function importProgram(
     }
   }
 
-  // Create the program and all exercises/sets in a transaction
+  // Import each program in a transaction
+  const programNames: string[] = [];
   try {
-    const programId = await db.transaction(async (tx) => {
-      const [program] = await tx
-        .insert(programs)
-        .values({ name: parsed.data.program.name, userId: auth.user.id })
-        .returning({ id: programs.id });
+    for (const programData of programList) {
+      await db.transaction(async (tx) => {
+        const [program] = await tx
+          .insert(programs)
+          .values({ name: programData.name, userId: auth.user.id })
+          .returning({ id: programs.id });
 
-      for (const slot of importedExercises) {
-        const exerciseId = exerciseMap.get(slot.exercise.name);
-        if (!exerciseId) continue; // skip if exercise couldn't be resolved
+        for (const slot of programData.exercises) {
+          const exerciseId = exerciseMap.get(slot.exercise.name);
+          if (!exerciseId) continue;
 
-        const [pe] = await tx
-          .insert(programExercises)
-          .values({
-            programId: program.id,
-            exerciseId,
-            orderIndex: slot.orderIndex,
-            notes: slot.notes ?? undefined,
-            overloadIncrementKg: slot.overloadIncrementKg.toString(),
-            overloadIncrementReps: slot.overloadIncrementReps,
-            progressionMode: slot.progressionMode,
-          })
-          .returning({ id: programExercises.id });
+          const [pe] = await tx
+            .insert(programExercises)
+            .values({
+              programId: program.id,
+              exerciseId,
+              orderIndex: slot.orderIndex,
+              notes: slot.notes ?? undefined,
+              overloadIncrementKg: slot.overloadIncrementKg.toString(),
+              overloadIncrementReps: slot.overloadIncrementReps,
+              progressionMode: slot.progressionMode,
+            })
+            .returning({ id: programExercises.id });
 
-        if (slot.sets.length > 0) {
-          await tx.insert(programSets).values(
-            slot.sets.map((s) => ({
-              programExerciseId: pe.id,
-              setNumber: s.setNumber,
-              targetReps: s.targetReps ?? undefined,
-              weightKg: s.weightKg != null ? s.weightKg.toString() : undefined,
-              durationSeconds: s.durationSeconds ?? undefined,
-              restTimeSeconds: s.restTimeSeconds,
-            })),
-          );
+          if (slot.sets.length > 0) {
+            await tx.insert(programSets).values(
+              slot.sets.map((s) => ({
+                programExerciseId: pe.id,
+                setNumber: s.setNumber,
+                targetReps: s.targetReps ?? undefined,
+                weightKg: s.weightKg != null ? s.weightKg.toString() : undefined,
+                durationSeconds: s.durationSeconds ?? undefined,
+                restTimeSeconds: s.restTimeSeconds,
+              })),
+            );
+          }
         }
-      }
-
-      return program.id;
-    });
+      });
+      programNames.push(programData.name);
+    }
 
     revalidatePath("/programs");
-    return { success: true, data: { programId, programName: parsed.data.program.name } };
+    return { success: true, data: { count: programNames.length, programNames } };
   } catch (err) {
     return { success: false, error: String(err) };
   }

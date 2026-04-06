@@ -117,36 +117,31 @@ export function ProgramListClient({ programs: initial, exercises }: Props) {
         .join("\n")}`
     : "";
 
-  const aiPrompt = `Create a workout program in JSON format that I can import into my workout tracking app.
+  const aiPrompt = `Generate one or more workout programs in JSON format for import into my workout tracking app.
 
-Use this exact structure:
+If generating a single program, use:
+{ "version": 1, "program": { "name": "...", "exercises": [...] } }
 
+If generating multiple programs (e.g. a Push/Pull/Legs split), use:
+{ "version": 1, "programs": [ { "name": "...", "exercises": [...] }, ... ] }
+
+Each exercise entry:
 {
-  "version": 1,
-  "program": {
-    "name": "Program Name",
-    "exercises": [
-      {
-        "orderIndex": 0,
-        "progressionMode": "weight",
-        "overloadIncrementKg": 2.5,
-        "overloadIncrementReps": 0,
-        "exercise": {
-          "name": "Bench Press",
-          "category": "strength",
-          "bodyArea": "upper_body",
-          "muscleGroup": "chest",
-          "equipment": "barbell",
-          "movementPattern": "push"
-        },
-        "sets": [
-          { "setNumber": 1, "targetReps": 8, "weightKg": 60, "restTimeSeconds": 90 },
-          { "setNumber": 2, "targetReps": 8, "weightKg": 60, "restTimeSeconds": 90 },
-          { "setNumber": 3, "targetReps": 8, "weightKg": 60, "restTimeSeconds": 90 }
-        ]
-      }
-    ]
-  }
+  "orderIndex": 0,
+  "progressionMode": "weight",
+  "overloadIncrementKg": 2.5,
+  "overloadIncrementReps": 0,
+  "exercise": {
+    "name": "Bench Press",
+    "category": "strength",
+    "bodyArea": "upper_body",
+    "muscleGroup": "chest",
+    "equipment": "barbell",
+    "movementPattern": "push"
+  },
+  "sets": [
+    { "setNumber": 1, "targetReps": 8, "weightKg": 60, "restTimeSeconds": 90 }
+  ]
 }
 
 Rules:
@@ -158,9 +153,11 @@ Rules:
 - progressionMode: "manual", "weight", "smart", or "reps"
 - weightKg: use 0 for bodyweight, null if unknown
 - restTimeSeconds: rest between sets in seconds (e.g. 90)
-- orderIndex: 0-based index for exercise order in the program
+- orderIndex: 0-based index for exercise order within each program
 ${exerciseListText}
-Before generating anything, ask me one simple question: "What kind of program are you looking for?" — let me answer in my own words, and use whatever context I give you to build the program. Then generate the full program in the JSON format above. Output only the raw JSON — no explanation, no markdown, no code block.`;
+IMPORTANT: The list above contains exercises already in my library. Use those exact names whenever possible — only invent a new exercise name if the exercise genuinely does not exist in the list.
+
+Before generating anything, ask me one simple question: "What kind of program are you looking for?" — let me answer in my own words. Use my answer to decide whether to generate one program or multiple. Then output only the raw JSON — no explanation, no markdown, no code block.`;
 
   function handleCopyPrompt() {
     navigator.clipboard.writeText(aiPrompt);
@@ -190,6 +187,7 @@ Before generating anything, ask me one simple question: "What kind of program ar
     setPasteStatus("idle");
     setAiTipOpen(false);
     router.refresh();
+    // result.data.count and result.data.programNames available if needed
   }
 
   function closeAiSheet() {
@@ -367,7 +365,7 @@ Before generating anything, ask me one simple question: "What kind of program ar
             <Sparkles className="w-5 h-5 text-primary flex-none" />
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-primary">Create programs with AI</p>
-              <p className="text-xs text-primary/70 mt-0.5">Get a prompt to generate ready-to-import programs</p>
+              <p className="text-xs text-primary/70 mt-0.5">Generate one or more programs using ChatGPT, Gemini, or Claude</p>
             </div>
           </button>
         </div>
@@ -398,7 +396,7 @@ Before generating anything, ask me one simple question: "What kind of program ar
           {/* Step 2 — open AI */}
           <div className="flex flex-col gap-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Step 2 — Open ChatGPT, Gemini, or Claude</p>
-            <p className="text-sm text-muted-foreground">Paste the prompt and send it. The AI will ask you what the program should look like — just answer its questions. When it&apos;s done, copy the entire response it gives you.</p>
+            <p className="text-sm text-muted-foreground">Paste the prompt and send it. The AI will ask what you&apos;re looking for — just describe it in your own words. You can ask for a single program or multiple (e.g. &quot;a 3-day Push/Pull/Legs split&quot;). When it&apos;s done, copy the entire response.</p>
           </div>
 
           {/* Step 3 — paste response */}

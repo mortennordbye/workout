@@ -211,12 +211,9 @@ export type CreateExerciseInput = z.infer<typeof createExerciseSchema>;
 /**
  * Program Import/Export Schemas
  */
-export const importProgramSchema = z.object({
-  version: z.literal(1),
-  exportedAt: z.string().optional(),
-  program: z.object({
-    name: z.string().min(1).max(100),
-    exercises: z
+const importProgramEntrySchema = z.object({
+  name: z.string().min(1).max(100),
+  exercises: z
       .array(
         z.object({
           orderIndex: z.number().int().min(0),
@@ -291,7 +288,17 @@ export const importProgramSchema = z.object({
         }),
       )
       .max(50),
-  }),
 });
+
+// Accepts either a single program or an array of programs
+export const importProgramSchema = z.object({
+  version: z.literal(1),
+  exportedAt: z.string().optional(),
+}).and(
+  z.union([
+    z.object({ program: importProgramEntrySchema }),
+    z.object({ programs: z.array(importProgramEntrySchema).min(1).max(10) }),
+  ])
+);
 
 export type ImportProgramInput = z.infer<typeof importProgramSchema>;
