@@ -1,9 +1,9 @@
 "use client";
 
 import { dismissTutorial } from "@/lib/actions/onboarding";
-import { CheckCircle, ChevronLeft, Dumbbell, LayoutList, Play, RefreshCw } from "lucide-react";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { CheckCircle, ChevronLeft, Dumbbell, LayoutList, Play, RefreshCw, Smartphone } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 const slides = [
   {
@@ -27,17 +27,26 @@ const slides = [
     body: "The Workout tab shows today's scheduled session. Tap Start, log your sets as you go, then finish when you're done.",
   },
   {
+    icon: Smartphone,
+    title: "Add it to your iPhone",
+    body: "For the best experience, add LogEveryLift to your Home Screen — it opens like a real app with no browser bar.",
+  },
+  {
     icon: CheckCircle,
     title: "You're All Set",
     body: "Start by building a Program, then set up a Cycle — or jump straight in and start a workout right now.",
   },
 ];
 
+const INSTALL_SLIDE = slides.findIndex((s) => s.icon === Smartphone);
+
 export function OnboardingTutorial({ defaultShow = false }: { defaultShow?: boolean }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [visible, setVisible] = useState(defaultShow);
   const [step, setStep] = useState(0);
   const [confirmingSkip, setConfirmingSkip] = useState(false);
+  const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
     function handleShow() {
@@ -97,7 +106,18 @@ export function OnboardingTutorial({ defaultShow = false }: { defaultShow?: bool
       </div>
 
       {/* Slide content or skip confirmation */}
-      <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
+      <div
+        className="flex-1 flex flex-col items-center justify-center px-8 text-center"
+        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
+        onTouchEnd={(e) => {
+          if (touchStartX.current === null || confirmingSkip) return;
+          const delta = touchStartX.current - e.changedTouches[0].clientX;
+          touchStartX.current = null;
+          if (Math.abs(delta) < 50) return;
+          if (delta > 0) next();
+          else if (step > 0) setStep((s) => s - 1);
+        }}
+      >
         {confirmingSkip ? (
           <>
             <p className="text-lg font-semibold mb-2">Skip the intro?</p>
@@ -145,12 +165,32 @@ export function OnboardingTutorial({ defaultShow = false }: { defaultShow?: bool
             ))}
           </div>
 
-          <button
-            onClick={next}
-            className="w-full rounded-xl bg-primary text-primary-foreground py-4 text-sm font-semibold active:opacity-80"
-          >
-            {isLast ? "Get Started" : "Next"}
-          </button>
+          {step === INSTALL_SLIDE ? (
+            <div className="w-full flex flex-col gap-3">
+              <button
+                onClick={async () => {
+                  await dismiss();
+                  router.push("/more/install");
+                }}
+                className="w-full rounded-xl bg-primary text-primary-foreground py-4 text-sm font-semibold active:opacity-80"
+              >
+                Set it up now
+              </button>
+              <button
+                onClick={next}
+                className="w-full rounded-xl bg-muted text-foreground py-4 text-sm font-semibold active:opacity-80"
+              >
+                Maybe later
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={next}
+              className="w-full rounded-xl bg-primary text-primary-foreground py-4 text-sm font-semibold active:opacity-80"
+            >
+              {isLast ? "Get Started" : "Next"}
+            </button>
+          )}
         </div>
       )}
     </div>

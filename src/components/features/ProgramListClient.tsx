@@ -160,7 +160,7 @@ Rules:
 - restTimeSeconds: rest between sets in seconds (e.g. 90)
 - orderIndex: 0-based index for exercise order in the program
 ${exerciseListText}
-Now create: [DESCRIBE YOUR PROGRAM HERE — e.g. "a 3-day push/pull/legs split for intermediate lifters, hypertrophy focus, 4 sets per exercise"]`;
+Before generating anything, ask me one simple question: "What kind of program are you looking for?" — let me answer in my own words, and use whatever context I give you to build the program. Then generate the full program in the JSON format above. Output only the raw JSON — no explanation, no markdown, no code block.`;
 
   function handleCopyPrompt() {
     navigator.clipboard.writeText(aiPrompt);
@@ -375,18 +375,16 @@ Now create: [DESCRIBE YOUR PROGRAM HERE — e.g. "a 3-day push/pull/legs split f
 
       {/* AI tip sheet */}
       <BottomSheet open={aiTipOpen} onClose={closeAiSheet} blur>
-        <div className="bg-background rounded-t-2xl px-4 pt-5 pb-10 flex flex-col gap-4">
+        <div className="bg-background rounded-t-2xl px-4 pt-5 pb-10 flex flex-col gap-5">
           <div className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary flex-none" />
-            <h2 className="text-lg font-semibold">Create programs with AI</h2>
+            <h2 className="text-lg font-semibold">Create a program with AI</h2>
           </div>
 
           {/* Step 1 — copy prompt */}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Step 1 — Copy the prompt</p>
-            <div className="rounded-xl bg-muted px-3 py-3 max-h-36 overflow-y-auto mb-2">
-              <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">{aiPrompt}</pre>
-            </div>
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Step 1 — Copy the prompt</p>
+            <p className="text-sm text-muted-foreground">Tap the button below to copy a ready-made prompt to your clipboard.</p>
             <button
               type="button"
               onClick={handleCopyPrompt}
@@ -397,24 +395,30 @@ Now create: [DESCRIBE YOUR PROGRAM HERE — e.g. "a 3-day push/pull/legs split f
             </button>
           </div>
 
-          {/* Step 2 — paste response */}
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Step 2 — Paste the JSON response</p>
+          {/* Step 2 — open AI */}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Step 2 — Open ChatGPT, Gemini, or Claude</p>
+            <p className="text-sm text-muted-foreground">Paste the prompt and send it. The AI will ask you what the program should look like — just answer its questions. When it&apos;s done, copy the entire response it gives you.</p>
+          </div>
+
+          {/* Step 3 — paste response */}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Step 3 — Paste the response here</p>
             <textarea
               value={pasteJson}
               onChange={(e) => { setPasteJson(e.target.value); setPasteStatus("idle"); setPasteError(null); }}
-              placeholder='Paste the JSON from your AI here…'
-              rows={5}
+              placeholder="Paste the AI's response here…"
+              rows={4}
               className="w-full rounded-xl bg-muted px-3 py-3 text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
             />
             {pasteError && (
-              <p className="text-xs text-destructive mt-1">{pasteError}</p>
+              <p className="text-xs text-destructive">{pasteError}</p>
             )}
             <button
               type="button"
               onClick={handlePasteImport}
               disabled={!pasteJson.trim() || pasteStatus === "importing"}
-              className="w-full mt-2 flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80 disabled:opacity-50"
             >
               {pasteStatus === "importing" ? "Importing…" : "Import Program"}
             </button>

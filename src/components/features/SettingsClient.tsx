@@ -2,7 +2,7 @@
 
 import { useTheme } from "@/components/ui/theme-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { BookOpen, CheckIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { BookOpen, CheckIcon, ChevronLeft, ChevronRight, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useRef } from "react";
 
@@ -237,7 +237,7 @@ export function SettingsClient() {
         {/* ── Help ───────────────────────────────────── */}
         <div>
           <SectionLabel>Help</SectionLabel>
-          <div className="rounded-2xl bg-card overflow-hidden">
+          <div className="rounded-2xl bg-card overflow-hidden divide-y divide-border">
             <button
               onClick={() => window.dispatchEvent(new CustomEvent("show-onboarding"))}
               className="w-full flex items-center gap-3 px-4 py-3.5 active:opacity-60 transition-opacity text-left"
@@ -249,6 +249,17 @@ export function SettingsClient() {
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground flex-none" />
             </button>
+            <Link
+              href="/more/install"
+              className="flex items-center gap-3 px-4 py-3.5 active:opacity-60 transition-opacity"
+            >
+              <Smartphone className="w-5 h-5 text-muted-foreground flex-none" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Add to iPhone</p>
+                <p className="text-xs text-muted-foreground">Install as a Home Screen app</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground flex-none" />
+            </Link>
           </div>
         </div>
 
