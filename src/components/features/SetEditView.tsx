@@ -35,10 +35,13 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
   const weightScrollRef = useRef<HTMLDivElement>(null);
   const repsScrollRef = useRef<HTMLDivElement>(null);
 
-  const WEIGHT_OPTIONS = Array.from({ length: 40 }, (_, i) => (i + 1) * 2.5);
+  const WEIGHT_OPTIONS = [0, ...Array.from({ length: 40 }, (_, i) => (i + 1) * 2.5)];
   const closestWeight = WEIGHT_OPTIONS.reduce((prev, curr) =>
     Math.abs(curr - weight) < Math.abs(prev - weight) ? curr : prev
   );
+
+  const BASE_REPS = Array.from({ length: 20 }, (_, i) => i + 1);
+  const repOptions = reps > 20 ? [...BASE_REPS, reps] : BASE_REPS;
 
   // Scroll reps circles to current value when picker opens or reps change
   useEffect(() => {
@@ -46,7 +49,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
     requestAnimationFrame(() => {
       const el = repsScrollRef.current;
       if (!el) return;
-      const index = Math.min(19, Math.max(0, reps - 1));
+      const index = repOptions.indexOf(reps);
       const itemWidth = 72; // w-16 (64px) + gap-2 (8px)
       el.scrollLeft = Math.max(0, index * itemWidth - el.clientWidth / 2 + 32);
     });
@@ -154,8 +157,8 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
             </div>
 
             {/* Number picker */}
-            <div className="flex gap-2 overflow-x-auto pb-4">
-              {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
+            <div ref={repsScrollRef} className="flex gap-2 overflow-x-auto pb-4">
+              {repOptions.map((num) => (
                 <button
                   key={num}
                   onClick={() => {

@@ -46,8 +46,12 @@ export function ProgramListClient({ programs: initial, exercises }: Props) {
 
   async function handleDelete(programId: number) {
     setDeleting(true);
+    const snapshot = programs;
     setPrograms((prev) => prev.filter((p) => p.id !== programId));
-    await deleteProgram(programId);
+    const result = await deleteProgram(programId);
+    if (!result.success) {
+      setPrograms(snapshot);
+    }
     setPendingDeleteId(null);
     setDeleting(false);
     router.refresh();
@@ -145,6 +149,7 @@ Each exercise entry:
 }
 
 Rules:
+- Do NOT generate rest day programs. Rest days are not workout programs — only generate programs that contain actual exercises. If the user asks for a split that includes rest days (e.g. "Day 4: Rest"), skip those days entirely.
 - category: "strength", "cardio", or "flexibility"
 - bodyArea: "upper_body", "lower_body", "core", "full_body", or "cardio"
 - muscleGroup: "chest", "back", "shoulders", "biceps", "triceps", "forearms", "quads", "hamstrings", "glutes", "calves", "abs", "lower_back", "full_body", or "cardio"

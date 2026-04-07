@@ -54,11 +54,27 @@ export function NewSetView({
   const [weightStr, setWeightStr] = useState(String(Number(lastSet?.weightKg ?? 0)));
   const [durationStr, setDurationStr] = useState(String(Number(lastSet?.durationSeconds ?? 60)));
   const weightScrollRef = useRef<HTMLDivElement>(null);
+  const repsScrollRef = useRef<HTMLDivElement>(null);
 
   const WEIGHT_OPTIONS = [0, ...Array.from({ length: 60 }, (_, i) => (i + 1) * 2.5)];
   const closestWeight = WEIGHT_OPTIONS.reduce((prev, curr) =>
     Math.abs(curr - weight) < Math.abs(prev - weight) ? curr : prev
   );
+
+  const BASE_REPS = Array.from({ length: 30 }, (_, i) => i + 1);
+  const repOptions = reps > 30 ? [...BASE_REPS, reps] : BASE_REPS;
+
+  useEffect(() => {
+    if (!showRepsPicker) return;
+    requestAnimationFrame(() => {
+      const el = repsScrollRef.current;
+      if (!el) return;
+      const index = repOptions.indexOf(reps);
+      const itemWidth = 52; // w-11 (44px) + gap-2 (8px)
+      el.scrollLeft = Math.max(0, index * itemWidth - el.clientWidth / 2 + 22);
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRepsPicker, reps]);
 
   useEffect(() => {
     if (!showWeightPicker) return;
@@ -227,9 +243,9 @@ export function NewSetView({
             </div>
 
             {/* Scroll wheel */}
-            <div className="flex gap-2 overflow-x-auto px-5 pb-3 no-scrollbar cursor-grab active:cursor-grabbing">
-              {Array.from({ length: 30 }, (_, i) => i + 1).map((num, idx) => {
-                const color = gradientColor(idx, 30);
+            <div ref={repsScrollRef} className="flex gap-2 overflow-x-auto px-5 pb-3 no-scrollbar cursor-grab active:cursor-grabbing">
+              {repOptions.map((num, idx) => {
+                const color = gradientColor(Math.min(idx, 29), 30);
                 const selected = reps === num;
                 return (
                   <button

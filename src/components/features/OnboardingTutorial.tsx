@@ -122,7 +122,7 @@ export function OnboardingTutorial({ defaultShow = false }: { defaultShow?: bool
           <>
             <p className="text-lg font-semibold mb-2">Skip the intro?</p>
             <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mb-8">
-              You can find it again in More if needed.
+              You can replay it anytime from Settings in the More tab.
             </p>
             <div className="flex flex-col gap-3 w-full max-w-xs">
               <button
