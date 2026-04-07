@@ -251,13 +251,14 @@ export function WorkoutSetsList({
         }
       }
 
-      // Auto-carry weight to next set
+      // Auto-carry weight to next set (only if next set has no weight configured yet)
       const currentSet = setItems[setIndex]?.set;
       const nextSet = setItems[setIndex + 1]?.set;
       if (
         currentSet &&
         nextSet &&
         currentSet.weightKg != null &&
+        (nextSet.weightKg == null || Number(nextSet.weightKg) === 0) &&
         !activeCompletedSets.has(nextSet.id)
       ) {
         await updateProgramSet({
