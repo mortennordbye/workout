@@ -150,7 +150,11 @@ export function WorkoutSetsClient({
   async function handleDeleteSet(setId: number) {
     setSets((prev) => prev.filter((s) => s.id !== setId));
     await deleteProgramSet(setId, programId, programExerciseId);
-    router.push(`/programs/${programId}/exercises/${programExerciseId}?edit=true`);
+    router.push(
+      isWorkout
+        ? `/programs/${programId}/workout/exercises/${programExerciseId}?edit=true`
+        : `/programs/${programId}/exercises/${programExerciseId}?edit=true`,
+    );
   }
 
   function modeBadgeLabel(): string {
