@@ -29,6 +29,7 @@ type Exercise = {
   exerciseId: number;
   name: string;
   sets: ProgramSet[];
+  isTimed?: boolean;
 };
 
 type Props = {
@@ -128,7 +129,7 @@ export function WorkoutExerciseList({
             programId={programId}
             isEditing={isEditing}
             isCompleted={isExerciseCompleted(exercise)}
-            summary={buildSetSummary(exercise.sets)}
+            summary={buildSetSummary(exercise.sets, exercise.isTimed)}
             onToggle={() => { void toggleExercise(exercise); }}
             onDelete={() => onDeleteExercise?.(exercise.id)}
           />

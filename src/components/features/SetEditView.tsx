@@ -3,6 +3,7 @@
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { updateProgramSet } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
+import { formatTime } from "@/lib/utils/format";
 import type { ProgramSet } from "@/types/workout";
 import { Loader2Icon } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -31,7 +32,9 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
   const [duration, setDuration] = useState(Number(set.durationSeconds ?? 60));
   const [repsStr, setRepsStr] = useState(String(override?.targetReps ?? set.targetReps ?? 10));
   const [weightStr, setWeightStr] = useState(String(override?.weightKg ?? Number(set.weightKg ?? 0)));
-  const [durationStr, setDurationStr] = useState(String(Number(set.durationSeconds ?? 60)));
+  const initialDuration = Number(set.durationSeconds ?? 60);
+  const [durationMinStr, setDurationMinStr] = useState(String(Math.floor(initialDuration / 60)));
+  const [durationSecStr, setDurationSecStr] = useState(String(initialDuration % 60));
   const weightScrollRef = useRef<HTMLDivElement>(null);
   const repsScrollRef = useRef<HTMLDivElement>(null);
 
@@ -92,11 +95,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
           >
             <span className="text-base font-medium">Duration</span>
             <span className="text-base text-muted-foreground">
-              {duration < 60
-                ? `${duration}s`
-                : duration % 60 === 0
-                  ? `${duration / 60}m`
-                  : `${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, "0")}`}
+              {formatTime(duration)}
             </span>
           </button>
         ) : (
@@ -214,6 +213,8 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
                   key={seconds}
                   onClick={() => {
                     setDuration(seconds);
+                    setDurationMinStr(String(Math.floor(seconds / 60)));
+                    setDurationSecStr(String(seconds % 60));
                     setShowDurationPicker(false);
                   }}
                   className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all active:scale-95 ${
@@ -243,19 +244,40 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
                 </button>
               ))}
             </div>
-            <div className="mt-4">
-              <input
-                type="text"
-                inputMode="numeric"
-                value={durationStr}
-                onChange={(e) => {
-                  const val = e.target.value.replace(/\D/g, "");
-                  setDurationStr(val);
-                  setDuration(Math.max(0, parseInt(val) || 0));
-                }}
-                onBlur={() => { const n = Math.max(0, parseInt(durationStr) || 0); setDuration(n); setDurationStr(String(n)); }}
-                className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
-              />
+            <div className="mt-4 flex items-end justify-center gap-2">
+              <div className="flex flex-col items-center gap-1">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={durationMinStr}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setDurationMinStr(val);
+                    const mins = Math.max(0, Math.min(59, parseInt(val) || 0));
+                    setDuration(mins * 60 + (duration % 60));
+                  }}
+                  onBlur={() => setDurationMinStr(String(Math.floor(duration / 60)))}
+                  className="w-24 rounded-xl bg-background border border-border px-2 py-3 text-center text-3xl font-bold outline-none focus:ring-2 ring-primary"
+                />
+                <span className="text-xs text-muted-foreground">min</span>
+              </div>
+              <span className="text-3xl font-bold pb-6">:</span>
+              <div className="flex flex-col items-center gap-1">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={durationSecStr}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setDurationSecStr(val);
+                    const secs = Math.max(0, Math.min(59, parseInt(val) || 0));
+                    setDuration(Math.floor(duration / 60) * 60 + secs);
+                  }}
+                  onBlur={() => setDurationSecStr(String(duration % 60))}
+                  className="w-24 rounded-xl bg-background border border-border px-2 py-3 text-center text-3xl font-bold outline-none focus:ring-2 ring-primary"
+                />
+                <span className="text-xs text-muted-foreground">sec</span>
+              </div>
             </div>
           </div>
       </BottomSheet>

@@ -26,6 +26,7 @@ type Exercise = {
   exerciseId: number;
   name: string;
   sets: ProgramSet[];
+  isTimed?: boolean;
 };
 
 type Props = {
