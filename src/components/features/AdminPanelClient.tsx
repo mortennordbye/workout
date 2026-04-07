@@ -1,8 +1,9 @@
 "use client";
 
-import { adminResetUserData, adminSeedFakeData } from "@/lib/actions/admin";
+import { adminResetUserData, adminSeedFakeData, adminPrepareDemoUser } from "@/lib/actions/admin";
+import { authClient } from "@/lib/auth-client";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { BarChart3, ChevronLeft, ChevronRight, DatabaseZap, Key, Trash2, Users } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, DatabaseZap, Key, MonitorPlay, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -10,10 +11,54 @@ type Status = { type: "success" | "error"; message: string } | null;
 
 export function AdminPanelClient() {
   const workoutSession = useWorkoutSession();
+  const [demoLoading, setDemoLoading] = useState(false);
+  const [demoResetLoading, setDemoResetLoading] = useState(false);
   const [seedLoading, setSeedLoading] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [status, setStatus] = useState<Status>(null);
+
+  async function handleEnterDemo() {
+    setDemoLoading(true);
+    setStatus(null);
+    try {
+      const result = await adminPrepareDemoUser();
+      if (!result.success) {
+        setStatus({ type: "error", message: result.error });
+        return;
+      }
+      // Backup admin's active workout state so it can be restored on exit
+      const activeWorkout = localStorage.getItem("activeWorkout");
+      const restTimers = localStorage.getItem("restTimerEnds");
+      if (activeWorkout !== null) localStorage.setItem("adminWorkoutBackup", activeWorkout);
+      if (restTimers !== null) localStorage.setItem("adminRestTimersBackup", restTimers);
+      localStorage.removeItem("activeWorkout");
+      localStorage.removeItem("restTimerEnds");
+
+      await authClient.admin.impersonateUser({ userId: result.data.userId });
+      window.location.href = "/programs";
+    } catch (err) {
+      setStatus({ type: "error", message: String(err) });
+      setDemoLoading(false);
+    }
+  }
+
+  async function handleResetDemo() {
+    setDemoResetLoading(true);
+    setStatus(null);
+    try {
+      const result = await adminPrepareDemoUser(true);
+      if (result.success) {
+        setStatus({ type: "success", message: "Demo data refreshed." });
+      } else {
+        setStatus({ type: "error", message: result.error });
+      }
+    } catch (err) {
+      setStatus({ type: "error", message: String(err) });
+    } finally {
+      setDemoResetLoading(false);
+    }
+  }
 
   async function handleSeed() {
     setSeedLoading(true);
@@ -81,6 +126,46 @@ export function AdminPanelClient() {
             {status.message}
           </div>
         )}
+
+        <section className="space-y-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">
+            Demo
+          </h2>
+          <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
+            <button
+              onClick={handleEnterDemo}
+              disabled={demoLoading || demoResetLoading || seedLoading || resetLoading}
+              className="w-full flex items-center gap-4 px-4 min-h-[64px] active:bg-muted/50 transition-colors disabled:opacity-50 text-left"
+            >
+              <MonitorPlay className="w-5 h-5 text-muted-foreground flex-none" />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium">Enter Demo Mode</div>
+                <div className="text-sm text-muted-foreground">
+                  PPL cycle with 6 weeks of history
+                </div>
+              </div>
+              {demoLoading && (
+                <span className="text-sm text-muted-foreground">Loading…</span>
+              )}
+            </button>
+            <button
+              onClick={handleResetDemo}
+              disabled={demoLoading || demoResetLoading || seedLoading || resetLoading}
+              className="w-full flex items-center gap-4 px-4 min-h-[64px] active:bg-muted/50 transition-colors disabled:opacity-50 text-left"
+            >
+              <DatabaseZap className="w-5 h-5 text-muted-foreground flex-none" />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium">Refresh Demo Data</div>
+                <div className="text-sm text-muted-foreground">
+                  Wipe and re-seed the demo account
+                </div>
+              </div>
+              {demoResetLoading && (
+                <span className="text-sm text-muted-foreground">Running…</span>
+              )}
+            </button>
+          </div>
+        </section>
 
         <section className="space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-1">

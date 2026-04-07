@@ -1,6 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
+import { DEMO_USER_EMAIL } from "@/lib/constants/demo";
 import { BarChart2, CalendarDays, ChevronRight, Clock, Library, LogOut, Settings, Shield, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -56,11 +57,29 @@ export function MoreClient({ role }: { role: string }) {
   const { data: session } = authClient.useSession();
   const [stopping, setStopping] = useState(false);
   const isImpersonating = !!session?.session.impersonatedBy;
+  const isDemoMode = isImpersonating && session?.user.email === DEMO_USER_EMAIL;
 
   async function handleStopImpersonating() {
     setStopping(true);
+    if (isDemoMode) {
+      // Restore admin's active workout state that was backed up on enter
+      const workoutBackup = localStorage.getItem("adminWorkoutBackup");
+      const timersBackup = localStorage.getItem("adminRestTimersBackup");
+      localStorage.removeItem("adminWorkoutBackup");
+      localStorage.removeItem("adminRestTimersBackup");
+      if (workoutBackup !== null) {
+        localStorage.setItem("activeWorkout", workoutBackup);
+      } else {
+        localStorage.removeItem("activeWorkout");
+      }
+      if (timersBackup !== null) {
+        localStorage.setItem("restTimerEnds", timersBackup);
+      } else {
+        localStorage.removeItem("restTimerEnds");
+      }
+    }
     await authClient.admin.stopImpersonating();
-    window.location.href = "/more/admin/users";
+    window.location.href = "/more/admin";
   }
 
   return (
@@ -80,10 +99,10 @@ export function MoreClient({ role }: { role: string }) {
               <LogOut className="w-5 h-5 text-orange-500 flex-none" />
               <div className="flex-1 text-left">
                 <div className="font-medium text-orange-500">
-                  {stopping ? "Returning…" : "Return to your account"}
+                  {stopping ? "Returning…" : isDemoMode ? "Exit Demo Mode" : "Return to your account"}
                 </div>
                 <div className="text-sm text-orange-500/70">
-                  Viewing as {session?.user.name}
+                  {isDemoMode ? "Return to your own account" : `Viewing as ${session?.user.name}`}
                 </div>
               </div>
             </button>
