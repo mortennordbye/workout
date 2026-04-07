@@ -1,15 +1,51 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
+import { updateUserProfile } from "@/lib/actions/profile";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { CheckCircle2, KeyRound, LogOut } from "lucide-react";
 import { useState } from "react";
+
+type Gender = "male" | "female" | "other" | "prefer_not_to_say";
+type Goal = "strength" | "muscle_gain" | "weight_loss" | "endurance" | "general_fitness";
+type ExperienceLevel = "beginner" | "intermediate" | "advanced";
+
+interface UserProfile {
+  gender: Gender | null;
+  birthYear: number | null;
+  heightCm: number | null;
+  weightKg: number | null;
+  goal: Goal | null;
+  experienceLevel: ExperienceLevel | null;
+}
 
 interface AccountClientProps {
   name: string;
   email: string;
   role: string;
+  profile: UserProfile;
 }
+
+const GOAL_LABELS: Record<Goal, string> = {
+  strength: "Strength",
+  muscle_gain: "Muscle Gain",
+  weight_loss: "Weight Loss",
+  endurance: "Endurance",
+  general_fitness: "General Fitness",
+};
+
+const EXPERIENCE_LABELS: Record<ExperienceLevel, string> = {
+  beginner: "Beginner",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
+};
+
+const GENDER_LABELS: Record<Gender, string> = {
+  male: "Male",
+  female: "Female",
+  other: "Other",
+  prefer_not_to_say: "Prefer not to say",
+};
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
@@ -19,13 +55,88 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function AccountClient({ name, email, role }: AccountClientProps) {
+function PickerRow<T extends string>({
+  label,
+  value,
+  options,
+  labelMap,
+  onChange,
+}: {
+  label: string;
+  value: T | null;
+  options: T[];
+  labelMap: Record<T, string>;
+  onChange: (v: T | null) => void;
+}) {
+  return (
+    <div className="px-4 py-3.5">
+      <p className="text-xs text-muted-foreground mb-2">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            onClick={() => onChange(value === opt ? null : opt)}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors active:opacity-70 ${
+              value === opt
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-transparent text-foreground border-border"
+            }`}
+          >
+            {labelMap[opt]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function NumberRow({
+  label,
+  value,
+  unit,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: number | null;
+  unit: string;
+  placeholder: string;
+  onChange: (v: number | null) => void;
+}) {
+  return (
+    <div className="px-4 py-3.5 flex items-center gap-3">
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          inputMode="numeric"
+          placeholder={placeholder}
+          value={value ?? ""}
+          onChange={(e) => {
+            const v = e.target.value;
+            onChange(v === "" ? null : Number(v));
+          }}
+          className="w-20 rounded-lg bg-muted px-3 py-2 text-sm text-right outline-none focus:ring-2 ring-primary"
+        />
+        <span className="text-sm text-muted-foreground w-6">{unit}</span>
+      </div>
+    </div>
+  );
+}
+
+export function AccountClient({ name, email, role, profile: initialProfile }: AccountClientProps) {
   const [showPasswordSheet, setShowPasswordSheet] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordStatus, setPasswordStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [passwordError, setPasswordError] = useState<string | null>(null);
+
+  const [profile, setProfile] = useState<UserProfile>(initialProfile);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
 
   async function handleSignOut() {
     await authClient.signOut();
@@ -66,6 +177,16 @@ export function AccountClient({ name, email, role }: AccountClientProps) {
     }
   }
 
+  async function handleSaveProfile() {
+    setProfileSaving(true);
+    const result = await updateUserProfile(profile);
+    setProfileSaving(false);
+    if (result.success) {
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 2000);
+    }
+  }
+
   return (
     <>
       <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-2 pb-nav-safe-lg flex flex-col gap-6">
@@ -85,6 +206,64 @@ export function AccountClient({ name, email, role }: AccountClientProps) {
             <div className="px-4 py-3.5">
               <p className="text-xs text-muted-foreground mb-0.5">Role</p>
               <p className="text-sm font-medium capitalize">{role}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Body & Goals */}
+        <div>
+          <SectionLabel>Body &amp; Goals</SectionLabel>
+          <div className="rounded-2xl bg-card overflow-hidden divide-y divide-border/50">
+            <PickerRow
+              label="Goal"
+              value={profile.goal}
+              options={["strength", "muscle_gain", "weight_loss", "endurance", "general_fitness"]}
+              labelMap={GOAL_LABELS}
+              onChange={(v) => setProfile((p) => ({ ...p, goal: v }))}
+            />
+            <PickerRow
+              label="Experience level"
+              value={profile.experienceLevel}
+              options={["beginner", "intermediate", "advanced"]}
+              labelMap={EXPERIENCE_LABELS}
+              onChange={(v) => setProfile((p) => ({ ...p, experienceLevel: v }))}
+            />
+            <PickerRow
+              label="Gender"
+              value={profile.gender}
+              options={["male", "female", "other", "prefer_not_to_say"]}
+              labelMap={GENDER_LABELS}
+              onChange={(v) => setProfile((p) => ({ ...p, gender: v }))}
+            />
+            <NumberRow
+              label="Year of birth"
+              value={profile.birthYear}
+              unit=""
+              placeholder="1990"
+              onChange={(v) => setProfile((p) => ({ ...p, birthYear: v }))}
+            />
+            <NumberRow
+              label="Height"
+              value={profile.heightCm}
+              unit="cm"
+              placeholder="180"
+              onChange={(v) => setProfile((p) => ({ ...p, heightCm: v }))}
+            />
+            <NumberRow
+              label="Body weight"
+              value={profile.weightKg}
+              unit="kg"
+              placeholder="80"
+              onChange={(v) => setProfile((p) => ({ ...p, weightKg: v }))}
+            />
+            <div className="px-4 py-3">
+              <button
+                onClick={handleSaveProfile}
+                disabled={profileSaving || profileSaved}
+                className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-50 active:opacity-80"
+              >
+                {profileSaved ? "Saved" : profileSaving ? "Saving…" : "Save"}
+              </button>
             </div>
           </div>
         </div>

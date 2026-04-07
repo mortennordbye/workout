@@ -8,12 +8,30 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+type UserProfile = {
+  gender: string | null;
+  birthYear: number | null;
+  heightCm: number | null;
+  weightKg: number | null;
+  goal: string | null;
+  experienceLevel: string | null;
+};
+
+const GOAL_LABELS: Record<string, string> = {
+  strength: "Strength",
+  muscle_gain: "Muscle Gain",
+  weight_loss: "Weight Loss",
+  endurance: "Endurance",
+  general_fitness: "General Fitness",
+};
+
 type Props = {
   programs: Program[];
   exercises: Exercise[];
+  userProfile: UserProfile;
 };
 
-export function ProgramListClient({ programs: initial, exercises }: Props) {
+export function ProgramListClient({ programs: initial, exercises, userProfile }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [programs, setPrograms] = useState(initial);
@@ -121,7 +139,18 @@ export function ProgramListClient({ programs: initial, exercises }: Props) {
         .join("\n")}`
     : "";
 
-  const aiPrompt = `Generate one or more workout programs in JSON format for import into my workout tracking app.
+  const profileLines: string[] = [];
+  if (userProfile.goal) profileLines.push(`Goal: ${GOAL_LABELS[userProfile.goal] ?? userProfile.goal}`);
+  if (userProfile.experienceLevel) profileLines.push(`Experience level: ${userProfile.experienceLevel}`);
+  if (userProfile.gender && userProfile.gender !== "prefer_not_to_say") profileLines.push(`Gender: ${userProfile.gender}`);
+  if (userProfile.birthYear) profileLines.push(`Age: ${new Date().getFullYear() - userProfile.birthYear}`);
+  if (userProfile.heightCm) profileLines.push(`Height: ${userProfile.heightCm} cm`);
+  if (userProfile.weightKg) profileLines.push(`Body weight: ${userProfile.weightKg} kg`);
+  const profileBlock = profileLines.length > 0
+    ? `\nAbout me:\n${profileLines.map((l) => `- ${l}`).join("\n")}\n`
+    : "";
+
+  const aiPrompt = `Generate one or more workout programs in JSON format for import into my workout tracking app.${profileBlock}
 
 If generating a single program, use:
 { "version": 1, "program": { "name": "...", "exercises": [...] } }

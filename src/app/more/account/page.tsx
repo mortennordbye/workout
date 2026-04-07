@@ -1,5 +1,8 @@
 import { AccountClient } from "@/components/features/AccountClient";
+import { db } from "@/db";
+import { users } from "@/db/schema/users";
 import { requireSession } from "@/lib/utils/session";
+import { eq } from "drizzle-orm";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -7,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AccountPage() {
   const session = await requireSession();
+  const user = await db.query.users.findFirst({ where: eq(users.id, session.user.id) });
 
   return (
     <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col overflow-hidden">
@@ -25,6 +29,14 @@ export default async function AccountPage() {
         name={session.user.name}
         email={session.user.email}
         role={(session.user as { role?: string }).role ?? "user"}
+        profile={{
+          gender: user?.gender ?? null,
+          birthYear: user?.birthYear ?? null,
+          heightCm: user?.heightCm ?? null,
+          weightKg: user?.weightKg ?? null,
+          goal: user?.goal ?? null,
+          experienceLevel: user?.experienceLevel ?? null,
+        }}
       />
     </div>
   );

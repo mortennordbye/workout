@@ -43,6 +43,13 @@
       "when": 1775540524245,
       "tag": "0005_sturdy_vindicator",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1775577594402,
+      "tag": "0006_rapid_scrambler",
+      "breakpoints": true
     }
   ]
 }
