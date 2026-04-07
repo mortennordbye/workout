@@ -90,7 +90,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
         {isTimed ? (
           /* Duration row for timed exercises */
           <button
-            onClick={() => { setDurationStr(String(duration)); setShowDurationPicker(true); }}
+            onClick={() => { setShowDurationPicker(true); }}
             className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
           >
             <span className="text-base font-medium">Duration</span>

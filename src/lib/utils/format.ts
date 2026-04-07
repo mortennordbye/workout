@@ -19,7 +19,12 @@ export function restToken(s: ProgramSet): string {
 
 export function buildSetSummary(sets: ProgramSet[], isTimed = false): string {
   if (sets.length === 0) return "";
-  const tokens = sets.map((s) => `${setToken(s, isTimed)}; ${restToken(s)}`);
+  const tokens = sets.map((s) => {
+    const rest = Number(s.restTimeSeconds ?? 0);
+    return rest > 0
+      ? `${setToken(s, isTimed)}; ${restToken(s)}`
+      : setToken(s, isTimed);
+  });
   return tokens.length > 3
     ? tokens.slice(0, 3).join("; ") + "; ..."
     : tokens.join("; ");
