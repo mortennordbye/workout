@@ -2,6 +2,7 @@ import { BottomNav } from "@/components/ui/bottom-nav";
 import { ImpersonationBanner } from "@/components/features/ImpersonationBanner";
 import { OnboardingTutorialLoader } from "@/components/features/OnboardingTutorialLoader";
 import { PageTransition } from "@/components/features/PageTransition";
+import { ViewportFix } from "@/components/features/ViewportFix";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { WorkoutSessionProvider } from "@/contexts/workout-session-context";
 import type { Metadata, Viewport } from "next";
@@ -23,7 +24,11 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   width: "device-width",
   initialScale: 1,
-  interactiveWidget: "resizes-visual",
+  // "overlays-content": keyboard overlays the page without resizing or offsetting
+  // the visual viewport. This is the only mode that prevents iOS from setting
+  // visualViewport.offsetLeft/offsetTop, which is what causes the permanent
+  // horizontal/vertical shift after a keyboard interaction.
+  interactiveWidget: "overlays-content",
 };
 
 export const metadata: Metadata = {
@@ -50,6 +55,7 @@ export default function RootLayout({
         className={`${inter.variable} ${geistMono.variable} antialiased pb-nav-safe`}
       >
         <ThemeProvider>
+          <ViewportFix />
           <ImpersonationBanner />
           <WorkoutSessionProvider>
             <PageTransition>{children}</PageTransition>

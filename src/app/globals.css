@@ -48,11 +48,22 @@
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-html,
-body {
-  overflow: hidden;
+html {
   height: 100%;
-  touch-action: pan-y;
+  overflow: hidden;
+}
+
+body {
+  /* Prevent iOS from scrolling the body when the keyboard appears.
+     Without position:fixed, iOS sets window.scrollY on input focus and
+     never resets it, leaving the app in a permanently shifted state.
+     All scrolling must happen in explicit overflow-y:auto child containers. */
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
 }
 
 :root {
