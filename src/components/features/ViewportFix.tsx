@@ -84,7 +84,7 @@ export function ViewportFix() {
      * - Keyboard open  → scroll focused input above the keyboard.
      */
     function onViewportResize() {
-      const kbHeight = Math.max(0, window.innerHeight - vv.height);
+      const kbHeight = Math.max(0, window.innerHeight - (vv?.height ?? window.innerHeight));
 
       // Keep a CSS variable in sync so BottomSheet can shift above the keyboard.
       document.documentElement.style.setProperty("--kb-height", `${kbHeight}px`);
