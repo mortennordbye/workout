@@ -89,12 +89,23 @@ export async function deleteCustomExercise(id: number): Promise<ActionResult<und
   const auth = await requireSession();
   try {
     const existing = await db.query.exercises.findFirst({
-      where: (ex, { eq, and }) => and(eq(ex.id, id), eq(ex.userId, auth.user.id)),
+      where: (ex, { eq, and, or, isNull }) =>
+        and(
+          eq(ex.id, id),
+          eq(ex.isCustom, true),
+          or(eq(ex.userId, auth.user.id), isNull(ex.userId)),
+        ),
     });
     if (!existing) {
       return { success: false, error: "Exercise not found or not deletable" };
     }
-    await db.delete(exercises).where(and(eq(exercises.id, id), eq(exercises.userId, auth.user.id)));
+    await db.delete(exercises).where(
+      and(
+        eq(exercises.id, id),
+        eq(exercises.isCustom, true),
+        or(eq(exercises.userId, auth.user.id), isNull(exercises.userId)),
+      ),
+    );
     return { success: true, data: undefined };
   } catch (error) {
     console.error("Error deleting exercise:", error);
