@@ -64,6 +64,17 @@ body {
   right: 0;
   bottom: 0;
   overflow: hidden;
+  /* Prevent horizontal pan gestures from shifting the viewport. */
+  touch-action: pan-y pinch-zoom;
+}
+
+/* iOS Safari auto-zooms when a focused input has font-size < 16px, which
+   shifts the visual viewport horizontally and causes the "page shifted left"
+   bug. Ensuring all form controls compute to ≥ 16px prevents this entirely. */
+input,
+textarea,
+select {
+  font-size: max(16px, 1em);
 }
 
 :root {
