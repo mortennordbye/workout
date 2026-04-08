@@ -137,6 +137,7 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
   const [profile, setProfile] = useState<UserProfile>(initialProfile);
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   async function handleSignOut() {
     await authClient.signOut();
@@ -179,11 +180,14 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
 
   async function handleSaveProfile() {
     setProfileSaving(true);
+    setProfileError(null);
     const result = await updateUserProfile(profile);
     setProfileSaving(false);
     if (result.success) {
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 2000);
+    } else {
+      setProfileError(result.error ?? "Failed to save profile");
     }
   }
 
@@ -240,14 +244,14 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
               value={profile.birthYear}
               unit=""
               placeholder="1990"
-              onChange={(v) => setProfile((p) => ({ ...p, birthYear: v }))}
+              onChange={(v) => setProfile((p) => ({ ...p, birthYear: v != null ? Math.round(v) : null }))}
             />
             <NumberRow
               label="Height"
               value={profile.heightCm}
               unit="cm"
               placeholder="180"
-              onChange={(v) => setProfile((p) => ({ ...p, heightCm: v }))}
+              onChange={(v) => setProfile((p) => ({ ...p, heightCm: v != null ? Math.round(v) : null }))}
             />
             <NumberRow
               label="Body weight"
@@ -256,7 +260,7 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
               placeholder="80"
               onChange={(v) => setProfile((p) => ({ ...p, weightKg: v }))}
             />
-            <div className="px-4 py-3">
+            <div className="px-4 py-3 flex flex-col gap-2">
               <button
                 onClick={handleSaveProfile}
                 disabled={profileSaving || profileSaved}
@@ -264,6 +268,9 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
               >
                 {profileSaved ? "Saved" : profileSaving ? "Saving…" : "Save"}
               </button>
+              {profileError && (
+                <p className="text-xs text-destructive text-center">{profileError}</p>
+              )}
             </div>
           </div>
         </div>
