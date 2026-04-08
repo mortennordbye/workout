@@ -5,7 +5,7 @@ import { updateProgramSet } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { formatTime } from "@/lib/utils/format";
 import type { ProgramSet } from "@/types/workout";
-import { Loader2Icon } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -135,7 +135,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
         >
           {saving ? (
             <span className="flex items-center justify-center gap-2">
-              <Loader2Icon className="h-5 w-5 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
               Saving...
             </span>
           ) : (

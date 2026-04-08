@@ -52,7 +52,7 @@ export default async function SetEditPage({ params }: Props) {
           <ChevronLeftIcon className="h-5 w-5" />
           <span className="text-sm font-medium">Sets</span>
         </Link>
-        <div className="text-lg font-bold">Set Edit</div>
+        <div className="text-lg font-bold">Edit Set</div>
         <div className="w-16" /> {/* Spacer for centering */}
       </div>
 

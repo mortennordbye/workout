@@ -4,7 +4,7 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { addProgramSet } from "@/lib/actions/programs";
 import { formatTime } from "@/lib/utils/format";
 import type { ProgramSet } from "@/types/workout";
-import { Loader2Icon } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -162,7 +162,7 @@ export function NewSetView({
         >
           {saving ? (
             <span className="flex items-center justify-center gap-2">
-              <Loader2Icon className="h-5 w-5 animate-spin" />
+              <Loader2 className="h-5 w-5 animate-spin" />
               Saving...
             </span>
           ) : (
@@ -175,12 +175,12 @@ export function NewSetView({
       <BottomSheet open={showDurationPicker} onClose={() => setShowDurationPicker(false)} blur>
         <div className="w-full bg-card rounded-t-3xl pb-10">
           <div className="flex items-center justify-between px-5 pt-6 pb-5">
-            <span className="text-sm font-semibold uppercase tracking-wider text-foreground">
+            <span className="text-sm text-muted-foreground uppercase tracking-wider">
               Select Duration
             </span>
             <button
               onClick={() => setShowDurationPicker(false)}
-              className="px-4 py-1.5 rounded-full border border-primary text-primary text-sm font-medium active:bg-primary/10 transition-colors"
+              className="text-primary text-sm font-medium"
             >
               Done
             </button>
@@ -249,7 +249,7 @@ export function NewSetView({
           <div className="w-full bg-card rounded-t-3xl pb-10">
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-6 pb-5">
-              <span className="text-sm font-semibold uppercase tracking-wider text-foreground">
+              <span className="text-sm text-muted-foreground uppercase tracking-wider">
                 Select Reps
               </span>
               <button
@@ -258,7 +258,7 @@ export function NewSetView({
                   setShowRepsKeypad((v) => !v);
                   setTimeout(() => repsInputRef.current?.focus(), 50);
                 }}
-                className="px-4 py-1.5 rounded-full border border-primary text-primary text-sm font-medium active:bg-primary/10 transition-colors"
+                className="text-primary text-sm font-medium"
               >
                 Keypad
               </button>
@@ -314,7 +314,7 @@ export function NewSetView({
           <div className="w-full bg-card rounded-t-3xl pb-10">
             {/* Header */}
             <div className="flex items-center justify-between px-5 pt-6 pb-5">
-              <span className="text-sm font-semibold uppercase tracking-wider text-foreground">
+              <span className="text-sm text-muted-foreground uppercase tracking-wider">
                 Select Weight
               </span>
               <button
@@ -323,7 +323,7 @@ export function NewSetView({
                   setShowWeightKeypad((v) => !v);
                   setTimeout(() => weightInputRef.current?.focus(), 50);
                 }}
-                className="px-4 py-1.5 rounded-full border border-primary text-primary text-sm font-medium active:bg-primary/10 transition-colors"
+                className="text-primary text-sm font-medium"
               >
                 Keypad
               </button>

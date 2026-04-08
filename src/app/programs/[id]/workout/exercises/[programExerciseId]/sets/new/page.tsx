@@ -45,7 +45,7 @@ export default async function WorkoutNewSetPage({ params }: Props) {
           className="flex items-center gap-1 text-primary"
         >
           <ChevronLeftIcon className="h-5 w-5" />
-          <span className="text-sm font-medium">Back</span>
+          <span className="text-sm font-medium">Sets</span>
         </Link>
         <div className="text-xl font-bold">Add Set</div>
         <div className="w-16" />

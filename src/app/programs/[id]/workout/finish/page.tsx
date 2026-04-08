@@ -3,42 +3,19 @@
 import {
   completeWorkoutSession,
   createWorkoutSession,
+  deleteWorkoutSession,
 } from "@/lib/actions/workout-sessions";
-import { updateProgramSet } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
+import { BottomSheet } from "@/components/ui/BottomSheet";
 import { WORKOUT_FEELINGS, type WorkoutFeeling } from "@/lib/validators/workout";
-import { Loader2 } from "lucide-react";
+import { formatDateLong, formatDuration, formatTimeOfDay, toDateString } from "@/lib/utils/format";
+import { Loader2, ChevronLeftIcon } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useMemo, useState } from "react";
+import Link from "next/link";
 
 type Feeling = WorkoutFeeling;
 const FEELINGS: Feeling[] = [...WORKOUT_FEELINGS];
-
-function formatDate(d: Date): string {
-  return d.toLocaleDateString("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-  });
-}
-
-function formatTime(d: Date): string {
-  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
-}
-
-function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h}h ${m}min` : `${h}h`;
-}
-
-function toDateString(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 function FinishContent() {
   const router = useRouter();
@@ -61,6 +38,7 @@ function FinishContent() {
 
   const [feeling, setFeeling] = useState<Feeling>("Good");
   const [saving, setSaving] = useState(false);
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const saveSession = async () => {
     const existingSessionId = workoutSession?.sessionId;
@@ -86,26 +64,28 @@ function FinishContent() {
     setSaving(false);
   };
 
-  const handleSaveAndUpdateProgram = async () => {
+  const handleDiscard = async () => {
     setSaving(true);
-    if (workoutSession) {
-      for (const [setIdStr, override] of Object.entries(workoutSession.overrides)) {
-        await updateProgramSet({
-          id: Number(setIdStr),
-          targetReps: override.targetReps,
-          weightKg: override.weightKg,
-        });
-      }
+    if (workoutSession?.sessionId) {
+      await deleteWorkoutSession(workoutSession.sessionId);
     }
-    await saveSession();
-    setSaving(false);
+    workoutSession?.clearActiveWorkout();
+    router.replace("/");
   };
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col pb-nav-safe">
       {/* Header */}
-      <div className="px-4 pt-6 pb-4 shrink-0 text-center">
+      <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
+        <Link
+          href=".."
+          className="flex items-center gap-1 text-primary"
+        >
+          <ChevronLeftIcon className="h-5 w-5" />
+          <span className="text-sm font-medium">Back</span>
+        </Link>
         <div className="text-lg font-bold">Workout Complete</div>
+        <div className="w-16" />
       </div>
 
       <div className="flex-1 px-4 flex flex-col justify-between overflow-y-auto">
@@ -114,11 +94,11 @@ function FinishContent() {
           <div className="bg-card rounded-2xl p-5 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Date</span>
-              <span className="text-sm font-medium">{formatDate(startTime)}</span>
+              <span className="text-sm font-medium">{formatDateLong(startTime)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Started</span>
-              <span className="text-sm font-medium">{formatTime(startTime)}</span>
+              <span className="text-sm font-medium">{formatTimeOfDay(startTime)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Duration</span>
@@ -149,25 +129,10 @@ function FinishContent() {
               ))}
             </div>
           </div>
-
         </div>
 
-        {/* Save buttons */}
+        {/* Action buttons */}
         <div className="pt-6 pb-2 space-y-3">
-          <button
-            onClick={handleSaveAndUpdateProgram}
-            disabled={saving}
-            className="w-full rounded-xl bg-card py-4 text-base font-semibold text-foreground disabled:opacity-50 transition-all active:scale-95"
-          >
-            {saving ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Saving...
-              </span>
-            ) : (
-              "Save & Update Program"
-            )}
-          </button>
           <button
             onClick={handleSave}
             disabled={saving}
@@ -182,8 +147,42 @@ function FinishContent() {
               "Save Workout"
             )}
           </button>
+          <button
+            onClick={() => setShowDiscardConfirm(true)}
+            disabled={saving}
+            className="w-full py-3 text-sm font-medium text-destructive disabled:opacity-50 transition-opacity active:opacity-70"
+          >
+            Discard Workout
+          </button>
         </div>
       </div>
+
+      {/* Discard confirmation sheet */}
+      <BottomSheet
+        open={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+      >
+        <div className="w-full px-4 pb-8 space-y-2">
+          <div className="bg-card rounded-2xl overflow-hidden text-center">
+            <div className="px-4 pt-5 pb-4 border-b border-border">
+              <p className="font-semibold text-base">Discard this workout?</p>
+              <p className="text-sm text-muted-foreground mt-1">All logged sets will be deleted.</p>
+            </div>
+            <button
+              onClick={() => setShowDiscardConfirm(false)}
+              className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors border-b border-border"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDiscard}
+              className="w-full py-4 text-base font-semibold text-destructive active:bg-muted/50 transition-colors"
+            >
+              Yes, discard
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   );
 }
@@ -193,7 +192,7 @@ export default function WorkoutFinishPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  void use(params); // params resolved for future use; FinishContent reads from URL search params
+  void use(params);
   return (
     <Suspense>
       <FinishContent />

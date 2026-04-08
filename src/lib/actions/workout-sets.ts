@@ -77,6 +77,7 @@ export async function logWorkoutSet(
       targetReps,
       actualReps,
       weightKg,
+      durationSeconds,
       rpe,
       restTimeSeconds,
       isCompleted,
@@ -92,6 +93,7 @@ export async function logWorkoutSet(
         targetReps,
         actualReps,
         weightKg: weightKg.toString(), // Convert to string for decimal type
+        durationSeconds,
         rpe,
         restTimeSeconds,
         isCompleted,

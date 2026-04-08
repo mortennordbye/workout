@@ -7,6 +7,7 @@
  */
 
 import { deleteProgramSet } from "@/lib/actions/programs";
+import { formatTime } from "@/lib/utils/format";
 import type { ProgramSet } from "@/types/workout";
 import { Trash2Icon } from "lucide-react";
 import Link from "next/link";
@@ -82,10 +83,3 @@ export function AddSetForm({ programId, programExerciseId, sets }: Props) {
   );
 }
 
-function formatTime(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const s = (totalSeconds % 60).toString().padStart(2, "0");
-  return `${m}:${s}`;
-}

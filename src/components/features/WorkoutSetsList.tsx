@@ -49,7 +49,8 @@ type WorkoutSetsListProps = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const REST_OPTIONS = [30, 45, 60, 90, 120, 150, 180, 240, 300];
+// 30s, 1m, 1:30, 2m, 2:30, 3m, 4m, 5m
+const REST_OPTIONS = [30, 60, 90, 120, 150, 180, 240, 300];
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
@@ -219,13 +220,15 @@ export function WorkoutSetsList({
       if (isWorkout && sessionId != null && exerciseId != null) {
         for (const item of precedingUncompleted) {
           const sIdx = setItems.findIndex((s) => s.set.id === item.set.id);
+          const ov = workoutSession?.overrides[item.set.id];
           void logWorkoutSet({
             sessionId,
             exerciseId,
             setNumber: sIdx + 1,
-            targetReps: item.set.targetReps ?? undefined,
-            actualReps: item.set.targetReps ?? 0,
-            weightKg: Number(item.set.weightKg ?? 0),
+            targetReps: ov?.targetReps ?? item.set.targetReps ?? undefined,
+            actualReps: ov?.targetReps ?? item.set.targetReps ?? 0,
+            weightKg: ov?.weightKg ?? Number(item.set.weightKg ?? 0),
+            durationSeconds: ov?.durationSeconds ?? item.set.durationSeconds ?? undefined,
             rpe: 7,
             restTimeSeconds: 0,
             isCompleted: true,
@@ -237,13 +240,15 @@ export function WorkoutSetsList({
       if (isWorkout && sessionId != null && exerciseId != null) {
         const setData = setItems[setIndex]?.set;
         if (setData) {
+          const ov = workoutSession?.overrides[setData.id];
           void logWorkoutSet({
             sessionId,
             exerciseId,
             setNumber: setIndex + 1,
-            targetReps: setData.targetReps ?? undefined,
-            actualReps: setData.targetReps ?? 0,
-            weightKg: Number(setData.weightKg ?? 0),
+            targetReps: ov?.targetReps ?? setData.targetReps ?? undefined,
+            actualReps: ov?.targetReps ?? setData.targetReps ?? 0,
+            weightKg: ov?.weightKg ?? Number(setData.weightKg ?? 0),
+            durationSeconds: ov?.durationSeconds ?? setData.durationSeconds ?? undefined,
             rpe: 7,
             restTimeSeconds: restSeconds,
             isCompleted: true,

@@ -6,6 +6,7 @@ type SetOverride = { targetReps: number; weightKg: number; durationSeconds?: num
 
 const STORAGE_KEY = "activeWorkout";
 const REST_TIMERS_KEY = "restTimerEnds";
+const OVERRIDES_KEY = "workoutOverrides";
 
 type WorkoutSessionContextValue = {
   sessionId: number | null;
@@ -67,6 +68,14 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
         localStorage.removeItem(REST_TIMERS_KEY);
       }
     }
+    const rawOverrides = localStorage.getItem(OVERRIDES_KEY);
+    if (rawOverrides) {
+      try {
+        setOverrides(JSON.parse(rawOverrides) as Record<number, SetOverride>);
+      } catch {
+        localStorage.removeItem(OVERRIDES_KEY);
+      }
+    }
   }, []);
 
   // Schedule/cancel notification timeouts whenever restTimerEnds changes
@@ -96,7 +105,11 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
   }, [restTimerEnds]);
 
   const setOverride = (setId: number, data: SetOverride) =>
-    setOverrides((prev) => ({ ...prev, [setId]: data }));
+    setOverrides((prev) => {
+      const next = { ...prev, [setId]: data };
+      localStorage.setItem(OVERRIDES_KEY, JSON.stringify(next));
+      return next;
+    });
 
   const clearOverrides = () => {
     setOverrides({});
@@ -144,6 +157,7 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
   const clearActiveWorkout = () => {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(REST_TIMERS_KEY);
+    localStorage.removeItem(OVERRIDES_KEY);
     // Cancel all pending notification timeouts
     Object.values(restTimeoutRefs.current).forEach(clearTimeout);
     restTimeoutRefs.current = {};

@@ -3,7 +3,8 @@
 import { WorkoutExerciseList } from "@/components/features/WorkoutExerciseList";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { createWorkoutSession, deleteWorkoutSession } from "@/lib/actions/workout-sessions";
+import { createWorkoutSession } from "@/lib/actions/workout-sessions";
+import { toDateString } from "@/lib/utils/format";
 import {
     removeExerciseFromProgram,
     reorderProgramExercises,
@@ -14,12 +15,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-function toDateString(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
 
 type Exercise = {
   id: number;
@@ -87,21 +82,12 @@ export function WorkoutSessionClient({
 
   const startTime = useMemo(() => new Date(), []);
   const [showActionSheet, setShowActionSheet] = useState(false);
-  const [finishSheet, setFinishSheet] = useState<'hidden' | 'options' | 'discard-confirm'>('hidden');
   const [exercises, setExercises] = useState(initial);
 
   async function handleDeleteExercise(peId: number) {
     setExercises((prev) => prev.filter((e) => e.id !== peId));
     await removeExerciseFromProgram(peId, programId);
     router.refresh();
-  }
-
-  async function handleDiscard() {
-    if (workoutSession?.sessionId) {
-      await deleteWorkoutSession(workoutSession.sessionId);
-    }
-    workoutSession?.clearActiveWorkout();
-    router.replace('/');
   }
 
   async function handleReorder(orderedIds: number[]) {
@@ -126,7 +112,7 @@ export function WorkoutSessionClient({
         ) : (
           <button
             type="button"
-            onClick={() => setFinishSheet('options')}
+            onClick={() => router.push(`/programs/${programId}/workout/finish?start=${startTime.toISOString()}`)}
             className="text-primary text-sm font-medium"
           >
             Finished
@@ -168,66 +154,6 @@ export function WorkoutSessionClient({
         />
 
       </div>
-
-      {/* Options sheet */}
-      <BottomSheet
-        open={finishSheet === 'options'}
-        onClose={() => setFinishSheet('hidden')}
-      >
-        <div className="w-full px-4 pb-8 space-y-2">
-          <div className="bg-card rounded-2xl overflow-hidden text-center">
-            <button
-              onClick={() => {
-                setFinishSheet('hidden');
-                router.push(
-                  `/programs/${programId}/workout/finish?start=${startTime.toISOString()}`,
-                );
-              }}
-              className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors border-b border-border"
-            >
-              I am finished
-            </button>
-            <button
-              onClick={() => setFinishSheet('discard-confirm')}
-              className="w-full py-4 text-base font-semibold text-destructive active:bg-muted/50 transition-colors border-b border-border"
-            >
-              Don&apos;t save
-            </button>
-            <button
-              onClick={() => setFinishSheet('hidden')}
-              className="w-full py-4 text-base font-medium text-muted-foreground active:bg-muted/50 transition-colors"
-            >
-              Continue workout
-            </button>
-          </div>
-        </div>
-      </BottomSheet>
-
-      {/* Discard confirmation sheet */}
-      <BottomSheet
-        open={finishSheet === 'discard-confirm'}
-        onClose={() => setFinishSheet('options')}
-      >
-        <div className="w-full px-4 pb-8 space-y-2">
-          <div className="bg-card rounded-2xl overflow-hidden text-center">
-            <div className="px-4 pt-5 pb-4 border-b border-border">
-              <p className="font-semibold text-base">Are you sure you don&apos;t want to save?</p>
-            </div>
-            <button
-              onClick={() => setFinishSheet('options')}
-              className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors border-b border-border"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleDiscard}
-              className="w-full py-4 text-base font-semibold text-destructive active:bg-muted/50 transition-colors"
-            >
-              Yes, discard
-            </button>
-          </div>
-        </div>
-      </BottomSheet>
 
       {/* Action Sheet */}
       <BottomSheet

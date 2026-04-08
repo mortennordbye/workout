@@ -73,6 +73,7 @@ export const logWorkoutSetSchema = z.object({
     .number()
     .min(0, "Weight cannot be negative")
     .max(1000, "Weight must be under 1000kg"),
+  durationSeconds: z.number().int().min(0).optional(),
   rpe: z
     .number()
     .int()
@@ -168,7 +169,11 @@ export const addProgramSetSchema = z.object({
 
 export const updateProgramSetSchema = addProgramSetSchema
   .omit({ programExerciseId: true, setNumber: true })
-  .extend({ id: z.number().int().positive() });
+  .extend({
+    id: z.number().int().positive(),
+    // No default — partial updates must not overwrite fields that weren't provided
+    restTimeSeconds: z.number().int().min(0).max(3600).optional(),
+  });
 
 export const removeExerciseFromProgramSchema = z.object({
   programExerciseId: z.number().int().positive(),

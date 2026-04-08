@@ -50,6 +50,13 @@
       "when": 1775577594402,
       "tag": "0006_rapid_scrambler",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1775656799533,
+      "tag": "0007_secret_inhumans",
+      "breakpoints": true
     }
   ]
 }

@@ -345,9 +345,13 @@ export async function updateProgramSet(
     }
 
     const { id, ...rest } = validation.data;
+    // Strip undefined values so partial updates don't overwrite existing fields
+    const updates = Object.fromEntries(
+      Object.entries(rest).filter(([, v]) => v !== undefined),
+    ) as Partial<typeof programSets.$inferInsert>;
     const [ps] = await db
       .update(programSets)
-      .set(rest as Partial<typeof programSets.$inferInsert>)
+      .set(updates)
       .where(eq(programSets.id, id))
       .returning();
 
