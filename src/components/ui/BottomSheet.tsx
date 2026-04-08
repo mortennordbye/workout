@@ -17,9 +17,17 @@ const SHEET_TRANSITION = {
 export function BottomSheet({ open, onClose, children, blur = false }: Props) {
   const [kbHeight, setKbHeight] = useState(0);
 
-  // When the sheet is open, track the keyboard height so the sheet can
-  // lift above the keyboard. With interactiveWidget="overlays-content" the
-  // layout viewport doesn't resize, so we read from visualViewport.
+  // Track keyboard height so the sheet lifts above the keyboard.
+  // With interactiveWidget="resizes-visual" the visual viewport shrinks when
+  // the keyboard appears, so window.innerHeight - vv.height = keyboard height.
+  //
+  // Two-path detection handles a first-open timing quirk on iOS:
+  // 1. vv.resize  — fires during the keyboard animation; works reliably after
+  //    the first keyboard interaction in a session.
+  // 2. focusin + 300 ms fallback — on the very first keyboard open iOS may fire
+  //    vv.resize before the keyboard is fully shown (height not yet final).
+  //    Re-reading after 300 ms (≥ keyboard animation duration) guarantees the
+  //    correct value regardless of vv.resize timing.
   useEffect(() => {
     if (!open) return;
 
@@ -30,12 +38,24 @@ export function BottomSheet({ open, onClose, children, blur = false }: Props) {
       setKbHeight(Math.max(0, window.innerHeight - vv!.height));
     }
 
-    // Read immediately (keyboard might already be open when sheet opens)
-    sync();
-
+    sync(); // read immediately (keyboard may already be open)
     vv.addEventListener("resize", sync);
+
+    let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+    function onFocusIn(e: FocusEvent) {
+      const t = e.target as HTMLElement;
+      if (t.tagName !== "INPUT" && t.tagName !== "TEXTAREA") return;
+      if (fallbackTimer) clearTimeout(fallbackTimer);
+      fallbackTimer = setTimeout(sync, 300);
+    }
+
+    document.addEventListener("focusin", onFocusIn);
+
     return () => {
       vv.removeEventListener("resize", sync);
+      document.removeEventListener("focusin", onFocusIn);
+      if (fallbackTimer) clearTimeout(fallbackTimer);
       setKbHeight(0);
     };
   }, [open]);

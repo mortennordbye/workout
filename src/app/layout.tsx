@@ -24,11 +24,14 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   width: "device-width",
   initialScale: 1,
-  // "overlays-content": keyboard overlays the page without resizing or offsetting
-  // the visual viewport. This is the only mode that prevents iOS from setting
-  // visualViewport.offsetLeft/offsetTop, which is what causes the permanent
-  // horizontal/vertical shift after a keyboard interaction.
-  interactiveWidget: "overlays-content",
+  // "resizes-visual": the LAYOUT viewport stays full-screen (h-[100dvh] pages
+  // never shrink, so no content reflow), but the VISUAL viewport shrinks to
+  // exclude the keyboard. This allows visualViewport.height to reflect the
+  // visible area, which our BottomSheet uses to lift above the keyboard and
+  // ViewportFix uses to scroll inputs into view. The horizontal shift that
+  // used to occur is prevented by font-size ≥ 16px on all inputs (globals.css),
+  // which stops iOS from auto-zooming and panning the visual viewport.
+  interactiveWidget: "resizes-visual",
 };
 
 export const metadata: Metadata = {
