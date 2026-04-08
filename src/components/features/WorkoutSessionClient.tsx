@@ -4,7 +4,7 @@ import { WorkoutExerciseList } from "@/components/features/WorkoutExerciseList";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { createWorkoutSession } from "@/lib/actions/workout-sessions";
-import { toDateString } from "@/lib/utils/format";
+import { formatTime, toDateString } from "@/lib/utils/format";
 import {
     removeExerciseFromProgram,
     reorderProgramExercises,
@@ -81,6 +81,20 @@ export function WorkoutSessionClient({
   }, []);
 
   const startTime = useMemo(() => new Date(), []);
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const origin = workoutSession?.startTime
+      ? new Date(workoutSession.startTime)
+      : startTime;
+    setElapsed(Math.floor((Date.now() - origin.getTime()) / 1000));
+    const id = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - origin.getTime()) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workoutSession?.startTime]);
+
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [exercises, setExercises] = useState(initial);
 
@@ -138,9 +152,10 @@ export function WorkoutSessionClient({
           </button>
         </div>
       </div>
-      {/* Program name subtitle */}
-      <div className="px-4 pb-3 shrink-0">
-        <p className="text-sm text-muted-foreground text-center">{programName}</p>
+      {/* Program name + elapsed time */}
+      <div className="px-4 pb-3 shrink-0 flex flex-col items-center gap-0.5">
+        <p className="text-sm text-muted-foreground">{programName}</p>
+        <p className="text-xs text-muted-foreground/60 tabular-nums">{formatTime(elapsed)}</p>
       </div>
 
       {/* Exercises list + History */}
