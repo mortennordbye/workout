@@ -1,6 +1,7 @@
 import { WeeklyGoalProgress } from "@/components/features/WeeklyGoalProgress";
+import { WorkoutInsightBanner } from "@/components/features/WorkoutInsightBanner";
 import { getActiveCycleForUser } from "@/lib/actions/training-cycles";
-import { getCompletedSessions, getWorkoutStats } from "@/lib/actions/workout-sets";
+import { getCompletedSessions, getWorkoutInsight, getWorkoutStats } from "@/lib/actions/workout-sets";
 import { requireSession } from "@/lib/utils/session";
 import Link from "next/link";
 
@@ -49,6 +50,10 @@ export default async function Home() {
   const todayProgram = info?.todaySlot?.program ?? null;
   const isRestDay = info !== null && info.todaySlot !== null && !todayProgram;
 
+  const insight = todayProgram
+    ? await getWorkoutInsight(todayProgram.id, userId).catch(() => undefined)
+    : undefined;
+
   const slotByDay =
     info?.cycle.scheduleType === "day_of_week"
       ? Object.fromEntries(
@@ -92,6 +97,7 @@ export default async function Home() {
             <p className="text-xl font-bold mb-3">
               {todayProgram?.name ?? (isRestDay ? "Rest Day" : "No program today")}
             </p>
+            {insight && <WorkoutInsightBanner insight={insight} />}
             {todayProgram ? (
               <div className="flex gap-2 flex-wrap">
                 <Link

@@ -26,6 +26,7 @@
 
 import { db } from "@/db";
 import { exercises, programExercises, programSets, programs, workoutSessions, workoutSets } from "@/db/schema";
+import { getActiveCycleForUser } from "@/lib/actions/training-cycles";
 import {
     logWorkoutSetSchema,
     workoutHistoryQuerySchema,
@@ -39,7 +40,7 @@ import type {
     WorkoutSetWithExercise,
     WorkoutStats,
 } from "@/types/workout";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -683,4 +684,129 @@ export async function getProgressiveSuggestions(
     console.error("Error calculating progressive suggestions:", error);
     return { success: false, error: "Failed to calculate suggestions" };
   }
+}
+
+// ─── Workout insight ──────────────────────────────────────────────────────────
+
+export type WorkoutInsight = {
+  type: "fatigued" | "stagnating" | "progressing" | "first_session" | "on_track";
+  headline: string;
+  detail?: string;
+  cycleWeek?: number;
+  cycleTotalWeeks?: number;
+  sessionCount: number;
+};
+
+/**
+ * Compute a single pre-workout insight for the given program.
+ * Priority: fatigued → stagnating → progressing → first_session → on_track
+ */
+export async function getWorkoutInsight(
+  programId: number,
+  userId: string,
+): Promise<WorkoutInsight> {
+  // Fetch last 3 completed sessions for this program
+  const recentSessions = await db
+    .select({ feeling: workoutSessions.feeling })
+    .from(workoutSessions)
+    .where(
+      and(
+        eq(workoutSessions.userId, userId),
+        eq(workoutSessions.programId, programId),
+        eq(workoutSessions.isCompleted, true),
+        isNotNull(workoutSessions.feeling),
+      ),
+    )
+    .orderBy(desc(workoutSessions.startTime))
+    .limit(3);
+
+  const sessionCount = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(workoutSessions)
+    .where(
+      and(
+        eq(workoutSessions.userId, userId),
+        eq(workoutSessions.programId, programId),
+        eq(workoutSessions.isCompleted, true),
+      ),
+    )
+    .then((r) => Number(r[0]?.count ?? 0));
+
+  // Fetch progressive suggestions
+  const suggestionsResult = await getProgressiveSuggestions(programId, userId);
+  const suggestions = suggestionsResult.success ? Object.values(suggestionsResult.data) : [];
+
+  // Fetch active cycle
+  const cycleResult = await getActiveCycleForUser(userId);
+  const cycleWeek = cycleResult.success && cycleResult.data ? cycleResult.data.currentWeek : undefined;
+  const cycleTotalWeeks = cycleResult.success && cycleResult.data
+    ? cycleResult.data.cycle.durationWeeks
+    : undefined;
+
+  const cycleContext = { cycleWeek, cycleTotalWeeks };
+
+  // 1. Fatigued — last 2+ sessions both "Tired"
+  const lastTwoTired =
+    recentSessions.length >= 2 &&
+    recentSessions[0].feeling === "Tired" &&
+    recentSessions[1].feeling === "Tired";
+
+  if (lastTwoTired) {
+    return {
+      type: "fatigued",
+      headline: "Your last 2 sessions felt tough.",
+      detail: "Consider going slightly lighter today and focusing on form.",
+      ...cycleContext,
+      sessionCount,
+    };
+  }
+
+  // 2. Stagnating — >50% of tracked sets held AND enough history
+  const tracked = suggestions.filter((s) => s.reason !== "manual");
+  const heldCount = tracked.filter((s) => s.reason === "held").length;
+  const isStagnating = sessionCount >= 3 && tracked.length > 0 && heldCount / tracked.length > 0.5;
+
+  if (isStagnating) {
+    return {
+      type: "stagnating",
+      headline: "You've been holding the same weights for a few sessions.",
+      detail: "Try a slow eccentric, drop sets, or a slight deload to break through.",
+      ...cycleContext,
+      sessionCount,
+    };
+  }
+
+  // 3. Progressing — >50% of tracked sets progressed
+  const progressedCount = tracked.filter(
+    (s) => s.reason === "progressed" || s.reason === "progressed-reps",
+  ).length;
+  const isProgressing = tracked.length > 0 && progressedCount / tracked.length > 0.5;
+
+  if (isProgressing) {
+    return {
+      type: "progressing",
+      headline: `You're progressing on ${progressedCount} exercise${progressedCount === 1 ? "" : "s"} — keep the momentum.`,
+      ...cycleContext,
+      sessionCount,
+    };
+  }
+
+  // 4. First session
+  if (sessionCount === 0) {
+    return {
+      type: "first_session",
+      headline: "First time with this program.",
+      detail: "Focus on technique and get a feel for the weights.",
+      ...cycleContext,
+      sessionCount,
+    };
+  }
+
+  // 5. On track (fallback)
+  return {
+    type: "on_track",
+    headline: `Session ${sessionCount + 1} for this program. Stay consistent.`,
+    ...cycleContext,
+    sessionCount,
+  };
 }

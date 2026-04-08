@@ -21,6 +21,7 @@ export default async function WorkoutSessionPage({ params }: Props) {
   if (isNaN(programId)) notFound();
 
   const result = await getProgramWithExercises(programId);
+
   if (!result.success) notFound();
 
   const program = result.data;
