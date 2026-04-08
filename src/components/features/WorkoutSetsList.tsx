@@ -436,6 +436,7 @@ export function WorkoutSetsList({
                     suggestion={suggestions?.[item.set.id]}
                     onApplySuggestion={onApplySuggestion}
                     onApplyRepSuggestion={onApplyRepSuggestion}
+                    overrideDurationSeconds={isWorkout ? workoutSession?.overrides[item.set.id]?.durationSeconds : undefined}
                   />
                   {isEditing && flatItems[index + 1]?.type !== "rest" && (
                     <InsertRestButton onClick={() => insertRest(index + 1)} />
@@ -671,6 +672,7 @@ function SortableSetRow({
   suggestion,
   onApplySuggestion,
   onApplyRepSuggestion,
+  overrideDurationSeconds,
 }: {
   id: string;
   set: ProgramSet;
@@ -687,6 +689,7 @@ function SortableSetRow({
   suggestion?: SetSuggestionDisplay;
   onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number) => void;
   onApplyRepSuggestion?: (setId: number, reps: number) => void;
+  overrideDurationSeconds?: number;
 }) {
   const {
     attributes,
@@ -712,7 +715,7 @@ function SortableSetRow({
     e.stopPropagation();
     if (isEditing || !isWorkout) return;
     if (isTimed && !isCompleted) {
-      onStartTimer?.(set.id, set.durationSeconds ?? 60);
+      onStartTimer?.(set.id, overrideDurationSeconds ?? set.durationSeconds ?? 60);
     } else {
       onToggle();
     }
@@ -763,7 +766,7 @@ function SortableSetRow({
       <div className="flex-1">
         {isTimed || set.durationSeconds != null ? (
           <p className="text-lg font-medium">
-            {formatTime(Number(set.durationSeconds ?? 60))}
+            {formatTime(overrideDurationSeconds ?? Number(set.durationSeconds ?? 60))}
           </p>
         ) : (
           <p className="text-lg font-medium">

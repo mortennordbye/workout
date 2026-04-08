@@ -29,7 +29,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
 
   const [reps, setReps] = useState(override?.targetReps ?? set.targetReps ?? 10);
   const [weight, setWeight] = useState(override?.weightKg ?? Number(set.weightKg ?? 0));
-  const [duration, setDuration] = useState(Number(set.durationSeconds ?? 60));
+  const [duration, setDuration] = useState(override?.durationSeconds ?? Number(set.durationSeconds ?? 60));
   const [repsStr, setRepsStr] = useState(String(override?.targetReps ?? set.targetReps ?? 10));
   const [weightStr, setWeightStr] = useState(String(override?.weightKg ?? Number(set.weightKg ?? 0)));
   const initialDuration = Number(set.durationSeconds ?? 60);
@@ -75,7 +75,11 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
     setSaving(true);
     if (isWorkout) {
       // During a workout, changes apply to the active session only — never write back to the program
-      workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight });
+      if (isTimed) {
+        workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight, durationSeconds: duration });
+      } else {
+        workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight });
+      }
     } else if (isTimed) {
       await updateProgramSet({ id: set.id, durationSeconds: duration });
     } else {

@@ -2,7 +2,7 @@
 import { requestNotificationPermission, sendNotification } from "@/lib/notifications";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
-type SetOverride = { targetReps: number; weightKg: number };
+type SetOverride = { targetReps: number; weightKg: number; durationSeconds?: number };
 
 const STORAGE_KEY = "activeWorkout";
 const REST_TIMERS_KEY = "restTimerEnds";

@@ -129,7 +129,17 @@ export function WorkoutExerciseList({
             programId={programId}
             isEditing={isEditing}
             isCompleted={isExerciseCompleted(exercise)}
-            summary={buildSetSummary(exercise.sets, exercise.isTimed)}
+            summary={buildSetSummary(
+              exercise.sets.map((s) => {
+                const ov = workoutSession?.overrides[s.id];
+                if (!ov) return s;
+                const hasDuration = exercise.isTimed || s.durationSeconds != null;
+                return hasDuration
+                  ? { ...s, durationSeconds: ov.durationSeconds ?? s.durationSeconds }
+                  : { ...s, targetReps: ov.targetReps, weightKg: String(ov.weightKg) };
+              }),
+              exercise.isTimed,
+            )}
             onToggle={() => { void toggleExercise(exercise); }}
             onDelete={() => onDeleteExercise?.(exercise.id)}
           />
