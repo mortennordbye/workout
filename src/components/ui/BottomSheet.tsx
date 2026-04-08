@@ -1,5 +1,6 @@
 "use client";
 import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 type Props = {
   open: boolean;
@@ -14,6 +15,31 @@ const SHEET_TRANSITION = {
 };
 
 export function BottomSheet({ open, onClose, children, blur = false }: Props) {
+  const [kbHeight, setKbHeight] = useState(0);
+
+  // When the sheet is open, track the keyboard height so the sheet can
+  // lift above the keyboard. With interactiveWidget="overlays-content" the
+  // layout viewport doesn't resize, so we read from visualViewport.
+  useEffect(() => {
+    if (!open) return;
+
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    function sync() {
+      setKbHeight(Math.max(0, window.innerHeight - vv!.height));
+    }
+
+    // Read immediately (keyboard might already be open when sheet opens)
+    sync();
+
+    vv.addEventListener("resize", sync);
+    return () => {
+      vv.removeEventListener("resize", sync);
+      setKbHeight(0);
+    };
+  }, [open]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -34,6 +60,7 @@ export function BottomSheet({ open, onClose, children, blur = false }: Props) {
             exit={{ y: "100%" }}
             transition={SHEET_TRANSITION}
             className="fixed inset-x-0 bottom-0 z-50"
+            style={{ marginBottom: kbHeight }}
           >
             {children}
           </motion.div>

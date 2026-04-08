@@ -86,6 +86,9 @@ export function ViewportFix() {
     function onViewportResize() {
       const kbHeight = Math.max(0, window.innerHeight - vv.height);
 
+      // Keep a CSS variable in sync so BottomSheet can shift above the keyboard.
+      document.documentElement.style.setProperty("--kb-height", `${kbHeight}px`);
+
       if (kbHeight < 50) {
         // Keyboard closed — reset any residual offset
         resetZoom();
