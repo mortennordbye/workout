@@ -1,7 +1,9 @@
 import { CycleCalendarClient } from "@/components/features/CycleCalendarClient";
+import { getProgramWithExercises } from "@/lib/actions/programs";
 import { getAllCyclesWithSlots } from "@/lib/actions/training-cycles";
 import { getCompletedSessions } from "@/lib/actions/workout-sets";
 import { requireSession } from "@/lib/utils/session";
+import type { ProgramWithExercises } from "@/types/workout";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -19,6 +21,23 @@ export default async function CalendarPage() {
     ? sessionsResult.data.map((s) => s.date)
     : [];
 
+  // Collect all unique programIds referenced by cycle slots
+  const programIds = new Set<number>();
+  for (const cycle of cycles) {
+    for (const slot of cycle.slots) {
+      if (slot.programId) programIds.add(slot.programId);
+    }
+  }
+
+  // Pre-fetch all referenced programs with their exercises
+  const programsMap: Record<number, ProgramWithExercises> = {};
+  await Promise.all(
+    [...programIds].map(async (id) => {
+      const result = await getProgramWithExercises(id);
+      if (result.success) programsMap[id] = result.data;
+    }),
+  );
+
   return (
     <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col overflow-hidden">
       {/* Header */}
@@ -33,7 +52,7 @@ export default async function CalendarPage() {
         <h1 className="text-3xl font-bold tracking-tight">Calendar</h1>
       </div>
 
-      <CycleCalendarClient cycles={cycles} completedDates={completedDates} />
+      <CycleCalendarClient cycles={cycles} completedDates={completedDates} programsMap={programsMap} />
     </div>
   );
 }
