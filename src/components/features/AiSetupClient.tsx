@@ -36,10 +36,13 @@ export function AiSetupClient({ exercises, userProfile }: Props) {
   const [status, setStatus] = useState<"idle" | "importing" | "error" | "success">("idle");
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [cycleCreated, setCycleCreated] = useState(false);
 
+  // Cap at 120 to keep the prompt a reasonable size
   const exerciseListText =
     exercises.length > 0
       ? `\nAvailable exercises in my library (use these names exactly when possible):\n${exercises
+          .slice(0, 120)
           .map(
             (e) =>
               `- ${e.name} (${[e.muscleGroup, e.equipment, e.movementPattern].filter(Boolean).join(", ")})`,
@@ -146,12 +149,30 @@ First ask me one question: "What kind of training are you looking for? Tell me y
     setStatus("importing");
     setError(null);
 
+    // Strip markdown code fences — AIs frequently wrap JSON in ```json ... ``` or ``` ... ```
+    let text = pasteJson.trim();
+    text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+
+    // If there's still non-JSON preamble, try to extract the outermost {...} block
+    const firstBrace = text.indexOf("{");
+    const lastBrace = text.lastIndexOf("}");
+    if (firstBrace > 0 && lastBrace > firstBrace) {
+      text = text.slice(firstBrace, lastBrace + 1);
+    }
+
     let parsed: unknown;
     try {
-      parsed = JSON.parse(pasteJson.trim());
+      parsed = JSON.parse(text);
     } catch {
       setStatus("error");
-      setError("Invalid JSON — make sure you copied the full response from the AI.");
+      setError("Couldn't read the JSON — make sure you copied the full response from the AI, with no extra text before or after.");
+      return;
+    }
+
+    // Guard: must be a plain object, not an array or primitive
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      setStatus("error");
+      setError("Unexpected response format — the AI should return a single JSON object, not an array or plain value.");
       return;
     }
 
@@ -161,12 +182,13 @@ First ask me one question: "What kind of training are you looking for? Tell me y
 
     if (!hasProgramData && !hasCycle) {
       setStatus("error");
-      setError("Invalid JSON — make sure you copied the full response from the AI.");
+      setError('The JSON doesn\'t contain any programs or a cycle. Make sure you pasted the full AI response and that it includes a "programs" or "cycle" key.');
       return;
     }
 
     let programCount = 0;
     let cycleName: string | null = null;
+    const warnings: string[] = [];
 
     if (hasProgramData) {
       const result = await importProgram(parsed);
@@ -181,17 +203,36 @@ First ask me one question: "What kind of training are you looking for? Tell me y
     if (hasCycle) {
       const result = await importCycle(raw.cycle);
       if (!result.success) {
-        setStatus("error");
-        setError(result.error ?? "Failed to import cycle.");
-        return;
+        // Programs already imported — don't block, surface as a warning
+        warnings.push(`Cycle couldn't be created: ${result.error ?? "unknown error"}`);
+      } else {
+        cycleName = result.data.cycleName;
+        if (result.data.unresolvedPrograms.length > 0) {
+          warnings.push(
+            `Some cycle slots couldn't be linked: "${result.data.unresolvedPrograms.join('", "')}". You can assign them manually in the cycle editor.`,
+          );
+        }
       }
-      cycleName = result.data.cycleName;
     }
 
     const parts: string[] = [];
     if (programCount > 0) parts.push(`${programCount} program${programCount > 1 ? "s" : ""}`);
     if (cycleName) parts.push(`cycle "${cycleName}"`);
-    setSuccessMsg(`Created ${parts.join(" and ")}. Go to your cycles and start it when you're ready.`);
+
+    const base =
+      parts.length > 0
+        ? `Created ${parts.join(" and ")}.`
+        : "Nothing was created — the response may have been empty.";
+    const suffix = cycleName
+      ? " Go to your cycles and start it when you're ready."
+      : programCount > 0
+        ? " You can find your programs in the Programs tab."
+        : "";
+
+    setSuccessMsg(
+      warnings.length > 0 ? `${base}${suffix}\n\n⚠️ ${warnings.join(" ")}` : `${base}${suffix}`,
+    );
+    setCycleCreated(!!cycleName);
     setStatus("success");
     setPasteJson("");
     router.refresh();
@@ -209,14 +250,14 @@ First ask me one question: "What kind of training are you looking for? Tell me y
         </div>
         <button
           type="button"
-          onClick={() => router.push("/cycles")}
+          onClick={() => router.push(cycleCreated ? "/cycles" : "/programs")}
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground active:opacity-80"
         >
-          Go to Cycles
+          {cycleCreated ? "Go to Cycles" : "Go to Programs"}
         </button>
         <button
           type="button"
-          onClick={() => { setStatus("idle"); setSuccessMsg(null); }}
+          onClick={() => { setStatus("idle"); setSuccessMsg(null); setCycleCreated(false); }}
           className="text-sm text-muted-foreground active:opacity-70"
         >
           Import more

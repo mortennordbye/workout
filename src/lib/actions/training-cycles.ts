@@ -446,24 +446,40 @@ export async function reorderCycleSlots(
 
 export async function importCycle(
   data: unknown,
-): Promise<ActionResult<{ cycleName: string }>> {
+): Promise<ActionResult<{ cycleName: string; unresolvedPrograms: string[] }>> {
   const auth = await requireSession();
 
   const parsed = importCycleSchema.safeParse(data);
   if (!parsed.success) {
-    return { success: false, error: "Invalid cycle data." };
+    const firstIssue = parsed.error.issues[0];
+    const detail = firstIssue
+      ? `${firstIssue.path.join(".") || "cycle"}: ${firstIssue.message}`
+      : null;
+    return {
+      success: false,
+      error: detail
+        ? `Cycle data is invalid — ${detail}`
+        : "Cycle data is invalid. The AI may have used an unsupported format.",
+    };
   }
 
   const { slots, ...cycleFields } = parsed.data;
 
   // Resolve program names → IDs from the user's programs (includes just-imported ones)
   const programNames = [...new Set(slots.map((s) => s.programName))];
-  const matched = await db
-    .select({ id: programs.id, name: programs.name })
-    .from(programs)
-    .where(and(inArray(programs.name, programNames), eq(programs.userId, auth.user.id)));
+  const matched = programNames.length > 0
+    ? await db
+        .select({ id: programs.id, name: programs.name })
+        .from(programs)
+        .where(and(inArray(programs.name, programNames), eq(programs.userId, auth.user.id)))
+    : [];
 
   const nameToId = new Map(matched.map((p) => [p.name, p.id]));
+
+  // Detect slots whose program couldn't be resolved
+  const unresolvedPrograms = [...new Set(
+    slots.filter((s) => !nameToId.has(s.programName)).map((s) => s.programName),
+  )];
 
   try {
     await db.transaction(async (tx) => {
@@ -486,7 +502,7 @@ export async function importCycle(
 
     revalidatePath("/cycles");
     revalidatePath("/");
-    return { success: true, data: { cycleName: cycleFields.name } };
+    return { success: true, data: { cycleName: cycleFields.name, unresolvedPrograms } };
   } catch (err) {
     return { success: false, error: String(err) };
   }
