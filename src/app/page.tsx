@@ -84,7 +84,7 @@ export default async function Home() {
 
         {/* ── Today card ─────────────────────────────────── */}
         {info ? (
-          <div className={`rounded-2xl p-4 shrink-0 ${completedToday && todayProgram ? "bg-emerald-500/10" : "bg-muted"}`}>
+          <div className={`rounded-2xl p-4 shrink-0 ${completedToday ? "bg-emerald-500/10" : "bg-muted"}`}>
             <div className="flex items-center justify-between mb-1">
               <span className="text-sm font-semibold">{info.cycle.name}</span>
               <span className="text-xs text-muted-foreground">Week {info.currentWeek}/{info.cycle.durationWeeks}</span>
@@ -99,7 +99,7 @@ export default async function Home() {
               <p className="text-xl font-bold">
                 {todayProgram?.name ?? (isRestDay ? "Rest Day" : "No program today")}
               </p>
-              {completedToday && todayProgram && (
+              {completedToday && (
                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 bg-emerald-500/15 px-2 py-0.5 rounded-full shrink-0">
                   <svg className="w-3 h-3" viewBox="0 0 12 12" fill="none">
                     <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -140,7 +140,7 @@ export default async function Home() {
                 href="/new-workout"
                 className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground active:opacity-70"
               >
-                Start a Workout →
+                {completedToday ? "Do Another Workout →" : "Start a Workout →"}
               </Link>
             )}
           </div>
