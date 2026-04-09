@@ -1,6 +1,7 @@
 "use client";
 
 import { deleteWorkoutSession } from "@/lib/actions/workout-sessions";
+import { formatTime } from "@/lib/utils/format";
 import type { SessionDetail } from "@/types/workout";
 import { ChevronLeftIcon, Dumbbell, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -112,7 +113,9 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
                       Set {set.setNumber}
                     </span>
                     <span className="font-medium flex-1 text-center">
-                      {set.actualReps} × {Number(set.weightKg)}kg
+                      {set.durationSeconds != null
+                        ? formatTime(Number(set.durationSeconds))
+                        : `${set.actualReps} × ${Number(set.weightKg)}kg`}
                     </span>
                     <span className="text-muted-foreground w-16 text-right">
                       RPE {set.rpe}
