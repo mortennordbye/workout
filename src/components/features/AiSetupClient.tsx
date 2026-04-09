@@ -191,7 +191,7 @@ First ask me one question: "What kind of training are you looking for? Tell me y
     const parts: string[] = [];
     if (programCount > 0) parts.push(`${programCount} program${programCount > 1 ? "s" : ""}`);
     if (cycleName) parts.push(`cycle "${cycleName}"`);
-    setSuccessMsg(`Created ${parts.join(" and ")}. Head to the home screen to activate your cycle.`);
+    setSuccessMsg(`Created ${parts.join(" and ")}. Go to your cycles and start it when you're ready.`);
     setStatus("success");
     setPasteJson("");
     router.refresh();
@@ -209,10 +209,10 @@ First ask me one question: "What kind of training are you looking for? Tell me y
         </div>
         <button
           type="button"
-          onClick={() => router.push("/")}
+          onClick={() => router.push("/cycles")}
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground active:opacity-80"
         >
-          Go to Home
+          Go to Cycles
         </button>
         <button
           type="button"
