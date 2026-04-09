@@ -7,10 +7,11 @@
  */
 
 import { db } from "@/db";
-import { trainingCycleSlots, trainingCycles, workoutSessions } from "@/db/schema";
+import { programs, trainingCycleSlots, trainingCycles, workoutSessions } from "@/db/schema";
 import { requireSession } from "@/lib/utils/session";
 import {
   createTrainingCycleSchema,
+  importCycleSchema,
   reorderCycleSlotsSchema,
   updateTrainingCycleSchema,
   upsertCycleSlotSchema,
@@ -22,7 +23,7 @@ import type {
   TrainingCycleSlot,
   TrainingCycleWithSlots,
 } from "@/types/workout";
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -438,6 +439,54 @@ export async function reorderCycleSlots(
     );
     revalidatePath(`/cycles/${cycleId}`);
     return { success: true, data: undefined };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+export async function importCycle(
+  data: unknown,
+): Promise<ActionResult<{ cycleName: string }>> {
+  const auth = await requireSession();
+
+  const parsed = importCycleSchema.safeParse(data);
+  if (!parsed.success) {
+    return { success: false, error: "Invalid cycle data." };
+  }
+
+  const { slots, ...cycleFields } = parsed.data;
+
+  // Resolve program names → IDs from the user's programs (includes just-imported ones)
+  const programNames = [...new Set(slots.map((s) => s.programName))];
+  const matched = await db
+    .select({ id: programs.id, name: programs.name })
+    .from(programs)
+    .where(and(inArray(programs.name, programNames), eq(programs.userId, auth.user.id)));
+
+  const nameToId = new Map(matched.map((p) => [p.name, p.id]));
+
+  try {
+    await db.transaction(async (tx) => {
+      const [cycle] = await tx
+        .insert(trainingCycles)
+        .values({ ...cycleFields, userId: auth.user.id })
+        .returning({ id: trainingCycles.id });
+
+      for (const slot of slots) {
+        await tx.insert(trainingCycleSlots).values({
+          trainingCycleId: cycle.id,
+          programId: nameToId.get(slot.programName) ?? null,
+          dayOfWeek: slot.dayOfWeek,
+          orderIndex: slot.orderIndex,
+          label: slot.label,
+          notes: slot.notes,
+        });
+      }
+    });
+
+    revalidatePath("/cycles");
+    revalidatePath("/");
+    return { success: true, data: { cycleName: cycleFields.name } };
   } catch (err) {
     return { success: false, error: String(err) };
   }

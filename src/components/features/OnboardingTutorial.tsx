@@ -34,7 +34,7 @@ const slides = [
   {
     icon: CheckCircle,
     title: "You're All Set",
-    body: "Start by building a Program, then set up a Cycle — or jump straight in and start a workout right now.",
+    body: "The fastest way to get started is to let AI generate your programs and weekly schedule — just describe what you're looking for.",
   },
 ];
 
@@ -183,12 +183,30 @@ export function OnboardingTutorial({ defaultShow = false }: { defaultShow?: bool
                 Maybe later
               </button>
             </div>
+          ) : isLast ? (
+            <div className="w-full flex flex-col gap-3">
+              <button
+                onClick={async () => {
+                  await dismiss();
+                  router.push("/more/ai-setup");
+                }}
+                className="w-full rounded-xl bg-primary text-primary-foreground py-4 text-sm font-semibold active:opacity-80"
+              >
+                Set up with AI
+              </button>
+              <button
+                onClick={dismiss}
+                className="w-full rounded-xl bg-muted text-foreground py-4 text-sm font-semibold active:opacity-80"
+              >
+                I&apos;ll do it myself
+              </button>
+            </div>
           ) : (
             <button
               onClick={next}
               className="w-full rounded-xl bg-primary text-primary-foreground py-4 text-sm font-semibold active:opacity-80"
             >
-              {isLast ? "Get Started" : "Next"}
+              Next
             </button>
           )}
         </div>

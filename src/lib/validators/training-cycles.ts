@@ -44,3 +44,22 @@ export const reorderCycleSlotsSchema = z.object({
   cycleId: z.number().int().positive(),
   orderedIds: z.array(z.number().int().positive()),
 });
+
+export const importCycleSchema = z.object({
+  name: z.string().min(1).max(100),
+  durationWeeks: z.number().int().refine((v) => [4, 6, 8, 10, 12, 16].includes(v), {
+    message: "Duration must be 4, 6, 8, 10, 12, or 16 weeks",
+  }),
+  scheduleType: scheduleTypeEnum.default("day_of_week"),
+  endAction: endActionEnum.optional(),
+  endMessage: z.string().max(500).optional(),
+  slots: z.array(z.object({
+    programName: z.string().min(1).max(100),
+    dayOfWeek: z.number().int().min(1).max(7).optional(),
+    orderIndex: z.number().int().positive().optional(),
+    label: z.string().max(100).optional(),
+    notes: z.string().max(500).optional(),
+  })).min(1).max(20),
+});
+
+export type ImportCycleInput = z.infer<typeof importCycleSchema>;
