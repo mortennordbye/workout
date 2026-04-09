@@ -2,7 +2,7 @@
 
 import { authClient } from "@/lib/auth-client";
 import { DEMO_USER_EMAIL } from "@/lib/constants/demo";
-import { BarChart2, CalendarDays, ChevronRight, Clock, Library, LogOut, Settings, Shield, UserCircle } from "lucide-react";
+import { BarChart2, CalendarDays, ChevronRight, Clock, Library, LogOut, MessageSquare, Settings, Shield, UserCircle } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -42,6 +42,12 @@ const baseItems = [
     href: "/settings",
     icon: Settings,
     description: "Appearance and preferences",
+  },
+  {
+    label: "Feedback",
+    href: "/more/feedback",
+    icon: MessageSquare,
+    description: "Report issues or suggest features",
   },
 ];
 

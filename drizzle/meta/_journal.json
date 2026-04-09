@@ -57,6 +57,13 @@
       "when": 1775656799533,
       "tag": "0007_secret_inhumans",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1775714659523,
+      "tag": "0008_slimy_leopardon",
+      "breakpoints": true
     }
   ]
 }

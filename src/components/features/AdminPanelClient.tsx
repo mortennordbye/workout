@@ -3,7 +3,7 @@
 import { adminResetUserData, adminSeedFakeData, adminPrepareDemoUser } from "@/lib/actions/admin";
 import { authClient } from "@/lib/auth-client";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { BarChart3, ChevronLeft, ChevronRight, DatabaseZap, Key, MonitorPlay, Trash2, Users } from "lucide-react";
+import { BarChart3, ChevronLeft, ChevronRight, DatabaseZap, Key, MessageSquare, MonitorPlay, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -202,6 +202,17 @@ export function AdminPanelClient() {
               <div className="flex-1 min-w-0">
                 <div className="font-medium">Invite tokens</div>
                 <div className="text-sm text-muted-foreground">Create and manage sign-up tokens</div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </Link>
+            <Link
+              href="/more/admin/feedback"
+              className="w-full flex items-center gap-4 px-4 min-h-[64px] active:bg-muted/50 transition-colors"
+            >
+              <MessageSquare className="w-5 h-5 text-muted-foreground flex-none" />
+              <div className="flex-1 min-w-0">
+                <div className="font-medium">Feedback</div>
+                <div className="text-sm text-muted-foreground">User-reported issues and suggestions</div>
               </div>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </Link>
