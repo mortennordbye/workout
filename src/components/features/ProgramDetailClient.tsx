@@ -33,6 +33,7 @@ import { useEffect, useState } from "react";
 type ProgramExItem = {
   id: number;
   name: string;
+  isTimed: boolean;
   sets: ProgramSet[];
 };
 
@@ -64,7 +65,7 @@ function SortableExerciseRow({
     isDragging,
   } = useSortable({ id: exercise.id, disabled: !isEditing });
 
-  const summary = buildSetSummary(exercise.sets);
+  const summary = buildSetSummary(exercise.sets, exercise.isTimed);
 
   return (
     <div

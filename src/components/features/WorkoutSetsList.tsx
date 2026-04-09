@@ -87,6 +87,7 @@ export function WorkoutSetsList({
     setId: number;
     remaining: number;
     total: number;
+    endsAt: number;
   } | null>(null);
   const [editingRestItemId, setEditingRestItemId] = useState<string | null>(null);
   const [restDraft, setRestDraft] = useState(60);
@@ -341,16 +342,32 @@ export function WorkoutSetsList({
       return;
     }
     const id = setTimeout(() => {
-      setExerciseTimer((prev) =>
-        prev ? { ...prev, remaining: prev.remaining - 1 } : null,
-      );
+      setExerciseTimer((prev) => {
+        if (!prev) return null;
+        const remaining = Math.max(0, Math.ceil((prev.endsAt - Date.now()) / 1000));
+        return { ...prev, remaining };
+      });
     }, 1000);
     return () => clearTimeout(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseTimer?.remaining, exerciseTimer?.setId]);
 
+  // Recalculate exercise timer when app returns to foreground
+  useEffect(() => {
+    const handleVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      setExerciseTimer((prev) => {
+        if (!prev) return null;
+        const remaining = Math.max(0, Math.ceil((prev.endsAt - Date.now()) / 1000));
+        return { ...prev, remaining };
+      });
+    };
+    document.addEventListener('visibilitychange', handleVisible);
+    return () => document.removeEventListener('visibilitychange', handleVisible);
+  }, []);
+
   function startExerciseTimer(setId: number, durationSeconds: number) {
-    setExerciseTimer({ setId, remaining: durationSeconds, total: durationSeconds });
+    setExerciseTimer({ setId, remaining: durationSeconds, total: durationSeconds, endsAt: Date.now() + durationSeconds * 1000 });
   }
 
   // ── Rest editing ────────────────────────────────────────────────────────────
