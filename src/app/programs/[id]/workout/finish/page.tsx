@@ -5,14 +5,14 @@ import {
   createWorkoutSession,
   deleteWorkoutSession,
 } from "@/lib/actions/workout-sessions";
+import { updateProgramSet } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { WORKOUT_FEELINGS, type WorkoutFeeling } from "@/lib/validators/workout";
 import { formatDateLong, formatDuration, formatTimeOfDay, toDateString } from "@/lib/utils/format";
-import { Loader2, ChevronLeftIcon } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, use, useMemo, useState } from "react";
-import Link from "next/link";
 
 type Feeling = WorkoutFeeling;
 const FEELINGS: Feeling[] = [...WORKOUT_FEELINGS];
@@ -38,9 +38,18 @@ function FinishContent() {
 
   const [feeling, setFeeling] = useState<Feeling>("Good");
   const [saving, setSaving] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
 
   const saveSession = async () => {
+    // Flush any per-set overrides (edited weight/reps during workout) back to the program template
+    const overrides = workoutSession?.overrides ?? {};
+    await Promise.all(
+      Object.entries(overrides).map(([setId, ov]) =>
+        updateProgramSet({ id: Number(setId), targetReps: ov.targetReps, weightKg: ov.weightKg, ...(ov.durationSeconds != null ? { durationSeconds: ov.durationSeconds } : {}) }),
+      ),
+    );
+
     const existingSessionId = workoutSession?.sessionId;
     if (existingSessionId) {
       await completeWorkoutSession({ sessionId: existingSessionId, feeling });
@@ -76,16 +85,8 @@ function FinishContent() {
   return (
     <div className="h-[100dvh] bg-background flex flex-col pb-nav-safe">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
-        <Link
-          href=".."
-          className="flex items-center gap-1 text-primary"
-        >
-          <ChevronLeftIcon className="h-5 w-5" />
-          <span className="text-sm font-medium">Back</span>
-        </Link>
+      <div className="flex items-center justify-center px-4 pt-6 pb-4 shrink-0">
         <div className="text-lg font-bold">Workout Complete</div>
-        <div className="w-16" />
       </div>
 
       <div className="flex-1 px-4 flex flex-col justify-between overflow-y-auto">
@@ -134,7 +135,7 @@ function FinishContent() {
         {/* Action buttons */}
         <div className="pt-6 pb-2 space-y-3">
           <button
-            onClick={handleSave}
+            onClick={() => setShowSaveConfirm(true)}
             disabled={saving}
             className="w-full rounded-xl bg-primary py-4 text-base font-semibold text-primary-foreground disabled:opacity-50 transition-all active:scale-95"
           >
@@ -156,6 +157,33 @@ function FinishContent() {
           </button>
         </div>
       </div>
+
+      {/* Save confirmation sheet */}
+      <BottomSheet
+        open={showSaveConfirm}
+        onClose={() => setShowSaveConfirm(false)}
+      >
+        <div className="w-full px-4 pb-8 space-y-2">
+          <div className="bg-card rounded-2xl overflow-hidden text-center">
+            <div className="px-4 pt-5 pb-4 border-b border-border">
+              <p className="font-semibold text-base">Save this workout?</p>
+              <p className="text-sm text-muted-foreground mt-1">Your sets and progress will be recorded.</p>
+            </div>
+            <button
+              onClick={() => setShowSaveConfirm(false)}
+              className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors border-b border-border"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => { setShowSaveConfirm(false); handleSave(); }}
+              className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors"
+            >
+              Yes, save
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
 
       {/* Discard confirmation sheet */}
       <BottomSheet

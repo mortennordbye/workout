@@ -96,6 +96,7 @@ export function WorkoutSessionClient({
   }, [workoutSession?.startTime]);
 
   const [showActionSheet, setShowActionSheet] = useState(false);
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [exercises, setExercises] = useState(initial);
 
   async function handleDeleteExercise(peId: number) {
@@ -126,7 +127,7 @@ export function WorkoutSessionClient({
         ) : (
           <button
             type="button"
-            onClick={() => router.push(`/programs/${programId}/workout/finish?start=${startTime.toISOString()}`)}
+            onClick={() => setShowFinishConfirm(true)}
             className="text-primary text-sm font-medium"
           >
             Finished
@@ -169,6 +170,33 @@ export function WorkoutSessionClient({
         />
 
       </div>
+
+      {/* Finish confirmation sheet */}
+      <BottomSheet
+        open={showFinishConfirm}
+        onClose={() => setShowFinishConfirm(false)}
+      >
+        <div className="w-full px-4 pb-8 space-y-2">
+          <div className="bg-card rounded-2xl overflow-hidden text-center">
+            <div className="px-4 pt-5 pb-4 border-b border-border">
+              <p className="font-semibold text-base">Finish workout?</p>
+              <p className="text-sm text-muted-foreground mt-1">You'll be taken to the summary screen.</p>
+            </div>
+            <button
+              onClick={() => setShowFinishConfirm(false)}
+              className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors border-b border-border"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => router.push(`/programs/${programId}/workout/finish?start=${startTime.toISOString()}`)}
+              className="w-full py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors"
+            >
+              Yes, finish
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
 
       {/* Action Sheet */}
       <BottomSheet

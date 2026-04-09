@@ -357,9 +357,11 @@ function ExerciseFormFields({
 export function ExercisesClient({
   exercises,
   onSelectExercise,
+  onBack,
 }: {
   exercises: Exercise[];
   onSelectExercise?: (exercise: Exercise) => Promise<void>;
+  onBack?: () => void;
 }) {
   const router = useRouter();
   const [view, setView] = useState<ViewId | "menu">("menu");
@@ -460,6 +462,7 @@ export function ExercisesClient({
     if (selectedExercise) { setSelectedExercise(null); return; }
     if (subCategory !== null) { setSubCategory(null); return; }
     if (view !== "menu") { setView("menu"); return; }
+    if (onBack) { onBack(); return; }
     router.push("/more");
   }
 
