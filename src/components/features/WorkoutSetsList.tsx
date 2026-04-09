@@ -798,15 +798,25 @@ function SortableSetRow({
         {isWorkout && suggestion && (() => {
           const currentWeight = Number(set.weightKg ?? 0);
           const currentReps = set.targetReps ?? 0;
-          const weightPending = suggestion.reason !== "manual" && suggestion.reason !== "held" && suggestion.reason !== "progressed-reps" && currentWeight !== suggestion.suggestedWeightKg;
           const hasSmartAdjustment = suggestion.adjustedRepsForWeight !== undefined;
-          const repsPending = !hasSmartAdjustment && suggestion.suggestedReps !== undefined && suggestion.suggestedReps > currentReps;
+          const weightPending =
+            (suggestion.reason === "progressed" || suggestion.reason === "deload") &&
+            currentWeight !== suggestion.suggestedWeightKg;
+          const repsPending =
+            suggestion.reason === "progressed-reps" &&
+            !hasSmartAdjustment &&
+            suggestion.suggestedReps !== undefined &&
+            suggestion.suggestedReps > currentReps;
+          const timePending =
+            suggestion.reason === "progressed-time" &&
+            suggestion.suggestedDurationSeconds !== undefined;
+          const lastLabel = suggestion.basedOnRpe != null
+            ? `Last: ${suggestion.basedOnWeightKg}kg (${suggestion.basedOnFeeling}, RPE ${suggestion.basedOnRpe})`
+            : `Last: ${suggestion.basedOnWeightKg}kg (${suggestion.basedOnFeeling})`;
           return (
             <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <span className="text-xs text-muted-foreground">
-                Last: {suggestion.basedOnWeightKg}kg ({suggestion.basedOnFeeling})
-              </span>
-              {weightPending && (
+              <span className="text-xs text-muted-foreground">{lastLabel}</span>
+              {weightPending && suggestion.reason === "progressed" && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -819,6 +829,17 @@ function SortableSetRow({
                     : `↑ ${suggestion.suggestedWeightKg}kg`}
                 </button>
               )}
+              {weightPending && suggestion.reason === "deload" && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onApplySuggestion?.(set.id, suggestion.suggestedWeightKg);
+                  }}
+                  className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 text-xs font-semibold active:opacity-60 transition-opacity"
+                >
+                  ↓ {suggestion.suggestedWeightKg}kg — deload
+                </button>
+              )}
               {repsPending && (
                 <button
                   onClick={(e) => {
@@ -828,6 +849,17 @@ function SortableSetRow({
                   className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
                 >
                   ↑ {suggestion.suggestedReps} reps
+                </button>
+              )}
+              {timePending && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onApplySuggestion?.(set.id, suggestion.suggestedWeightKg);
+                  }}
+                  className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
+                >
+                  ↑ {formatTime(suggestion.suggestedDurationSeconds!)} duration
                 </button>
               )}
             </div>

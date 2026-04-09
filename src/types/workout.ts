@@ -140,6 +140,39 @@ export type SessionContextProps = {
 };
 
 // ============================================================================
+// Progressive Overload Suggestions
+// ============================================================================
+
+/**
+ * A single progressive overload suggestion for a program set.
+ *
+ * Shared between the server action (getProgressiveSuggestions) and client
+ * components. Plain serializable object — no server-only imports.
+ *
+ * reason values:
+ *   "progressed"      — weight progression suggested
+ *   "progressed-reps" — rep count progression suggested
+ *   "progressed-time" — duration progression suggested (time mode)
+ *   "held"            — not enough confident hits to progress; hold current weight
+ *   "deload"          — 3+ consecutive failures detected; 10% weight reduction suggested
+ *   "manual"          — progression mode is manual; no suggestion
+ */
+export type SetSuggestion = {
+  suggestedWeightKg: number;
+  suggestedReps?: number;
+  adjustedRepsForWeight?: number; // 1RM-estimated reps at new weight (smart mode)
+  suggestedDurationSeconds?: number; // time mode: suggested new duration
+  basedOnWeightKg: number; // last logged weight (raw, no rounding)
+  basedOnReps: number; // last logged actual reps
+  basedOnDurationSeconds?: number; // last logged duration (time mode)
+  basedOnFeeling: string; // last session feeling
+  basedOnDate: string; // last session date
+  basedOnRpe?: number; // last logged RPE (optional — null for old sessions)
+  basedOnHitCount?: number; // how many of the last CONSENSUS_WINDOW sessions hit target with confidence
+  reason: "progressed" | "held" | "manual" | "progressed-reps" | "deload" | "progressed-time";
+};
+
+// ============================================================================
 // Program Import/Export
 // ============================================================================
 

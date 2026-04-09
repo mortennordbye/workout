@@ -25,16 +25,22 @@
  */
 
 import { db } from "@/db";
-import { exercises, programExercises, programSets, programs, workoutSessions, workoutSets } from "@/db/schema";
+import { exercises, programExercises, programSets, programs, users, workoutSessions, workoutSets } from "@/db/schema";
 import { getActiveCycleForUser } from "@/lib/actions/training-cycles";
 import {
     logWorkoutSetSchema,
     workoutHistoryQuerySchema,
 } from "@/lib/validators/workout";
+import {
+    buildSuggestion,
+    CONSENSUS_WINDOW,
+} from "@/lib/utils/progression";
+import type { HistoryRow, ProgramSetData } from "@/lib/utils/progression";
 import type {
     ActionResult,
     SessionDetail,
     SessionWithStats,
+    SetSuggestion,
     WorkoutHistoryResult,
     WorkoutSet,
     WorkoutSetWithExercise,
@@ -477,36 +483,15 @@ export async function getSessionSets(
 }
 
 /**
- * The shape of one progressive overload suggestion for a program set.
- */
-export type SetSuggestion = {
-  suggestedWeightKg: number;
-  suggestedReps?: number;
-  adjustedRepsForWeight?: number; // 1RM-estimated reps at new weight (smart mode)
-  basedOnWeightKg: number;
-  basedOnReps: number;
-  basedOnFeeling: string;
-  basedOnDate: string;
-  reason: "progressed" | "held" | "manual" | "progressed-reps";
-};
-
-function estimate1RM(weightKg: number, reps: number): number {
-  return weightKg * (1 + reps / 30);
-}
-
-function estimateRepsAt(oneRepMax: number, weightKg: number): number {
-  return Math.max(1, Math.floor(30 * (oneRepMax / weightKg - 1)));
-}
-
-/**
  * Calculate progressive overload suggestions for every set in a program.
  *
- * For each program_set we look at previous sessions of the same program
- * (excluding "Tired" sessions) and find the best logged performance:
- * - If the best session hit the target reps → suggest weight + 2.5 kg
- * - If not → hold the weight
- * - If no history → the set is omitted from the result (caller uses the
- *   program's default weight)
+ * For each program_set, we examine recent completed sessions (excluding "Tired"
+ * sessions) and apply multi-session consensus logic:
+ * - Requires REQUIRED_HITS confident hits within the last CONSENSUS_WINDOW sessions
+ *   to trigger a progression (prevents single-fluke advances).
+ * - RPE gates confidence: RPE 9-10 sets are not counted as confident hits.
+ * - 3+ consecutive failures trigger a 10% deload suggestion.
+ * - If no history exists for a set, it is omitted (caller uses the program default).
  *
  * NULL feeling (old sessions recorded before the column existed) is treated
  * as valid — only explicit "Tired" entries are excluded.
@@ -522,6 +507,7 @@ export async function getProgressiveSuggestions(
         programSetId: programSets.id,
         setNumber: programSets.setNumber,
         targetReps: programSets.targetReps,
+        durationSeconds: programSets.durationSeconds,
         exerciseId: programExercises.exerciseId,
         overloadIncrementKg: programExercises.overloadIncrementKg,
         overloadIncrementReps: programExercises.overloadIncrementReps,
@@ -540,8 +526,21 @@ export async function getProgressiveSuggestions(
 
     const exerciseIds = [...new Set(programData.map((r) => r.exerciseId))];
 
-    // Step 2: fetch history, excluding Tired sessions
-    // NULL feeling (pre-feature sessions) is kept via IS DISTINCT FROM
+    // Step 2: fetch user profile for default increment personalisation
+    const userProfile = await db
+      .select({
+        experienceLevel: users.experienceLevel,
+        goal: users.goal,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+      .then((r) => r[0] ?? null);
+
+    // Step 3: fetch history, excluding Tired sessions
+    // NULL feeling (pre-feature sessions) is kept via IS DISTINCT FROM.
+    // Limit to CONSENSUS_WINDOW rows per exercise+setNumber to avoid full scans
+    // on accounts with hundreds of sessions.
     const history = await db
       .select({
         exerciseId: workoutSets.exerciseId,
@@ -549,6 +548,8 @@ export async function getProgressiveSuggestions(
         actualReps: workoutSets.actualReps,
         targetReps: workoutSets.targetReps,
         weightKg: workoutSets.weightKg,
+        durationSeconds: workoutSets.durationSeconds,
+        rpe: workoutSets.rpe,
         feeling: workoutSessions.feeling,
         date: workoutSessions.date,
       })
@@ -563,120 +564,28 @@ export async function getProgressiveSuggestions(
           inArray(workoutSets.exerciseId, exerciseIds),
         ),
       )
-      .orderBy(desc(workoutSessions.date), desc(workoutSets.weightKg));
+      .orderBy(desc(workoutSessions.date), desc(workoutSets.weightKg))
+      .limit(programData.length * CONSENSUS_WINDOW);
 
-    // Step 3: find best row per exerciseId+setNumber
-    // "Best" = hit target reps at highest weight; tiebreak by most recent date
-    type HistoryRow = (typeof history)[number];
-    const bestMap = new Map<string, HistoryRow>();
-
+    // Step 4: group history rows per exerciseId+setNumber (most-recent-first)
+    const historyPerKey = new Map<string, HistoryRow[]>();
     for (const row of history) {
       const key = `${row.exerciseId}-${row.setNumber}`;
-      const existing = bestMap.get(key);
-      if (!existing) {
-        bestMap.set(key, row);
-        continue;
-      }
-      const rowHit =
-        row.actualReps != null &&
-        row.targetReps != null &&
-        row.actualReps >= row.targetReps;
-      const existHit =
-        existing.actualReps != null &&
-        existing.targetReps != null &&
-        existing.actualReps >= existing.targetReps;
-
-      if (rowHit && !existHit) {
-        bestMap.set(key, row);
-      } else if (
-        rowHit &&
-        existHit &&
-        Number(row.weightKg) > Number(existing.weightKg)
-      ) {
-        bestMap.set(key, row);
-      }
+      if (!historyPerKey.has(key)) historyPerKey.set(key, []);
+      const list = historyPerKey.get(key)!;
+      if (list.length < CONSENSUS_WINDOW) list.push(row as HistoryRow);
     }
 
-    // Step 4: build suggestion for each program set
+    // Step 5: build suggestion for each program set using the pure helper
     const suggestions: Record<number, SetSuggestion> = {};
 
     for (const ps of programData) {
       const key = `${ps.exerciseId}-${ps.setNumber}`;
-      const best = bestMap.get(key);
-      if (!best) continue; // no history — skip, caller uses program default
-
-      const baseWeight = Math.round(Number(best.weightKg) * 2) / 2; // round to nearest 0.5kg
-      const hitTarget =
-        best.actualReps != null &&
-        best.targetReps != null &&
-        best.actualReps >= best.targetReps;
-
-      const incrementKg = Number(ps.overloadIncrementKg ?? 2.5);
-      const incrementReps = Number(ps.overloadIncrementReps ?? 0);
-      const mode = ps.progressionMode ?? "weight";
-      const roundToIncrement = (kg: number) =>
-        incrementKg > 0 ? Math.round(kg / incrementKg) * incrementKg : kg;
-
-      let suggestedWeightKg: number = baseWeight;
-      let suggestedReps: number | undefined;
-      let adjustedRepsForWeight: number | undefined;
-      let reason: SetSuggestion["reason"] = "manual";
-
-      switch (mode) {
-        case "manual":
-          reason = "manual";
-          break;
-
-        case "weight":
-          if (hitTarget && incrementKg > 0) {
-            suggestedWeightKg = roundToIncrement(baseWeight + incrementKg);
-            reason = "progressed";
-          } else {
-            reason = hitTarget ? "held" : "held";
-          }
-          break;
-
-        case "smart":
-          if (hitTarget && incrementKg > 0) {
-            suggestedWeightKg = roundToIncrement(baseWeight + incrementKg);
-            reason = "progressed";
-            // 1RM-based rep adjustment
-            if (best.actualReps != null && best.actualReps >= 2 && suggestedWeightKg > baseWeight) {
-              const oneRM = estimate1RM(baseWeight, best.actualReps);
-              const adj = estimateRepsAt(oneRM, suggestedWeightKg);
-              const currentTarget = ps.targetReps ?? best.targetReps ?? best.actualReps;
-              if (currentTarget != null && adj < currentTarget) {
-                adjustedRepsForWeight = adj;
-              }
-            }
-          } else {
-            reason = "held";
-          }
-          break;
-
-        case "reps":
-          if (hitTarget && incrementReps > 0) {
-            suggestedReps = (ps.targetReps ?? best.targetReps ?? 0) + incrementReps;
-            reason = "progressed-reps";
-          } else {
-            reason = "held";
-          }
-          break;
-
-        default:
-          reason = "manual";
+      const rows = historyPerKey.get(key) ?? [];
+      const suggestion = buildSuggestion(rows, ps as ProgramSetData, userProfile);
+      if (suggestion) {
+        suggestions[ps.programSetId] = suggestion;
       }
-
-      suggestions[ps.programSetId] = {
-        suggestedWeightKg,
-        suggestedReps,
-        adjustedRepsForWeight,
-        basedOnWeightKg: baseWeight,
-        basedOnReps: best.actualReps ?? 0,
-        basedOnFeeling: best.feeling ?? "OK",
-        basedOnDate: best.date,
-        reason,
-      };
     }
 
     return { success: true, data: suggestions };
@@ -685,6 +594,9 @@ export async function getProgressiveSuggestions(
     return { success: false, error: "Failed to calculate suggestions" };
   }
 }
+
+// Re-export SetSuggestion so existing callers don't need to change their imports.
+export type { SetSuggestion } from "@/types/workout";
 
 // ─── Workout insight ──────────────────────────────────────────────────────────
 

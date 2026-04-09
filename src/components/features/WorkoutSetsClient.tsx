@@ -14,17 +14,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export type SetSuggestionDisplay = {
-  suggestedWeightKg: number;
-  suggestedReps?: number;
-  adjustedRepsForWeight?: number;
-  basedOnWeightKg: number;
-  basedOnReps: number;
-  basedOnFeeling: string;
-  reason: "progressed" | "held" | "manual" | "progressed-reps";
-};
+// SetSuggestionDisplay is the canonical SetSuggestion type from types/workout.ts
+export type { SetSuggestion as SetSuggestionDisplay } from "@/types/workout";
+import type { SetSuggestion } from "@/types/workout";
 
-type ProgressionMode = "manual" | "weight" | "smart" | "reps";
+type ProgressionMode = "manual" | "weight" | "smart" | "reps" | "time";
 
 const KG_INCREMENT_PRESETS = [0.5, 1, 2.5, 5, 10] as const;
 const REP_INCREMENT_PRESETS = [1, 2, 3] as const;
@@ -34,6 +28,7 @@ const MODE_OPTIONS: { mode: ProgressionMode; label: string; description: string 
   { mode: "weight",  label: "Weight",        description: "Add kg when target reps are hit" },
   { mode: "smart",   label: "Smart weight",  description: "Add kg and adjust reps via 1RM formula" },
   { mode: "reps",    label: "Reps",          description: "Add reps when target reps are hit" },
+  { mode: "time",    label: "Duration",      description: "Add seconds when target duration is hit" },
 ];
 
 type Props = {
@@ -47,7 +42,7 @@ type Props = {
   loggedCount?: number;
   exerciseCategory?: string;
   exerciseIsTimed?: boolean;
-  suggestions?: Record<number, SetSuggestionDisplay>;
+  suggestions?: Record<number, SetSuggestion>;
   overloadIncrementKg?: number;
   overloadIncrementReps?: number;
   progressionMode?: ProgressionMode;
@@ -102,9 +97,12 @@ export function WorkoutSetsClient({
         if (!sug || sug.reason === "manual" || sug.reason === "held") return false;
         const currentWeight = workoutSession?.overrides[s.id]?.weightKg ?? Number(s.weightKg ?? 0);
         const currentReps = workoutSession?.overrides[s.id]?.targetReps ?? s.targetReps ?? 0;
-        const weightPending = sug.reason === "progressed" && currentWeight !== sug.suggestedWeightKg;
-        const repsPending = sug.suggestedReps !== undefined && sug.suggestedReps > currentReps;
-        return weightPending || repsPending;
+        const weightPending =
+          (sug.reason === "progressed" || sug.reason === "deload") &&
+          currentWeight !== sug.suggestedWeightKg;
+        const repsPending = sug.reason === "progressed-reps" && sug.suggestedReps !== undefined && sug.suggestedReps > currentReps;
+        const timePending = sug.reason === "progressed-time" && sug.suggestedDurationSeconds !== undefined;
+        return weightPending || repsPending || timePending;
       }).length
     : 0;
 
@@ -163,6 +161,7 @@ export function WorkoutSetsClient({
       case "weight": return increment > 0 ? `+${increment}kg` : "Weight";
       case "smart":  return increment > 0 ? `+${increment}kg · smart` : "Smart";
       case "reps":   return incrementReps > 0 ? `+${incrementReps} rep` : "Reps";
+      case "time":   return incrementReps > 0 ? `+${incrementReps}s` : "Duration";
     }
   }
 
@@ -287,8 +286,10 @@ export function WorkoutSetsClient({
                 Progression
               </p>
               <div className="overflow-y-auto">
-                {/* Mode selector */}
-                {MODE_OPTIONS.map((opt, i) => (
+                {/* Mode selector — "time" only shown for timed/cardio exercises */}
+                {MODE_OPTIONS.filter((opt) =>
+                  opt.mode !== "time" || exerciseIsTimed || exerciseCategory === "cardio"
+                ).map((opt, i) => (
                   <button
                     key={opt.mode}
                     onClick={() => handleModeChange(opt.mode)}

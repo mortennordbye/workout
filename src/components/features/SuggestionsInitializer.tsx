@@ -1,16 +1,8 @@
 "use client";
 
 import { useWorkoutSession } from "@/contexts/workout-session-context";
+import type { SetSuggestion } from "@/types/workout";
 import { useEffect } from "react";
-
-export type SetSuggestion = {
-  suggestedWeightKg: number;
-  basedOnWeightKg: number;
-  basedOnReps: number;
-  basedOnFeeling: string;
-  basedOnDate: string;
-  reason: "progressed" | "held";
-};
 
 type Props = {
   suggestions: Record<number, SetSuggestion>;
