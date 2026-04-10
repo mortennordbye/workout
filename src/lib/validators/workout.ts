@@ -302,7 +302,7 @@ export const importProgramSchema = z.object({
 }).and(
   z.union([
     z.object({ program: importProgramEntrySchema }),
-    z.object({ programs: z.array(importProgramEntrySchema).min(1).max(10) }),
+    z.object({ programs: z.array(importProgramEntrySchema).min(1) }),
   ])
 );
 
