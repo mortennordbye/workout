@@ -168,6 +168,12 @@ export type SetSuggestion = {
 // Program Import/Export
 // ============================================================================
 
+export type ExportedPrograms = {
+  version: 1;
+  exportedAt: string;
+  programs: ExportedProgram["program"][];
+};
+
 export type ExportedProgram = {
   version: 1;
   exportedAt: string;

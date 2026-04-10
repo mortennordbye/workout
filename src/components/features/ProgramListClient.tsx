@@ -1,9 +1,9 @@
 "use client";
 
-import { createProgram, deleteProgram, importProgram, updateProgram } from "@/lib/actions/programs";
+import { createProgram, deleteProgram, exportAllPrograms, importProgram, updateProgram } from "@/lib/actions/programs";
 import type { Program } from "@/types/workout";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { ChevronRightIcon, Minus, PlusIcon, Upload } from "lucide-react";
+import { ChevronRightIcon, Download, Minus, PlusIcon, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -29,6 +29,25 @@ export function ProgramListClient({ programs: initial }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+
+  // Export state
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExportAll() {
+    setExporting(true);
+    const result = await exportAllPrograms();
+    setExporting(false);
+    if (!result.success) return;
+    const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `programs-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   // Import state
   const [importSheetOpen, setImportSheetOpen] = useState(false);
@@ -123,13 +142,17 @@ export function ProgramListClient({ programs: initial }: Props) {
             </button>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => setIsEditing(true)}
-                className="text-primary text-sm font-medium min-h-[44px] px-1"
-              >
-                Edit
-              </button>
+              {programs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleExportAll}
+                  disabled={exporting}
+                  className="flex items-center justify-center w-10 h-10 text-muted-foreground active:opacity-60 disabled:opacity-40"
+                  aria-label="Export all programs"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setImportSheetOpen(true)}
@@ -137,6 +160,13 @@ export function ProgramListClient({ programs: initial }: Props) {
                 aria-label="Import program"
               >
                 <Upload className="w-5 h-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="text-primary text-sm font-medium min-h-[44px] px-1"
+              >
+                Edit
               </button>
               <button
                 type="button"

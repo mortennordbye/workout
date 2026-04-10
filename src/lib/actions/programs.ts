@@ -24,6 +24,7 @@ import {
 import type {
   ActionResult,
   ExportedProgram,
+  ExportedPrograms,
   Program,
   ProgramExercise,
   ProgramSet,
@@ -465,6 +466,62 @@ export async function exportProgram(
   };
 
   return { success: true, data: payload };
+}
+
+export async function exportAllPrograms(): Promise<ActionResult<ExportedPrograms>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
+
+  try {
+    const userPrograms = await db.query.programs.findMany({
+      where: eq(programs.userId, userId),
+      with: {
+        programExercises: {
+          orderBy: [asc(programExercises.orderIndex)],
+          with: {
+            exercise: true,
+            programSets: { orderBy: [asc(programSets.setNumber)] },
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      data: {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        programs: userPrograms.map((p) => ({
+          name: p.name,
+          exercises: p.programExercises.map((pe, i) => ({
+            orderIndex: pe.orderIndex ?? i,
+            notes: pe.notes ?? null,
+            overloadIncrementKg: Number(pe.overloadIncrementKg ?? 2.5),
+            overloadIncrementReps: pe.overloadIncrementReps ?? 0,
+            progressionMode: pe.progressionMode ?? "weight",
+            exercise: {
+              name: pe.exercise.name,
+              category: pe.exercise.category,
+              bodyArea: pe.exercise.bodyArea ?? null,
+              muscleGroup: pe.exercise.muscleGroup ?? null,
+              equipment: pe.exercise.equipment ?? null,
+              movementPattern: pe.exercise.movementPattern ?? null,
+            },
+            sets: pe.programSets.map((s) => ({
+              setNumber: s.setNumber,
+              targetReps: s.targetReps ?? null,
+              weightKg: s.weightKg != null ? Number(s.weightKg) : null,
+              durationSeconds: s.durationSeconds ?? null,
+              restTimeSeconds: s.restTimeSeconds ?? 60,
+            })),
+          })),
+        })),
+      },
+    };
+  } catch (err) {
+    console.error("exportAllPrograms failed:", err);
+    return { success: false, error: "Failed to export programs" };
+  }
 }
 
 export async function importProgram(
