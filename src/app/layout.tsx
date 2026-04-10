@@ -37,6 +37,9 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "LogEveryLift",
   description: "Track your workouts with intelligent progress monitoring.",
+  icons: {
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
