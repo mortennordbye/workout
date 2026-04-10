@@ -10,11 +10,9 @@ const OVERRIDES_KEY = "workoutOverrides";
 
 type WorkoutSessionContextValue = {
   sessionId: number | null;
-  setSessionId: (id: number) => void;
   overrides: Record<number, SetOverride>;
   setOverride: (setId: number, data: SetOverride) => void;
   clearOverrides: () => void;
-  hasOverrides: boolean;
   completedSetIds: Set<number>;
   addCompletedSet: (id: number) => void;
   removeCompletedSet: (id: number) => void;
@@ -174,11 +172,9 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
     <WorkoutSessionContext.Provider
       value={{
         sessionId,
-        setSessionId,
         overrides,
         setOverride,
         clearOverrides,
-        hasOverrides: Object.keys(overrides).length > 0,
         completedSetIds,
         addCompletedSet,
         removeCompletedSet,

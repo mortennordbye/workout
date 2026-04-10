@@ -131,14 +131,6 @@ export type ActiveCycleInfo = {
 // UI Component Props Types
 // ============================================================================
 
-/**
- * Props for components that need session context.
- */
-export type SessionContextProps = {
-  sessionId: number;
-  userId: string;
-};
-
 // ============================================================================
 // Progressive Overload Suggestions
 // ============================================================================

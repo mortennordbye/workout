@@ -449,38 +449,6 @@ export async function getExerciseLoggedCount(
   }
 }
 
-/**
- * Get all sets for a specific workout session
- *
- * Fetches complete session data including all sets and exercise details.
- * Used for displaying the current workout or reviewing past workouts.
- *
- * @returns All sets in the session with exercise details
- */
-export async function getSessionSets(
-  sessionId: number,
-): Promise<ActionResult<WorkoutSet[]>> {
-  try {
-    const sets = await db.query.workoutSets.findMany({
-      where: eq(workoutSets.sessionId, sessionId),
-      with: {
-        exercise: true,
-      },
-      orderBy: [desc(workoutSets.createdAt)],
-    });
-
-    return {
-      success: true,
-      data: sets as unknown as WorkoutSetWithExercise[],
-    };
-  } catch (error) {
-    console.error("Error fetching session sets:", error);
-    return {
-      success: false,
-      error: "Failed to fetch session sets",
-    };
-  }
-}
 
 /**
  * Calculate progressive overload suggestions for every set in a program.
