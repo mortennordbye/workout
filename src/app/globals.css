@@ -155,6 +155,16 @@ select {
   }
 }
 
+/* Block landscape orientation on mobile — the app is portrait-only */
+.portrait-only-overlay {
+  display: none;
+}
+@media (orientation: landscape) and (max-height: 600px) {
+  .portrait-only-overlay {
+    display: flex;
+  }
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;

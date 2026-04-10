@@ -58,6 +58,9 @@ export default function RootLayout({
         className={`${inter.variable} ${geistMono.variable} antialiased pb-nav-safe`}
       >
         <ThemeProvider>
+          <div className="portrait-only-overlay fixed inset-0 z-[9999] items-center justify-center bg-background text-foreground text-base font-semibold text-center px-8">
+            ↩ Rotate your phone to portrait mode
+          </div>
           <ViewportFix />
           <ImpersonationBanner />
           <WorkoutSessionProvider>
