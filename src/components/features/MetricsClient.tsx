@@ -10,8 +10,14 @@ import {
   type TopProgressingExercise,
   type WeeklyMetric,
 } from "@/lib/actions/metrics";
+import {
+  deleteWeightEntry,
+  logWeightEntry,
+  type WeightEntry,
+} from "@/lib/actions/profile";
+import { BottomSheet } from "@/components/ui/BottomSheet";
 import { estimate1RM } from "@/lib/utils/progression";
-import { ChevronLeft, ChevronRight, TrendingUp, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, TrendingUp, Trash2, Zap } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
@@ -450,6 +456,232 @@ function ProgressChart({
   );
 }
 
+// ── Weight History ─────────────────────────────────────────────────────────
+
+function WeightHistorySection({
+  initialEntries,
+  profileWeightKg,
+}: {
+  initialEntries: WeightEntry[];
+  profileWeightKg: number | null;
+}) {
+  const [entries, setEntries] = useState<WeightEntry[]>(initialEntries);
+  const [showLogSheet, setShowLogSheet] = useState(false);
+  const [weightInput, setWeightInput] = useState("");
+  const [logStatus, setLogStatus] = useState<"idle" | "saving" | "error">("idle");
+  const [logError, setLogError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const sorted = [...entries].sort(
+    (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime(),
+  );
+
+  async function handleLog() {
+    const kg = parseFloat(weightInput);
+    if (isNaN(kg) || kg <= 0) {
+      setLogError("Enter a valid weight.");
+      return;
+    }
+    setLogStatus("saving");
+    setLogError(null);
+    const result = await logWeightEntry({ weightKg: kg });
+    if (result.success) {
+      setEntries((prev) => [...prev, result.data]);
+      setWeightInput("");
+      setLogStatus("idle");
+      setShowLogSheet(false);
+    } else {
+      setLogStatus("error");
+      setLogError(result.error);
+    }
+  }
+
+  function handleDelete(id: string) {
+    startTransition(async () => {
+      const result = await deleteWeightEntry(id);
+      if (result.success) {
+        setEntries((prev) => prev.filter((e) => e.id !== id));
+      }
+    });
+  }
+
+  const latest = sorted[sorted.length - 1];
+  const first = sorted[0];
+
+  // SVG line chart
+  const W = 280;
+  const H = 56;
+  const PAD = 8;
+
+  let chart: React.ReactNode = null;
+  if (sorted.length >= 2) {
+    const yValues = sorted.map((e) => e.weightKg);
+    const max = Math.max(...yValues);
+    const min = Math.min(...yValues);
+    const range = max - min || 1;
+    const pts = yValues.map((v, i) => ({
+      x: PAD + (i / (sorted.length - 1)) * (W - 2 * PAD),
+      y: H - PAD - ((v - min) / range) * (H - 2 * PAD),
+    }));
+    const polyline = pts.map((p) => `${p.x},${p.y}`).join(" ");
+    const delta = (latest?.weightKg ?? 0) - (first?.weightKg ?? 0);
+
+    chart = (
+      <div className="space-y-2">
+        <div className="flex items-baseline gap-3">
+          <span className="text-2xl font-bold">{latest?.weightKg} kg</span>
+          {delta !== 0 && (
+            <span
+              className={`text-sm font-medium ${
+                delta < 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground"
+              }`}
+            >
+              {delta > 0 ? "+" : ""}
+              {delta.toFixed(1)} kg
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground ml-auto">
+            {sorted.length} entries
+          </span>
+        </div>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-14">
+          <defs>
+            <linearGradient id="weightGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="currentColor" stopOpacity="0.15" className="text-primary" />
+              <stop offset="100%" stopColor="currentColor" stopOpacity="0" className="text-primary" />
+            </linearGradient>
+          </defs>
+          <polygon
+            points={`${pts[0].x},${H} ${polyline} ${pts[pts.length - 1].x},${H}`}
+            fill="url(#weightGrad)"
+          />
+          <polyline
+            points={polyline}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-primary"
+          />
+          {pts.map((p, i) => (
+            <circle key={i} cx={p.x} cy={p.y} r="3" fill="currentColor" className="text-primary" />
+          ))}
+        </svg>
+        <div className="flex justify-between text-[10px] text-muted-foreground">
+          <span>{formatDateShort(first!.recordedAt.slice(0, 10))}</span>
+          <span>{formatDateShort(latest!.recordedAt.slice(0, 10))}</span>
+        </div>
+      </div>
+    );
+  } else if (latest) {
+    chart = (
+      <div className="flex items-baseline gap-2">
+        <span className="text-2xl font-bold">{latest.weightKg} kg</span>
+        <span className="text-xs text-muted-foreground">
+          {formatDateShort(latest.recordedAt.slice(0, 10))}
+        </span>
+      </div>
+    );
+  }
+
+  // Show last 10 entries newest-first for the delete list
+  const recentEntries = [...sorted].reverse().slice(0, 10);
+
+  return (
+    <>
+      <div className="rounded-2xl bg-muted p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <SectionLabel>Body Weight</SectionLabel>
+          <button
+            onClick={() => setShowLogSheet(true)}
+            className="flex items-center gap-1 text-primary text-xs font-medium min-h-[36px] active:opacity-70"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Log
+          </button>
+        </div>
+
+        {entries.length === 0 ? (
+          profileWeightKg != null ? (
+            <div className="space-y-1">
+              <div className="text-2xl font-bold">{profileWeightKg} kg</div>
+              <p className="text-xs text-muted-foreground">
+                From your profile · log a new entry to start tracking trends
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No weight logged yet.</p>
+          )
+        ) : (
+          chart
+        )}
+
+        {recentEntries.length > 0 && (
+          <div className="divide-y divide-border -mx-1 pt-1">
+            {recentEntries.map((entry) => (
+              <div
+                key={entry.id}
+                className="flex items-center gap-3 px-1 py-2.5 min-h-[44px]"
+              >
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium">{entry.weightKg} kg</span>
+                  <span className="text-xs text-muted-foreground ml-2">
+                    {formatDateShort(entry.recordedAt.slice(0, 10))}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleDelete(entry.id)}
+                  disabled={isPending}
+                  className="p-2 text-muted-foreground active:text-destructive active:opacity-70 disabled:opacity-40"
+                  aria-label="Delete entry"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <BottomSheet open={showLogSheet} onClose={() => { setShowLogSheet(false); setLogStatus("idle"); setLogError(null); }} blur>
+        <div className="bg-background rounded-t-2xl flex flex-col" style={{ maxHeight: "60dvh" }}>
+          <div className="flex items-center justify-between px-4 pt-5 pb-4 shrink-0">
+            <h2 className="text-lg font-semibold">Log Weight</h2>
+            <button
+              onClick={() => { setShowLogSheet(false); setLogStatus("idle"); setLogError(null); }}
+              className="text-primary text-sm font-medium min-h-[44px] px-1"
+            >
+              Cancel
+            </button>
+          </div>
+          <div className="flex flex-col gap-4 px-4 pb-10">
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                inputMode="decimal"
+                placeholder="80.0"
+                value={weightInput}
+                onChange={(e) => { setWeightInput(e.target.value); setLogError(null); }}
+                className="flex-1 rounded-xl bg-muted px-4 py-3.5 text-sm outline-none focus:ring-2 ring-primary"
+              />
+              <span className="text-sm text-muted-foreground w-6">kg</span>
+            </div>
+            {logError && <p className="text-sm text-destructive">{logError}</p>}
+            <button
+              onClick={handleLog}
+              disabled={logStatus === "saving" || !weightInput}
+              className="w-full rounded-xl bg-primary py-4 text-sm font-semibold text-primary-foreground disabled:opacity-50 active:opacity-80"
+            >
+              {logStatus === "saving" ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
+    </>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
 type Props = {
@@ -462,6 +694,8 @@ type Props = {
   topProgressing: TopProgressingExercise[];
   initialProgress: ExerciseProgress[];
   initialExerciseId: number | null;
+  weightHistory: WeightEntry[];
+  profileWeightKg: number | null;
 };
 
 export function MetricsClient({
@@ -474,6 +708,8 @@ export function MetricsClient({
   topProgressing,
   initialProgress,
   initialExerciseId,
+  weightHistory,
+  profileWeightKg,
 }: Props) {
   const [selectedId, setSelectedId] = useState<number | null>(initialExerciseId);
   const [progressData, setProgressData] = useState<ExerciseProgress[]>(initialProgress);
@@ -509,6 +745,9 @@ export function MetricsClient({
 
         {/* ── Summary Stats ──────────────────────────────────────── */}
         {summaryStats && <SummaryStatsRow stats={summaryStats} />}
+
+        {/* ── Body Weight ────────────────────────────────────────── */}
+        <WeightHistorySection initialEntries={weightHistory} profileWeightKg={profileWeightKg} />
 
         {/* ── Volume & Frequency ─────────────────────────────────── */}
         <WeeklyChart data={weekly} />

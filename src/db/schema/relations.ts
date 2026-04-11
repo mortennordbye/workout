@@ -39,6 +39,7 @@ import { exercises } from "./exercises";
 import { programExercises, programSets, programs } from "./programs";
 import { trainingCycleSlots, trainingCycles } from "./training-cycles";
 import { users } from "./users";
+import { userWeightEntries } from "./weight-history";
 import { workoutSessions } from "./workout-sessions";
 import { workoutSets } from "./workout-sets";
 
@@ -47,6 +48,15 @@ export const usersRelations = relations(users, ({ many }) => ({
   workoutSessions: many(workoutSessions),
   programs: many(programs),
   trainingCycles: many(trainingCycles),
+  weightEntries: many(userWeightEntries),
+}));
+
+// Weight entry relations
+export const userWeightEntriesRelations = relations(userWeightEntries, ({ one }) => ({
+  user: one(users, {
+    fields: [userWeightEntries.userId],
+    references: [users.id],
+  }),
 }));
 
 // Exercise relations

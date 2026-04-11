@@ -26,6 +26,10 @@ interface AccountClientProps {
   profile: UserProfile;
 }
 
+interface ProfileState extends UserProfile {
+  name: string;
+}
+
 const GOAL_LABELS: Record<Goal, string> = {
   strength: "Strength",
   muscle_gain: "Muscle Gain",
@@ -134,7 +138,7 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
   const [passwordStatus, setPasswordStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  const [profile, setProfile] = useState<UserProfile>(initialProfile);
+  const [profile, setProfile] = useState<ProfileState>({ ...initialProfile, name });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -181,7 +185,8 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
   async function handleSaveProfile() {
     setProfileSaving(true);
     setProfileError(null);
-    const result = await updateUserProfile(profile);
+    const { name: profileName, ...bodyFields } = profile;
+    const result = await updateUserProfile({ ...bodyFields, name: profileName.trim() || undefined });
     setProfileSaving(false);
     if (result.success) {
       setProfileSaved(true);
@@ -199,9 +204,16 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
         <div>
           <SectionLabel>Profile</SectionLabel>
           <div className="rounded-2xl bg-card overflow-hidden divide-y divide-border/50">
-            <div className="px-4 py-3.5">
-              <p className="text-xs text-muted-foreground mb-0.5">Name</p>
-              <p className="text-sm font-medium">{name}</p>
+            <div className="px-4 py-3.5 flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground mb-0.5">Name</p>
+              </div>
+              <input
+                type="text"
+                value={profile.name}
+                onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
+                className="w-40 rounded-lg bg-muted px-3 py-2 text-sm text-right outline-none focus:ring-2 ring-primary"
+              />
             </div>
             <div className="px-4 py-3.5">
               <p className="text-xs text-muted-foreground mb-0.5">Email</p>

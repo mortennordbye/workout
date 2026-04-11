@@ -5,7 +5,11 @@ import {
   getSummaryStats,
   getTopProgressingExercises,
 } from "@/lib/actions/metrics";
+import { getWeightHistory } from "@/lib/actions/profile";
+import { db } from "@/db";
+import { users } from "@/db/schema/users";
 import { requireSession } from "@/lib/utils/session";
+import { eq } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +17,12 @@ export default async function MetricsPage() {
   const session = await requireSession();
   const userId = session.user.id;
 
-  const [metricsResult, summaryResult, topProgressResult] = await Promise.all([
+  const [metricsResult, summaryResult, topProgressResult, weightHistoryResult, userRow] = await Promise.all([
     getMetricsData(userId),
     getSummaryStats(userId),
     getTopProgressingExercises(userId),
+    getWeightHistory(),
+    db.query.users.findFirst({ where: eq(users.id, userId) }),
   ]);
 
   const metrics = metricsResult.success
@@ -40,6 +46,8 @@ export default async function MetricsPage() {
       topProgressing={topProgressResult.success ? topProgressResult.data : []}
       initialProgress={progressResult?.success ? progressResult.data : []}
       initialExerciseId={topExercise?.exerciseId ?? null}
+      weightHistory={weightHistoryResult.success ? weightHistoryResult.data : []}
+      profileWeightKg={userRow?.weightKg ?? null}
     />
   );
 }
