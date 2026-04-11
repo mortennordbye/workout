@@ -273,7 +273,7 @@ export function WorkoutSessionClient({
           <div className="bg-card rounded-2xl overflow-hidden text-center">
             <div className="px-4 pt-5 pb-4 border-b border-border">
               <p className="font-semibold text-base">Finish workout?</p>
-              <p className="text-sm text-muted-foreground mt-1">You'll be taken to the summary screen.</p>
+              <p className="text-sm text-muted-foreground mt-1">You&apos;ll be taken to the summary screen.</p>
             </div>
             <button
               onClick={() => setShowFinishConfirm(false)}

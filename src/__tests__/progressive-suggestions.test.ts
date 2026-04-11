@@ -163,8 +163,13 @@ describe("isConfidentHit", () => {
     expect(isConfidentHit(makeRow({ rpe: 6, actualReps: 6, targetReps: 8 }), 8)).toBe(false);
   });
 
-  it("returns false when target reps is null", () => {
-    expect(isConfidentHit(makeRow({ rpe: 6, actualReps: 8, targetReps: null }), null)).toBe(false);
+  it("returns true for null targets when reps > 0 (open-ended sets count as confident)", () => {
+    expect(isConfidentHit(makeRow({ rpe: 6, actualReps: 8, targetReps: null }), null)).toBe(true);
+    expect(isConfidentHit(makeRow({ rpe: 9, actualReps: 8, targetReps: null }), null)).toBe(true);
+  });
+
+  it("returns false for null targets when actualReps = 0 (nothing performed)", () => {
+    expect(isConfidentHit(makeRow({ rpe: 6, actualReps: 0, targetReps: null }), null)).toBe(false);
   });
 });
 

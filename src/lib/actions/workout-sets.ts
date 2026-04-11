@@ -166,6 +166,9 @@ async function detectAndRecordPRs({
   const newPRs: PRResult[] = [];
   const now = new Date();
 
+  // Bodyweight / timed sets have no meaningful weight PR — skip entirely
+  if (weightKg <= 0) return newPRs;
+
   try {
     // 1. Weight PR — heaviest single set ever
     const [currentWeightPR] = await db
@@ -186,7 +189,7 @@ async function detectAndRecordPRs({
         await db
           .update(exercisePrs)
           .set({ supersededAt: now })
-          .where(eq(exercisePrs.id, currentWeightPR.id));
+          .where(and(eq(exercisePrs.id, currentWeightPR.id), isNull(exercisePrs.supersededAt)));
       }
       await db.insert(exercisePrs).values({
         userId,
@@ -224,7 +227,7 @@ async function detectAndRecordPRs({
           await db
             .update(exercisePrs)
             .set({ supersededAt: now })
-            .where(eq(exercisePrs.id, current1RMPR.id));
+            .where(and(eq(exercisePrs.id, current1RMPR.id), isNull(exercisePrs.supersededAt)));
         }
         await db.insert(exercisePrs).values({
           userId,
@@ -240,6 +243,48 @@ async function detectAndRecordPRs({
           value: Math.round(new1RM * 10) / 10,
           previousValue: current1RMPR
             ? Math.round(Number(current1RMPR.value) * 10) / 10
+            : undefined,
+        });
+      }
+    }
+
+    // 3. Reps-at-weight PR — most reps ever at this load (±0.5 kg)
+    if (actualReps > 0) {
+      const [currentRepsAtWeightPR] = await db
+        .select()
+        .from(exercisePrs)
+        .where(
+          and(
+            eq(exercisePrs.userId, userId),
+            eq(exercisePrs.exerciseId, exerciseId),
+            eq(exercisePrs.prType, "reps_at_weight"),
+            sql`ABS(CAST(${exercisePrs.weightKg} AS numeric) - ${weightKg}) <= 0.5`,
+            isNull(exercisePrs.supersededAt),
+          ),
+        )
+        .limit(1);
+
+      if (!currentRepsAtWeightPR || actualReps > Number(currentRepsAtWeightPR.value)) {
+        if (currentRepsAtWeightPR) {
+          await db
+            .update(exercisePrs)
+            .set({ supersededAt: now })
+            .where(and(eq(exercisePrs.id, currentRepsAtWeightPR.id), isNull(exercisePrs.supersededAt)));
+        }
+        await db.insert(exercisePrs).values({
+          userId,
+          exerciseId,
+          prType: "reps_at_weight",
+          value: actualReps.toString(),
+          weightKg: weightKg.toFixed(2),
+          sessionId,
+          setId,
+        });
+        newPRs.push({
+          type: "reps_at_weight",
+          value: actualReps,
+          previousValue: currentRepsAtWeightPR
+            ? Number(currentRepsAtWeightPR.value)
             : undefined,
         });
       }
@@ -486,6 +531,7 @@ export async function getCompletedSessions(
         workoutSessions.notes,
         workoutSessions.feeling,
         workoutSessions.isCompleted,
+        workoutSessions.readiness,
         programs.name,
       )
       .orderBy(desc(workoutSessions.startTime));
@@ -703,7 +749,7 @@ export async function getProgressiveSuggestions(
           inArray(workoutSets.exerciseId, exerciseIds),
         ),
       )
-      .orderBy(desc(workoutSessions.date), desc(workoutSets.weightKg))
+      .orderBy(desc(workoutSessions.startTime), desc(workoutSets.id))
       .limit(programData.length * CONSENSUS_WINDOW);
 
     // Step 4: group history rows per exerciseId+setNumber (most-recent-first)

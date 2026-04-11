@@ -187,7 +187,7 @@ export function adaptiveIncrementKg(
  */
 export function isConfidentHit(row: HistoryRow, programTargetReps: number | null): boolean {
   const target = row.targetReps ?? programTargetReps;
-  if (target == null) return false;
+  if (target == null) return row.actualReps > 0; // no defined target → any completed rep counts
   if (row.actualReps < target) return false;
 
   const rpe = row.rpe ?? 7;
