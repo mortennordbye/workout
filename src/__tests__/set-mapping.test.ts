@@ -93,14 +93,14 @@ describe("computeMapping", () => {
     expect(orderedSetIds).toEqual([3, 1, 2]);
   });
 
-  it("does not overwrite an already-assigned rest", () => {
+  it("overwrites with the last rest when consecutive rests follow a set", () => {
     // [Set1, Rest60, Rest90, Set2]
     // Rest60 → assigns to Set1 (preceding)
-    // Rest90 → finds Set1 as preceding but it's already assigned; assigned=true so no fallback
-    //          → Rest90 is effectively dropped; Set2 keeps rest=0
+    // Rest90 → finds Set1 as preceding, overwrites with 90 (last rest wins)
+    //          → Set2 keeps rest=0
     const items: FlatItem[] = [set(1), rest("r1", 60), rest("r2", 90), set(2)];
     const { restAssignments } = computeMapping(items);
-    expect(restAssignments.get(1)).toBe(60);
+    expect(restAssignments.get(1)).toBe(90);
     expect(restAssignments.get(2)).toBe(0);
   });
 

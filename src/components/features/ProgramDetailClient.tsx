@@ -234,6 +234,7 @@ export function ProgramDetailClient({
     if (!over || active.id === over.id) return;
     const oldIndex = exercises.findIndex((e) => e.id === active.id);
     const newIndex = exercises.findIndex((e) => e.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
     // Only update local state — persisted on Save
     setExercises(arrayMove(exercises, oldIndex, newIndex));
   }

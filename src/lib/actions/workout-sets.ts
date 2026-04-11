@@ -27,6 +27,7 @@
 import { db } from "@/db";
 import { exercisePrs, exercises, programExercises, programSets, programs, users, workoutSessions, workoutSets } from "@/db/schema";
 import { getActiveCycleForUser } from "@/lib/actions/training-cycles";
+import { requireSession } from "@/lib/utils/session";
 import {
     logWorkoutSetSchema,
     workoutHistoryQuerySchema,
@@ -68,6 +69,8 @@ import { revalidatePath } from "next/cache";
 export async function logWorkoutSet(
   data: unknown,
 ): Promise<ActionResult<LogWorkoutSetResult>> {
+  const auth = await requireSession();
+
   try {
     // Validate input
     const validation = logWorkoutSetSchema.safeParse(data);
@@ -110,24 +113,17 @@ export async function logWorkoutSet(
       })
       .returning();
 
-    // PR Detection: fetch userId from session, then check for new records
+    // PR Detection: check for new records using the authenticated user's ID
     let newPRs: PRResult[] = [];
     if (actualReps > 0 && weightKg > 0) {
-      const [sessionRow] = await db
-        .select({ userId: workoutSessions.userId })
-        .from(workoutSessions)
-        .where(eq(workoutSessions.id, sessionId));
-
-      if (sessionRow) {
-        newPRs = await detectAndRecordPRs({
-          userId: sessionRow.userId,
-          exerciseId,
-          sessionId,
-          setId: set.id,
-          weightKg,
-          actualReps,
-        });
-      }
+      newPRs = await detectAndRecordPRs({
+        userId: auth.user.id,
+        exerciseId,
+        sessionId,
+        setId: set.id,
+        weightKg,
+        actualReps,
+      });
     }
 
     revalidatePath(`/workout/${sessionId}`);

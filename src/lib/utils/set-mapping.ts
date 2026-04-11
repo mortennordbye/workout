@@ -36,13 +36,11 @@ export function computeMapping(items: FlatItem[]): {
     if (items[i].type === "rest") {
       const restSeconds = (items[i] as RestFlatItem).seconds;
       let assigned = false;
-      // Assign to nearest preceding set
+      // Assign to nearest preceding set (always overwrite — last rest wins)
       for (let j = i - 1; j >= 0; j--) {
         if (items[j].type === "set") {
           const setId = (items[j] as SetFlatItem).set.id;
-          if (restAssignments.get(setId) === 0) {
-            restAssignments.set(setId, restSeconds);
-          }
+          restAssignments.set(setId, restSeconds);
           assigned = true;
           break;
         }

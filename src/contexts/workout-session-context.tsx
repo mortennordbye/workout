@@ -121,6 +121,7 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
     });
 
   const clearOverrides = () => {
+    localStorage.removeItem(OVERRIDES_KEY);
     setOverrides({});
     setCompletedSetIds(new Set());
   };

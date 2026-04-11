@@ -51,6 +51,8 @@ export async function createWorkoutSession(
 export async function completeWorkoutSession(
   data: unknown,
 ): Promise<ActionResult<WorkoutSession>> {
+  const auth = await requireSession();
+
   const validation = completeWorkoutSessionSchema.safeParse(data);
   if (!validation.success) {
     return {
@@ -62,6 +64,14 @@ export async function completeWorkoutSession(
 
   try {
     const { sessionId, endTime, notes, feeling } = validation.data;
+
+    const [existing] = await db
+      .select({ userId: workoutSessions.userId })
+      .from(workoutSessions)
+      .where(eq(workoutSessions.id, sessionId));
+    if (!existing) return { success: false, error: "Workout session not found" };
+    if (existing.userId !== auth.user.id) return { success: false, error: "Unauthorized" };
+
     const [session] = await db
       .update(workoutSessions)
       .set({
@@ -72,8 +82,6 @@ export async function completeWorkoutSession(
       })
       .where(eq(workoutSessions.id, sessionId))
       .returning();
-
-    if (!session) return { success: false, error: "Workout session not found" };
 
     revalidatePath("/workout");
     revalidatePath(`/workout/${sessionId}`);
@@ -88,7 +96,16 @@ export async function completeWorkoutSession(
 export async function deleteWorkoutSession(
   sessionId: number,
 ): Promise<ActionResult<undefined>> {
+  const auth = await requireSession();
+
   try {
+    const [existing] = await db
+      .select({ userId: workoutSessions.userId })
+      .from(workoutSessions)
+      .where(eq(workoutSessions.id, sessionId));
+    if (!existing) return { success: false, error: "Workout session not found" };
+    if (existing.userId !== auth.user.id) return { success: false, error: "Unauthorized" };
+
     await db.delete(workoutSessions).where(eq(workoutSessions.id, sessionId));
     revalidatePath("/history");
     revalidatePath("/");

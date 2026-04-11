@@ -267,7 +267,16 @@ export async function updateTrainingCycle(
 export async function deleteTrainingCycle(
   cycleId: number,
 ): Promise<ActionResult<void>> {
+  const auth = await requireSession();
+
   try {
+    const [existing] = await db
+      .select({ userId: trainingCycles.userId })
+      .from(trainingCycles)
+      .where(eq(trainingCycles.id, cycleId));
+    if (!existing) return { success: false, error: "Training cycle not found" };
+    if (existing.userId !== auth.user.id) return { success: false, error: "Unauthorized" };
+
     await db
       .delete(trainingCycles)
       .where(eq(trainingCycles.id, cycleId));
@@ -300,8 +309,10 @@ export async function startTrainingCycle(
     const [cycle] = await db
       .update(trainingCycles)
       .set({ status: "active", startDate: today })
-      .where(eq(trainingCycles.id, cycleId))
+      .where(and(eq(trainingCycles.id, cycleId), eq(trainingCycles.userId, userId)))
       .returning();
+
+    if (!cycle) return { success: false, error: "Training cycle not found" };
 
     revalidatePath("/cycles");
     revalidatePath(`/cycles/${cycleId}`);

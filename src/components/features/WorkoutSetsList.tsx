@@ -436,6 +436,7 @@ export function WorkoutSetsList({
     if (!over || active.id === over.id) return;
     const oldIndex = flatItems.findIndex((i) => i.id === active.id);
     const newIndex = flatItems.findIndex((i) => i.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
     const reordered = arrayMove(flatItems, oldIndex, newIndex);
     setFlatItems(reordered);
     await saveCurrentState(reordered);
