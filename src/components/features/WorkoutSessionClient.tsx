@@ -24,16 +24,32 @@ type Exercise = {
   isTimed?: boolean;
 };
 
+type LastSession = {
+  feeling: string | null;
+  notes: string | null;
+  date: string;
+  durationMinutes: number;
+};
+
+const FEELING_COLORS: Record<string, string> = {
+  Tired: "bg-red-500/20 text-red-500",
+  OK: "bg-yellow-500/20 text-yellow-500",
+  Good: "bg-green-500/20 text-green-500",
+  Awesome: "bg-blue-500/20 text-blue-500",
+};
+
 type Props = {
   programId: number;
   programName: string;
   exercises: Exercise[];
+  lastSession?: LastSession | null;
 };
 
 export function WorkoutSessionClient({
   programId,
   programName,
   exercises: initial,
+  lastSession = null,
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -98,6 +114,7 @@ export function WorkoutSessionClient({
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [exercises, setExercises] = useState(initial);
+  const [noteDismissed, setNoteDismissed] = useState(false);
 
   async function handleDeleteExercise(peId: number) {
     setExercises((prev) => prev.filter((e) => e.id !== peId));
@@ -158,6 +175,38 @@ export function WorkoutSessionClient({
         <p className="text-sm text-muted-foreground">{programName}</p>
         <p className="text-xs text-muted-foreground/60 tabular-nums">{formatTime(elapsed)}</p>
       </div>
+
+      {/* Last session note */}
+      {lastSession && !noteDismissed && (lastSession.notes || lastSession.feeling) && (
+        <div className="px-4 pb-3 shrink-0">
+          <div className="bg-card rounded-2xl px-4 py-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Last session
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                · {new Date(lastSession.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                {lastSession.durationMinutes > 0 && ` · ${lastSession.durationMinutes}m`}
+              </span>
+              {lastSession.feeling && FEELING_COLORS[lastSession.feeling] && (
+                <span className={`text-[10px] font-semibold rounded-full px-2 py-0.5 ${FEELING_COLORS[lastSession.feeling]}`}>
+                  {lastSession.feeling}
+                </span>
+              )}
+              <button
+                onClick={() => setNoteDismissed(true)}
+                className="ml-auto text-muted-foreground/50 active:opacity-60 text-base leading-none"
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            </div>
+            {lastSession.notes && (
+              <p className="text-sm text-foreground/80 mt-1.5 line-clamp-3">{lastSession.notes}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Exercises list + History */}
       <div className="flex-1 px-4 overflow-y-auto">

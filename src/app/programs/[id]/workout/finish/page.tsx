@@ -37,6 +37,7 @@ function FinishContent() {
   );
 
   const [feeling, setFeeling] = useState<Feeling>("Good");
+  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -52,7 +53,7 @@ function FinishContent() {
 
     const existingSessionId = workoutSession?.sessionId;
     if (existingSessionId) {
-      await completeWorkoutSession({ sessionId: existingSessionId, feeling });
+      await completeWorkoutSession({ sessionId: existingSessionId, feeling, notes: notes.trim() || undefined });
     } else {
       // Fallback if session wasn't pre-created (e.g. direct navigation)
       const created = await createWorkoutSession({
@@ -60,7 +61,7 @@ function FinishContent() {
         startTime: startTime.toISOString(),
       });
       if (!created.success) return false;
-      await completeWorkoutSession({ sessionId: created.data.id, feeling });
+      await completeWorkoutSession({ sessionId: created.data.id, feeling, notes: notes.trim() || undefined });
     }
     workoutSession?.clearActiveWorkout();
     router.replace("/");
@@ -129,6 +130,21 @@ function FinishContent() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
+              Notes <span className="normal-case font-normal">(optional)</span>
+            </p>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Anything to remember for next time…"
+              rows={3}
+              maxLength={1000}
+              className="w-full bg-card rounded-2xl px-4 py-3 text-sm resize-none outline-none focus:ring-2 ring-primary placeholder:text-muted-foreground/50"
+            />
           </div>
         </div>
 

@@ -7,6 +7,8 @@
 
 import { WorkoutSessionClient } from "@/components/features/WorkoutSessionClient";
 import { getProgramWithExercises } from "@/lib/actions/programs";
+import { getLastCompletedSession } from "@/lib/actions/workout-sessions";
+import { requireSession } from "@/lib/utils/session";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +22,11 @@ export default async function WorkoutSessionPage({ params }: Props) {
   const programId = Number(id);
   if (isNaN(programId)) notFound();
 
-  const result = await getProgramWithExercises(programId);
+  await requireSession();
+  const [result, lastSessionResult] = await Promise.all([
+    getProgramWithExercises(programId),
+    getLastCompletedSession(programId),
+  ]);
 
   if (!result.success) notFound();
 
@@ -39,6 +45,7 @@ export default async function WorkoutSessionPage({ params }: Props) {
       programId={programId}
       programName={program.name}
       exercises={exercises}
+      lastSession={lastSessionResult.success ? lastSessionResult.data : null}
     />
   );
 }

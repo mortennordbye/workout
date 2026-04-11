@@ -1,5 +1,7 @@
 import { ProgramDetailClient } from "@/components/features/ProgramDetailClient";
 import { getProgramWithExercises } from "@/lib/actions/programs";
+import { getLastCompletedSession } from "@/lib/actions/workout-sessions";
+import { requireSession } from "@/lib/utils/session";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +17,11 @@ export default async function ProgramDetailPage({ params, searchParams }: Props)
   const programId = Number(id);
   if (isNaN(programId)) notFound();
 
-  const programResult = await getProgramWithExercises(programId);
+  await requireSession();
+  const [programResult, lastSessionResult] = await Promise.all([
+    getProgramWithExercises(programId),
+    getLastCompletedSession(programId),
+  ]);
   if (!programResult.success) notFound();
 
   const program = programResult.data;
@@ -32,6 +38,7 @@ export default async function ProgramDetailPage({ params, searchParams }: Props)
       programName={program.name}
       exercises={exercises}
       initialEditing={editing === "true"}
+      lastSession={lastSessionResult.success ? lastSessionResult.data : null}
     />
   );
 }

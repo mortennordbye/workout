@@ -99,6 +99,47 @@ export async function deleteWorkoutSession(
   }
 }
 
+type LastSession = {
+  feeling: string | null;
+  notes: string | null;
+  date: string;
+  durationMinutes: number;
+};
+
+export async function getLastCompletedSession(
+  programId: number,
+): Promise<ActionResult<LastSession | null>> {
+  const auth = await requireSession();
+  try {
+    const session = await db.query.workoutSessions.findFirst({
+      where: (s, { eq, and }) =>
+        and(
+          eq(s.userId, auth.user.id),
+          eq(s.programId, programId),
+          eq(s.isCompleted, true),
+        ),
+      orderBy: (s, { desc }) => [desc(s.startTime)],
+    });
+    if (!session) return { success: true, data: null };
+    const durationMinutes =
+      session.endTime && session.startTime
+        ? Math.max(1, Math.round((session.endTime.getTime() - session.startTime.getTime()) / 60000))
+        : 0;
+    return {
+      success: true,
+      data: {
+        feeling: session.feeling ?? null,
+        notes: session.notes ?? null,
+        date: session.date,
+        durationMinutes,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching last session:", error);
+    return { success: false, error: "Failed to fetch last session" };
+  }
+}
+
 export async function getActiveSession(
   userId: string,
 ): Promise<ActionResult<WorkoutSession | null>> {

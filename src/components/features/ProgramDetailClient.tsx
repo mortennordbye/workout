@@ -37,11 +37,26 @@ type ProgramExItem = {
   sets: ProgramSet[];
 };
 
+type LastSession = {
+  feeling: string | null;
+  notes: string | null;
+  date: string;
+  durationMinutes: number;
+};
+
+const FEELING_COLORS: Record<string, string> = {
+  Tired: "bg-red-500/20 text-red-500",
+  OK: "bg-yellow-500/20 text-yellow-500",
+  Good: "bg-green-500/20 text-green-500",
+  Awesome: "bg-blue-500/20 text-blue-500",
+};
+
 type Props = {
   programId: number;
   programName: string;
   exercises: ProgramExItem[];
   initialEditing?: boolean;
+  lastSession?: LastSession | null;
 };
 
 
@@ -129,6 +144,7 @@ export function ProgramDetailClient({
   programName,
   exercises: initial,
   initialEditing = false,
+  lastSession = null,
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(initialEditing);
@@ -295,6 +311,31 @@ export function ProgramDetailClient({
           <h1 className="text-3xl font-bold tracking-tight">{name}</h1>
         )}
       </div>
+
+      {/* Last session card */}
+      {lastSession && !isEditing && (
+        <div className="px-4 pb-3 shrink-0">
+          <div className="bg-card rounded-2xl px-4 py-3 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Last session
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                · {new Date(lastSession.date + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                {lastSession.durationMinutes > 0 && ` · ${lastSession.durationMinutes}m`}
+              </span>
+              {lastSession.feeling && FEELING_COLORS[lastSession.feeling] && (
+                <span className={`ml-auto text-[10px] font-semibold rounded-full px-2 py-0.5 ${FEELING_COLORS[lastSession.feeling]}`}>
+                  {lastSession.feeling}
+                </span>
+              )}
+            </div>
+            {lastSession.notes && (
+              <p className="text-sm text-foreground/80 line-clamp-3">{lastSession.notes}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Exercises — scrollable */}
       <div className="flex-1 overflow-y-auto px-4">
