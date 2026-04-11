@@ -25,7 +25,7 @@
  */
 
 import { db } from "@/db";
-import { exercises, programExercises, programSets, programs, users, workoutSessions, workoutSets } from "@/db/schema";
+import { exercisePrs, exercises, programExercises, programSets, programs, users, workoutSessions, workoutSets } from "@/db/schema";
 import { getActiveCycleForUser } from "@/lib/actions/training-cycles";
 import {
     logWorkoutSetSchema,
@@ -34,10 +34,13 @@ import {
 import {
     buildSuggestion,
     CONSENSUS_WINDOW,
+    estimate1RM,
 } from "@/lib/utils/progression";
 import type { HistoryRow, ProgramSetData } from "@/lib/utils/progression";
 import type {
     ActionResult,
+    LogWorkoutSetResult,
+    PRResult,
     SessionDetail,
     SessionWithStats,
     SetSuggestion,
@@ -46,7 +49,7 @@ import type {
     WorkoutSetWithExercise,
     WorkoutStats,
 } from "@/types/workout";
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -64,7 +67,7 @@ import { revalidatePath } from "next/cache";
  */
 export async function logWorkoutSet(
   data: unknown,
-): Promise<ActionResult<WorkoutSet>> {
+): Promise<ActionResult<LogWorkoutSetResult>> {
   try {
     // Validate input
     const validation = logWorkoutSetSchema.safeParse(data);
@@ -99,7 +102,7 @@ export async function logWorkoutSet(
         setNumber,
         targetReps,
         actualReps,
-        weightKg: weightKg.toString(), // Convert to string for decimal type
+        weightKg: weightKg.toString(),
         durationSeconds,
         rpe,
         restTimeSeconds,
@@ -107,23 +110,32 @@ export async function logWorkoutSet(
       })
       .returning();
 
-    // TODO: PR Detection Logic
-    // Compare this set's performance against historical data:
-    // const isPR = await detectPR({ exerciseId, weightKg, actualReps });
-    // if (isPR) { /* Trigger celebration UI, save PR record */ }
+    // PR Detection: fetch userId from session, then check for new records
+    let newPRs: PRResult[] = [];
+    if (actualReps > 0 && weightKg > 0) {
+      const [sessionRow] = await db
+        .select({ userId: workoutSessions.userId })
+        .from(workoutSessions)
+        .where(eq(workoutSessions.id, sessionId));
 
-    // TODO: Auto-Deload Detection
-    // Analyze recent sets to detect overtraining:
-    // const shouldDeload = await checkDeloadNeeded({ exerciseId, sessionId });
-    // if (shouldDeload) { /* Suggest lighter weight for next session */ }
+      if (sessionRow) {
+        newPRs = await detectAndRecordPRs({
+          userId: sessionRow.userId,
+          exerciseId,
+          sessionId,
+          setId: set.id,
+          weightKg,
+          actualReps,
+        });
+      }
+    }
 
-    // Revalidate relevant pages
     revalidatePath(`/workout/${sessionId}`);
     revalidatePath("/history");
 
     return {
       success: true,
-      data: set,
+      data: { set, newPRs },
     };
   } catch (error) {
     console.error("Error logging workout set:", error);
@@ -131,6 +143,146 @@ export async function logWorkoutSet(
       success: false,
       error: "Failed to log workout set. Please try again.",
     };
+  }
+}
+
+// ─── PR Detection ─────────────────────────────────────────────────────────────
+
+async function detectAndRecordPRs({
+  userId,
+  exerciseId,
+  sessionId,
+  setId,
+  weightKg,
+  actualReps,
+}: {
+  userId: string;
+  exerciseId: number;
+  sessionId: number;
+  setId: number;
+  weightKg: number;
+  actualReps: number;
+}): Promise<PRResult[]> {
+  const newPRs: PRResult[] = [];
+  const now = new Date();
+
+  try {
+    // 1. Weight PR — heaviest single set ever
+    const [currentWeightPR] = await db
+      .select()
+      .from(exercisePrs)
+      .where(
+        and(
+          eq(exercisePrs.userId, userId),
+          eq(exercisePrs.exerciseId, exerciseId),
+          eq(exercisePrs.prType, "weight"),
+          isNull(exercisePrs.supersededAt),
+        ),
+      )
+      .limit(1);
+
+    if (!currentWeightPR || weightKg > Number(currentWeightPR.value)) {
+      if (currentWeightPR) {
+        await db
+          .update(exercisePrs)
+          .set({ supersededAt: now })
+          .where(eq(exercisePrs.id, currentWeightPR.id));
+      }
+      await db.insert(exercisePrs).values({
+        userId,
+        exerciseId,
+        prType: "weight",
+        value: weightKg.toFixed(2),
+        sessionId,
+        setId,
+      });
+      newPRs.push({
+        type: "weight",
+        value: weightKg,
+        previousValue: currentWeightPR ? Number(currentWeightPR.value) : undefined,
+      });
+    }
+
+    // 2. Estimated 1RM PR — Epley formula, valid for 2–12 reps
+    if (actualReps >= 2 && actualReps <= 12) {
+      const new1RM = estimate1RM(weightKg, actualReps);
+      const [current1RMPR] = await db
+        .select()
+        .from(exercisePrs)
+        .where(
+          and(
+            eq(exercisePrs.userId, userId),
+            eq(exercisePrs.exerciseId, exerciseId),
+            eq(exercisePrs.prType, "estimated_1rm"),
+            isNull(exercisePrs.supersededAt),
+          ),
+        )
+        .limit(1);
+
+      if (!current1RMPR || new1RM > Number(current1RMPR.value)) {
+        if (current1RMPR) {
+          await db
+            .update(exercisePrs)
+            .set({ supersededAt: now })
+            .where(eq(exercisePrs.id, current1RMPR.id));
+        }
+        await db.insert(exercisePrs).values({
+          userId,
+          exerciseId,
+          prType: "estimated_1rm",
+          value: new1RM.toFixed(2),
+          weightKg: weightKg.toFixed(2),
+          sessionId,
+          setId,
+        });
+        newPRs.push({
+          type: "estimated_1rm",
+          value: Math.round(new1RM * 10) / 10,
+          previousValue: current1RMPR
+            ? Math.round(Number(current1RMPR.value) * 10) / 10
+            : undefined,
+        });
+      }
+    }
+  } catch (err) {
+    // PR detection is non-critical — log and continue
+    console.error("PR detection error:", err);
+  }
+
+  return newPRs;
+}
+
+/**
+ * Get the current (non-superseded) personal records for an exercise.
+ * Returns a map of prType → value number.
+ */
+export async function getExercisePRs(
+  exerciseId: number,
+  userId: string,
+): Promise<ActionResult<Record<string, number>>> {
+  try {
+    const prs = await db
+      .select({
+        prType: exercisePrs.prType,
+        value: exercisePrs.value,
+      })
+      .from(exercisePrs)
+      .where(
+        and(
+          eq(exercisePrs.userId, userId),
+          eq(exercisePrs.exerciseId, exerciseId),
+          isNull(exercisePrs.supersededAt),
+        ),
+      );
+
+    const result: Record<string, number> = {};
+    for (const pr of prs) {
+      result[pr.prType] = Number(pr.value);
+    }
+    return { success: true, data: result };
+  } catch (error) {
+    console.error("Error fetching exercise PRs:", error);
+    return { success: false, error: "Failed to fetch PRs" };
   }
 }
 
@@ -309,6 +461,7 @@ export async function getCompletedSessions(
         notes: workoutSessions.notes,
         feeling: workoutSessions.feeling,
         isCompleted: workoutSessions.isCompleted,
+        readiness: workoutSessions.readiness,
         programName: programs.name,
         setCount: sql<number>`COUNT(${workoutSets.id})`,
         exerciseCount: sql<number>`COUNT(DISTINCT ${workoutSets.exerciseId})`,
@@ -380,6 +533,7 @@ export async function getSessionDetail(
         notes: workoutSessions.notes,
         feeling: workoutSessions.feeling,
         isCompleted: workoutSessions.isCompleted,
+        readiness: workoutSessions.readiness,
         programName: programs.name,
       })
       .from(workoutSessions)
@@ -469,7 +623,7 @@ export async function getProgressiveSuggestions(
   userId: string,
 ): Promise<ActionResult<Record<number, SetSuggestion>>> {
   try {
-    // Step 1: get all program sets for this program with their exercise ids and increment
+    // Step 1: get all program sets for this program with exercise metadata
     const programData = await db
       .select({
         programSetId: programSets.id,
@@ -480,12 +634,15 @@ export async function getProgressiveSuggestions(
         overloadIncrementKg: programExercises.overloadIncrementKg,
         overloadIncrementReps: programExercises.overloadIncrementReps,
         progressionMode: programExercises.progressionMode,
+        movementPattern: exercises.movementPattern,
+        exerciseName: exercises.name,
       })
       .from(programSets)
       .innerJoin(
         programExercises,
         eq(programSets.programExerciseId, programExercises.id),
       )
+      .innerJoin(exercises, eq(programExercises.exerciseId, exercises.id))
       .where(eq(programExercises.programId, programId));
 
     if (programData.length === 0) {
@@ -494,16 +651,30 @@ export async function getProgressiveSuggestions(
 
     const exerciseIds = [...new Set(programData.map((r) => r.exerciseId))];
 
-    // Step 2: fetch user profile for default increment personalisation
-    const userProfile = await db
-      .select({
-        experienceLevel: users.experienceLevel,
-        goal: users.goal,
-      })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1)
-      .then((r) => r[0] ?? null);
+    // Step 2: fetch user profile and current session readiness in parallel
+    const [userProfile, activeSession] = await Promise.all([
+      db
+        .select({ experienceLevel: users.experienceLevel, goal: users.goal })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1)
+        .then((r) => r[0] ?? null),
+      db
+        .select({ readiness: workoutSessions.readiness })
+        .from(workoutSessions)
+        .where(
+          and(
+            eq(workoutSessions.userId, userId),
+            eq(workoutSessions.programId, programId),
+            eq(workoutSessions.isCompleted, false),
+          ),
+        )
+        .orderBy(desc(workoutSessions.startTime))
+        .limit(1)
+        .then((r) => r[0] ?? null),
+    ]);
+
+    const readiness = activeSession?.readiness ?? null;
 
     // Step 3: fetch history, excluding Tired sessions
     // NULL feeling (pre-feature sessions) is kept via IS DISTINCT FROM.
@@ -550,7 +721,19 @@ export async function getProgressiveSuggestions(
     for (const ps of programData) {
       const key = `${ps.exerciseId}-${ps.setNumber}`;
       const rows = historyPerKey.get(key) ?? [];
-      const suggestion = buildSuggestion(rows, ps as ProgramSetData, userProfile);
+      const psData: ProgramSetData = {
+        programSetId: ps.programSetId,
+        setNumber: ps.setNumber,
+        targetReps: ps.targetReps,
+        durationSeconds: ps.durationSeconds,
+        exerciseId: ps.exerciseId,
+        overloadIncrementKg: ps.overloadIncrementKg,
+        overloadIncrementReps: ps.overloadIncrementReps,
+        progressionMode: ps.progressionMode,
+        movementPattern: ps.movementPattern,
+        exerciseName: ps.exerciseName,
+      };
+      const suggestion = buildSuggestion(rows, psData, userProfile, readiness);
       if (suggestion) {
         suggestions[ps.programSetId] = suggestion;
       }
@@ -568,18 +751,36 @@ export type { SetSuggestion } from "@/types/workout";
 
 // ─── Workout insight ──────────────────────────────────────────────────────────
 
+export type ExerciseInsight = {
+  exerciseName: string;
+  status: "progressing" | "held" | "near_deload" | "deloading";
+  sessionsUntilDeload?: number;
+};
+
 export type WorkoutInsight = {
-  type: "fatigued" | "stagnating" | "progressing" | "first_session" | "on_track";
+  type:
+    | "fatigued"
+    | "stagnating"
+    | "progressing"
+    | "first_session"
+    | "on_track"
+    | "readiness_low"
+    | "plateau_warning"
+    | "pr_streak";
   headline: string;
   detail?: string;
   cycleWeek?: number;
   cycleTotalWeeks?: number;
   sessionCount: number;
+  exerciseInsights?: ExerciseInsight[];
 };
 
 /**
  * Compute a single pre-workout insight for the given program.
- * Priority: fatigued → stagnating → progressing → first_session → on_track
+ *
+ * Priority order:
+ *   readiness_low → fatigued → plateau_warning → stagnating →
+ *   progressing → pr_streak → first_session → on_track
  */
 export async function getWorkoutInsight(
   programId: number,
@@ -600,32 +801,87 @@ export async function getWorkoutInsight(
     .orderBy(desc(workoutSessions.startTime))
     .limit(3);
 
-  const sessionCount = await db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(workoutSessions)
-    .where(
-      and(
-        eq(workoutSessions.userId, userId),
-        eq(workoutSessions.programId, programId),
-        eq(workoutSessions.isCompleted, true),
-      ),
-    )
-    .then((r) => Number(r[0]?.count ?? 0));
+  const [sessionCountRow, cycleResult, suggestionsResult, currentSessionRow] =
+    await Promise.all([
+      db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(workoutSessions)
+        .where(
+          and(
+            eq(workoutSessions.userId, userId),
+            eq(workoutSessions.programId, programId),
+            eq(workoutSessions.isCompleted, true),
+          ),
+        )
+        .then((r) => Number(r[0]?.count ?? 0)),
+      getActiveCycleForUser(userId),
+      getProgressiveSuggestions(programId, userId),
+      // Fetch the current (incomplete) session to read readiness
+      db
+        .select({ readiness: workoutSessions.readiness })
+        .from(workoutSessions)
+        .where(
+          and(
+            eq(workoutSessions.userId, userId),
+            eq(workoutSessions.programId, programId),
+            eq(workoutSessions.isCompleted, false),
+          ),
+        )
+        .orderBy(desc(workoutSessions.startTime))
+        .limit(1)
+        .then((r) => r[0] ?? null),
+    ]);
 
-  // Fetch progressive suggestions
-  const suggestionsResult = await getProgressiveSuggestions(programId, userId);
-  const suggestions = suggestionsResult.success ? Object.values(suggestionsResult.data) : [];
-
-  // Fetch active cycle
-  const cycleResult = await getActiveCycleForUser(userId);
+  const sessionCount = sessionCountRow;
   const cycleWeek = cycleResult.success && cycleResult.data ? cycleResult.data.currentWeek : undefined;
   const cycleTotalWeeks = cycleResult.success && cycleResult.data
     ? cycleResult.data.cycle.durationWeeks
     : undefined;
-
   const cycleContext = { cycleWeek, cycleTotalWeeks };
+  const readiness = currentSessionRow?.readiness ?? null;
+  const suggestions = suggestionsResult.success ? Object.values(suggestionsResult.data) : [];
 
-  // 1. Fatigued — last 2+ sessions both "Tired"
+  // ── Build per-exercise insight pills ────────────────────────────────────────
+  // Deduplicate by exercise name: take the worst status per exercise
+  const exerciseStatusMap = new Map<string, ExerciseInsight>();
+  for (const sug of suggestions) {
+    if (!sug.exerciseName) continue;
+    const prev = exerciseStatusMap.get(sug.exerciseName);
+    let status: ExerciseInsight["status"];
+    if (sug.reason === "deload") {
+      status = "deloading";
+    } else if (sug.sessionsUntilDeload === 1) {
+      status = "near_deload";
+    } else if (sug.reason === "progressed" || sug.reason === "progressed-reps" || sug.reason === "progressed-time") {
+      status = "progressing";
+    } else {
+      status = "held";
+    }
+    // Keep worst status: deloading > near_deload > held > progressing
+    const rank = { deloading: 4, near_deload: 3, held: 2, progressing: 1 };
+    if (!prev || rank[status] > rank[prev.status]) {
+      exerciseStatusMap.set(sug.exerciseName, {
+        exerciseName: sug.exerciseName,
+        status,
+        sessionsUntilDeload: sug.sessionsUntilDeload ?? undefined,
+      });
+    }
+  }
+  const exerciseInsights = Array.from(exerciseStatusMap.values());
+
+  // ── Priority 0: readiness_low — if energy is very low today ─────────────────
+  if (readiness != null && readiness <= 2) {
+    return {
+      type: "readiness_low",
+      headline: "Energy is low today. Targets adjusted — focus on technique.",
+      detail: "Weights have been reduced to match your readiness. Quality over quantity.",
+      ...cycleContext,
+      sessionCount,
+      exerciseInsights,
+    };
+  }
+
+  // ── Priority 1: fatigued — last 2+ sessions both "Tired" ───────────────────
   const lastTwoTired =
     recentSessions.length >= 2 &&
     recentSessions[0].feeling === "Tired" &&
@@ -638,12 +894,26 @@ export async function getWorkoutInsight(
       detail: "Consider going slightly lighter today and focusing on form.",
       ...cycleContext,
       sessionCount,
+      exerciseInsights,
     };
   }
 
-  // 2. Stagnating — >50% of tracked sets held AND enough history
+  // ── Priority 2: plateau_warning — any set is 1 miss from deload ────────────
+  const nearDeloadExercise = exerciseInsights.find((e) => e.status === "near_deload");
+  if (nearDeloadExercise) {
+    return {
+      type: "plateau_warning",
+      headline: `${nearDeloadExercise.exerciseName} is 1 miss from a deload.`,
+      detail: "Push through with good form, or adjust weights proactively.",
+      ...cycleContext,
+      sessionCount,
+      exerciseInsights,
+    };
+  }
+
+  // ── Priority 3: stagnating — >50% sets held for 3+ sessions ────────────────
   const tracked = suggestions.filter((s) => s.reason !== "manual");
-  const heldCount = tracked.filter((s) => s.reason === "held").length;
+  const heldCount = tracked.filter((s) => s.reason === "held" || s.reason === "held-readiness").length;
   const isStagnating = sessionCount >= 3 && tracked.length > 0 && heldCount / tracked.length > 0.5;
 
   if (isStagnating) {
@@ -653,12 +923,16 @@ export async function getWorkoutInsight(
       detail: "Try a slow eccentric, drop sets, or a slight deload to break through.",
       ...cycleContext,
       sessionCount,
+      exerciseInsights,
     };
   }
 
-  // 3. Progressing — >50% of tracked sets progressed
+  // ── Priority 4: progressing — >50% sets progressed ─────────────────────────
   const progressedCount = tracked.filter(
-    (s) => s.reason === "progressed" || s.reason === "progressed-reps",
+    (s) =>
+      s.reason === "progressed" ||
+      s.reason === "progressed-reps" ||
+      s.reason === "progressed-time",
   ).length;
   const isProgressing = tracked.length > 0 && progressedCount / tracked.length > 0.5;
 
@@ -668,10 +942,35 @@ export async function getWorkoutInsight(
       headline: `You're progressing on ${progressedCount} exercise${progressedCount === 1 ? "" : "s"} — keep the momentum.`,
       ...cycleContext,
       sessionCount,
+      exerciseInsights,
     };
   }
 
-  // 4. First session
+  // ── Priority 5: pr_streak — PRs logged in this program's sessions recently ──
+  const recentPRs = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(exercisePrs)
+    .innerJoin(workoutSessions, eq(exercisePrs.sessionId, workoutSessions.id))
+    .where(
+      and(
+        eq(exercisePrs.userId, userId),
+        eq(workoutSessions.programId, programId),
+        sql`${exercisePrs.achievedAt} >= NOW() - INTERVAL '7 days'`,
+      ),
+    )
+    .then((r) => Number(r[0]?.count ?? 0));
+
+  if (recentPRs > 0) {
+    return {
+      type: "pr_streak",
+      headline: "You've hit personal records this week — great momentum!",
+      ...cycleContext,
+      sessionCount,
+      exerciseInsights,
+    };
+  }
+
+  // ── Priority 6: first_session ───────────────────────────────────────────────
   if (sessionCount === 0) {
     return {
       type: "first_session",
@@ -679,14 +978,16 @@ export async function getWorkoutInsight(
       detail: "Focus on technique and get a feel for the weights.",
       ...cycleContext,
       sessionCount,
+      exerciseInsights,
     };
   }
 
-  // 5. On track (fallback)
+  // ── Priority 7: on_track (fallback) ────────────────────────────────────────
   return {
     type: "on_track",
     headline: `Session ${sessionCount + 1} for this program. Stay consistent.`,
     ...cycleContext,
     sessionCount,
+    exerciseInsights,
   };
 }

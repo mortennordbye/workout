@@ -140,6 +140,29 @@ export async function getLastCompletedSession(
   }
 }
 
+/**
+ * Record the user's pre-workout readiness score (1–5) on the active session.
+ * Called once when the user responds to the readiness check-in sheet.
+ */
+export async function setSessionReadiness(
+  sessionId: number,
+  readiness: number,
+): Promise<ActionResult<undefined>> {
+  if (!Number.isInteger(readiness) || readiness < 1 || readiness > 5) {
+    return { success: false, error: "Readiness must be an integer between 1 and 5" };
+  }
+  try {
+    await db
+      .update(workoutSessions)
+      .set({ readiness })
+      .where(eq(workoutSessions.id, sessionId));
+    return { success: true, data: undefined };
+  } catch (error) {
+    console.error("Error setting session readiness:", error);
+    return { success: false, error: "Failed to set readiness" };
+  }
+}
+
 export async function getActiveSession(
   userId: string,
 ): Promise<ActionResult<WorkoutSession | null>> {

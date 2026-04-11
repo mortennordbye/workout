@@ -82,6 +82,13 @@ export function WorkoutSetsList({
     : undefined;
   const [localCompletedSets, setLocalCompletedSets] = useState<Set<number>>(new Set());
   const activeCompletedSets = completedSets ?? localCompletedSets;
+  // PR celebration state: setId → best PR from the completed set
+  const [prCelebration, setPrCelebration] = useState<{
+    setId: number;
+    label: string;
+  } | null>(null);
+  // Track which sets have PRs for the badge display
+  const [prSetIds, setPrSetIds] = useState<Set<number>>(new Set());
   const [restTimers, setRestTimers] = useState<Map<number, number>>(new Map());
   const [exerciseTimer, setExerciseTimer] = useState<{
     setId: number;
@@ -237,12 +244,12 @@ export function WorkoutSetsList({
         }
       }
 
-      // Log the completed set to the database
+      // Log the completed set to the database (await for PR detection)
       if (isWorkout && sessionId != null && exerciseId != null) {
         const setData = setItems[setIndex]?.set;
         if (setData) {
           const ov = workoutSession?.overrides[setData.id];
-          void logWorkoutSet({
+          const result = await logWorkoutSet({
             sessionId,
             exerciseId,
             setNumber: setIndex + 1,
@@ -254,6 +261,18 @@ export function WorkoutSetsList({
             restTimeSeconds: restSeconds,
             isCompleted: true,
           });
+          if (result.success && result.data.newPRs.length > 0) {
+            const best = result.data.newPRs[0];
+            const label =
+              best.type === "weight"
+                ? `${best.value}kg`
+                : best.type === "estimated_1rm"
+                ? `~${Math.round(best.value)}kg 1RM`
+                : `${best.value} reps`;
+            setPrSetIds((prev) => new Set(prev).add(setData.id));
+            setPrCelebration({ setId: setData.id, label });
+            setTimeout(() => setPrCelebration(null), 2500);
+          }
         }
       }
 
@@ -459,6 +478,7 @@ export function WorkoutSetsList({
                     onApplySuggestion={onApplySuggestion}
                     onApplyRepSuggestion={onApplyRepSuggestion}
                     overrideDurationSeconds={isWorkout ? workoutSession?.overrides[item.set.id]?.durationSeconds : undefined}
+                    hasPR={prSetIds.has(item.set.id)}
                   />
                   {isEditing && flatItems[index + 1]?.type !== "rest" && (
                     <InsertRestButton onClick={() => insertRest(index + 1)} />
@@ -501,6 +521,34 @@ export function WorkoutSetsList({
           })}
         </SortableContext>
       </DndContext>
+
+      {/* PR Celebration overlay */}
+      {prCelebration !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="flex flex-col items-center gap-3 animate-pr-pop">
+            {/* Confetti dots */}
+            <div className="relative w-32 h-32 flex items-center justify-center">
+              {[0, 60, 120, 180, 240, 300].map((deg) => (
+                <div
+                  key={deg}
+                  className="absolute w-2.5 h-2.5 rounded-full bg-primary animate-confetti"
+                  style={{
+                    transform: `rotate(${deg}deg) translateY(-52px)`,
+                    animationDelay: `${(deg / 360) * 0.3}s`,
+                  }}
+                />
+              ))}
+              <div className="text-4xl">🏆</div>
+            </div>
+            <div className="bg-card border border-border rounded-2xl px-6 py-3 shadow-lg text-center">
+              <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">
+                Personal Record
+              </p>
+              <p className="text-2xl font-bold mt-0.5">{prCelebration.label}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Exercise timer overlay */}
       {exerciseTimer !== null && (
@@ -695,6 +743,7 @@ function SortableSetRow({
   onApplySuggestion,
   onApplyRepSuggestion,
   overrideDurationSeconds,
+  hasPR,
 }: {
   id: string;
   set: ProgramSet;
@@ -712,6 +761,7 @@ function SortableSetRow({
   onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number) => void;
   onApplyRepSuggestion?: (setId: number, reps: number) => void;
   overrideDurationSeconds?: number;
+  hasPR?: boolean;
 }) {
   const {
     attributes,
@@ -781,8 +831,11 @@ function SortableSetRow({
         </button>
       )}
 
-      <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
+      <div className="relative w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
         <span className="text-xs font-bold">{setNumber}</span>
+        {isWorkout && suggestion?.sessionsUntilDeload === 1 && (
+          <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-500 border-2 border-background" />
+        )}
       </div>
 
       <div className="flex-1">
@@ -813,55 +866,91 @@ function SortableSetRow({
           const lastLabel = suggestion.basedOnRpe != null
             ? `Last: ${suggestion.basedOnWeightKg}kg (${suggestion.basedOnFeeling}, RPE ${suggestion.basedOnRpe})`
             : `Last: ${suggestion.basedOnWeightKg}kg (${suggestion.basedOnFeeling})`;
+
+          // Progress dots: show when held and not yet at required hits
+          const showProgressDots =
+            (suggestion.reason === "held" || suggestion.reason === "held-readiness") &&
+            suggestion.hitsAchieved < suggestion.hitsRequired;
+
           return (
-            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-              <span className="text-xs text-muted-foreground">{lastLabel}</span>
-              {weightPending && suggestion.reason === "progressed" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onApplySuggestion?.(set.id, suggestion.suggestedWeightKg, hasSmartAdjustment ? suggestion.adjustedRepsForWeight : undefined);
-                  }}
-                  className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
-                >
-                  {hasSmartAdjustment
-                    ? `↑ ${suggestion.suggestedWeightKg}kg — ${suggestion.adjustedRepsForWeight} reps`
-                    : `↑ ${suggestion.suggestedWeightKg}kg`}
-                </button>
-              )}
-              {weightPending && suggestion.reason === "deload" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onApplySuggestion?.(set.id, suggestion.suggestedWeightKg);
-                  }}
-                  className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 text-xs font-semibold active:opacity-60 transition-opacity"
-                >
-                  ↓ {suggestion.suggestedWeightKg}kg — deload
-                </button>
-              )}
-              {repsPending && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onApplyRepSuggestion?.(set.id, suggestion.suggestedReps!);
-                  }}
-                  className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
-                >
-                  ↑ {suggestion.suggestedReps} reps
-                </button>
-              )}
-              {timePending && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onApplySuggestion?.(set.id, suggestion.suggestedWeightKg);
-                  }}
-                  className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
-                >
-                  ↑ {formatTime(suggestion.suggestedDurationSeconds!)} duration
-                </button>
-              )}
+            <div className="mt-0.5">
+              {/* First line: last set info + PR badge + progress dots */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted-foreground">{lastLabel}</span>
+                {hasPR && (
+                  <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-600 text-xs font-semibold">
+                    🏆 PR
+                  </span>
+                )}
+                {showProgressDots && (
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: suggestion.hitsRequired }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={`w-1.5 h-1.5 rounded-full ${
+                          i < suggestion.hitsAchieved
+                            ? "bg-primary"
+                            : "bg-muted-foreground/30"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+              {/* Second line: action buttons + readiness label */}
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                {weightPending && suggestion.reason === "progressed" && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onApplySuggestion?.(set.id, suggestion.suggestedWeightKg, hasSmartAdjustment ? suggestion.adjustedRepsForWeight : undefined);
+                    }}
+                    className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
+                  >
+                    {hasSmartAdjustment
+                      ? `↑ ${suggestion.suggestedWeightKg}kg — ${suggestion.adjustedRepsForWeight} reps`
+                      : `↑ ${suggestion.suggestedWeightKg}kg`}
+                  </button>
+                )}
+                {weightPending && suggestion.reason === "deload" && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onApplySuggestion?.(set.id, suggestion.suggestedWeightKg);
+                    }}
+                    className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 text-xs font-semibold active:opacity-60 transition-opacity"
+                  >
+                    ↓ {suggestion.suggestedWeightKg}kg — deload
+                  </button>
+                )}
+                {repsPending && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onApplyRepSuggestion?.(set.id, suggestion.suggestedReps!);
+                    }}
+                    className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
+                  >
+                    ↑ {suggestion.suggestedReps} reps
+                  </button>
+                )}
+                {timePending && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onApplySuggestion?.(set.id, suggestion.suggestedWeightKg);
+                    }}
+                    className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
+                  >
+                    ↑ {formatTime(suggestion.suggestedDurationSeconds!)} duration
+                  </button>
+                )}
+                {suggestion.readinessModulated && (
+                  <span className="text-[10px] text-muted-foreground/60">
+                    ↓ adjusted for readiness
+                  </span>
+                )}
+              </div>
             </div>
           );
         })()}

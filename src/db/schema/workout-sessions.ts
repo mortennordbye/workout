@@ -53,4 +53,7 @@ export const workoutSessions = pgTable("workout_sessions", {
   notes: text("notes"),
   feeling: workoutFeelingEnum("feeling"),
   isCompleted: boolean("is_completed").default(false).notNull(),
+  // Pre-workout readiness score (1=Drained → 5=Excellent), captured at session start.
+  // Null for sessions created before this feature was added.
+  readiness: integer("readiness"),
 });

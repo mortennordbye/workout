@@ -142,12 +142,13 @@ export type ActiveCycleInfo = {
  * components. Plain serializable object — no server-only imports.
  *
  * reason values:
- *   "progressed"      — weight progression suggested
- *   "progressed-reps" — rep count progression suggested
- *   "progressed-time" — duration progression suggested (time mode)
- *   "held"            — not enough confident hits to progress; hold current weight
- *   "deload"          — 3+ consecutive failures detected; 10% weight reduction suggested
- *   "manual"          — progression mode is manual; no suggestion
+ *   "progressed"        — weight progression suggested
+ *   "progressed-reps"   — rep count progression suggested
+ *   "progressed-time"   — duration progression suggested (time mode)
+ *   "held"              — not enough confident hits to progress; hold current weight
+ *   "held-readiness"    — would have progressed, but readiness ≤ 2 today
+ *   "deload"            — 3+ consecutive failures detected; 10% weight reduction suggested
+ *   "manual"            — progression mode is manual; no suggestion
  */
 export type SetSuggestion = {
   suggestedWeightKg: number;
@@ -161,7 +162,41 @@ export type SetSuggestion = {
   basedOnDate: string; // last session date
   basedOnRpe?: number; // last logged RPE (optional — null for old sessions)
   basedOnHitCount?: number; // how many of the last CONSENSUS_WINDOW sessions hit target with confidence
-  reason: "progressed" | "held" | "manual" | "progressed-reps" | "deload" | "progressed-time";
+  reason: "progressed" | "held" | "held-readiness" | "manual" | "progressed-reps" | "deload" | "progressed-time";
+  // ─── Enriched fields (populated by getProgressiveSuggestions) ───────────────
+  /** How many confident hits have been recorded in the current consensus window. */
+  hitsAchieved: number;
+  /** Hits required to trigger progression (always REQUIRED_HITS). */
+  hitsRequired: number;
+  /**
+   * Sessions remaining before a deload is triggered.
+   *   null  — no consecutive failures; no risk
+   *   1     — one more miss triggers deload
+   *   0     — deload already triggered (reason === "deload")
+   */
+  sessionsUntilDeload: number | null;
+  /** Epley-estimated 1RM from the latest logged set. Null for bodyweight/timed or > 12 reps. */
+  estimated1RM: number | null;
+  /** True when the suggestion was held or adjusted down due to low pre-workout readiness. */
+  readinessModulated: boolean;
+  /** Exercise name — populated by getProgressiveSuggestions for insight bucketing. */
+  exerciseName?: string;
+};
+
+// ─── Personal Records ─────────────────────────────────────────────────────────
+
+export type PRType = "weight" | "reps_at_weight" | "estimated_1rm";
+
+export type PRResult = {
+  type: PRType;
+  value: number;
+  previousValue?: number;
+};
+
+/** Return type for logWorkoutSet — includes PR data detected from this set. */
+export type LogWorkoutSetResult = {
+  set: WorkoutSet;
+  newPRs: PRResult[];
 };
 
 // ============================================================================

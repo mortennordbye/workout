@@ -12,6 +12,7 @@
 
 // Table schemas
 export * from "./auth";
+export * from "./exercise-prs";
 export * from "./feedback";
 export * from "./invite-tokens";
 export * from "./exercises";

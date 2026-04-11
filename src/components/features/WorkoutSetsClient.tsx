@@ -12,7 +12,7 @@ import type { ProgramSet } from "@/types/workout";
 import { ChevronLeftIcon, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 // SetSuggestionDisplay is the canonical SetSuggestion type from types/workout.ts
 export type { SetSuggestion as SetSuggestionDisplay } from "@/types/workout";
@@ -80,6 +80,19 @@ export function WorkoutSetsClient({
   useEffect(() => {
     setSets(initial);
   }, [initial]);
+
+  // Compute the best estimated 1RM across all sets for this exercise
+  const bestEstimated1RM = useMemo(() => {
+    if (!suggestions) return null;
+    let best: number | null = null;
+    for (const set of sets) {
+      const sug = suggestions[set.id];
+      if (sug?.estimated1RM != null) {
+        if (best === null || sug.estimated1RM > best) best = sug.estimated1RM;
+      }
+    }
+    return best;
+  }, [suggestions, sets]);
 
   const displaySets = sets.map((s) => {
     const ov = workoutSession?.overrides[s.id];
@@ -218,14 +231,19 @@ export function WorkoutSetsClient({
         <h1 className="text-3xl font-bold tracking-tight">{exerciseName}</h1>
       </div>
 
-      {/* Single progression badge */}
-      <div className="px-4 pb-4 shrink-0">
+      {/* Progression badge + 1RM badge */}
+      <div className="px-4 pb-4 shrink-0 flex items-center gap-2">
         <button
           onClick={() => setShowProgressionPicker(true)}
           className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-muted text-xs font-semibold text-muted-foreground active:scale-95 transition-all"
         >
           ↑ {modeBadgeLabel()}
         </button>
+        {isWorkout && bestEstimated1RM != null && (
+          <span className="px-3 py-1.5 rounded-full bg-primary/10 text-xs font-semibold text-primary">
+            1RM ~{Math.round(bestEstimated1RM)}kg
+          </span>
+        )}
       </div>
 
       {/* Sets list or empty state */}

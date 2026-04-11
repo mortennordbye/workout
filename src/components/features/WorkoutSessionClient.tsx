@@ -1,9 +1,11 @@
 "use client";
 
 import { WorkoutExerciseList } from "@/components/features/WorkoutExerciseList";
+import { ReadinessSheet } from "@/components/features/ReadinessSheet";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { createWorkoutSession } from "@/lib/actions/workout-sessions";
+import type { ExerciseInsight, WorkoutInsight } from "@/lib/actions/workout-sets";
 import { formatTime, toDateString } from "@/lib/utils/format";
 import {
     removeExerciseFromProgram,
@@ -38,11 +40,26 @@ const FEELING_COLORS: Record<string, string> = {
   Awesome: "bg-blue-500/20 text-blue-500",
 };
 
+const EXERCISE_INSIGHT_COLORS: Record<ExerciseInsight["status"], string> = {
+  progressing: "bg-emerald-500/15 text-emerald-600",
+  held: "bg-muted text-muted-foreground",
+  near_deload: "bg-amber-500/15 text-amber-600",
+  deloading: "bg-red-500/15 text-red-500",
+};
+
+const EXERCISE_INSIGHT_ICON: Record<ExerciseInsight["status"], string> = {
+  progressing: "↑",
+  held: "→",
+  near_deload: "⚠",
+  deloading: "↓",
+};
+
 type Props = {
   programId: number;
   programName: string;
   exercises: Exercise[];
   lastSession?: LastSession | null;
+  insight?: WorkoutInsight | null;
 };
 
 export function WorkoutSessionClient({
@@ -50,9 +67,11 @@ export function WorkoutSessionClient({
   programName,
   exercises: initial,
   lastSession = null,
+  insight = null,
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [showReadiness, setShowReadiness] = useState(false);
   const workoutSession = useWorkoutSession();
 
   useEffect(() => {
@@ -95,6 +114,14 @@ export function WorkoutSessionClient({
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Show readiness check-in once the session is live and readiness is unknown
+  useEffect(() => {
+    if (workoutSession?.sessionId != null && workoutSession.readiness === null) {
+      setShowReadiness(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workoutSession?.sessionId]);
 
   const startTime = useMemo(() => new Date(), []);
   const [elapsed, setElapsed] = useState(0);
@@ -208,6 +235,23 @@ export function WorkoutSessionClient({
         </div>
       )}
 
+      {/* Exercise insight pills */}
+      {insight?.exerciseInsights && insight.exerciseInsights.length > 0 && (
+        <div className="px-4 pb-3 shrink-0">
+          <div className="flex gap-2 overflow-x-auto pb-0.5">
+            {insight.exerciseInsights.map((ex) => (
+              <span
+                key={ex.exerciseName}
+                className={`flex-shrink-0 inline-flex items-center gap-1 text-xs font-semibold rounded-full px-2.5 py-1 ${EXERCISE_INSIGHT_COLORS[ex.status]}`}
+              >
+                <span>{EXERCISE_INSIGHT_ICON[ex.status]}</span>
+                {ex.exerciseName}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Exercises list + History */}
       <div className="flex-1 px-4 overflow-y-auto">
         <WorkoutExerciseList
@@ -246,6 +290,16 @@ export function WorkoutSessionClient({
           </div>
         </div>
       </BottomSheet>
+
+      {/* Pre-workout readiness check-in */}
+      {showReadiness && (
+        <ReadinessSheet
+          onConfirm={(level) => {
+            workoutSession?.confirmReadiness(level);
+            setShowReadiness(false);
+          }}
+        />
+      )}
 
       {/* Action Sheet */}
       <BottomSheet

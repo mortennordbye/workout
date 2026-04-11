@@ -1,4 +1,5 @@
 "use client";
+import { setSessionReadiness } from "@/lib/actions/workout-sessions";
 import { requestNotificationPermission, sendNotification } from "@/lib/notifications";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
@@ -7,6 +8,7 @@ type SetOverride = { targetReps: number; weightKg: number; durationSeconds?: num
 const STORAGE_KEY = "activeWorkout";
 const REST_TIMERS_KEY = "restTimerEnds";
 const OVERRIDES_KEY = "workoutOverrides";
+const READINESS_KEY = "workoutReadiness";
 
 type WorkoutSessionContextValue = {
   sessionId: number | null;
@@ -26,6 +28,9 @@ type WorkoutSessionContextValue = {
   workoutPath: string | null;
   setActiveWorkout: (programId: number, startTime: string, sessionId?: number) => void;
   clearActiveWorkout: () => void;
+  /** Pre-workout readiness (1=Drained → 5=Excellent). Null until the user answers. */
+  readiness: number | null;
+  confirmReadiness: (level: number) => void;
 };
 
 const WorkoutSessionContext = createContext<WorkoutSessionContextValue | null>(null);
@@ -40,6 +45,7 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
   const [programId, setProgramId] = useState<number | null>(null);
   const [startTime, setStartTime] = useState<string | null>(null);
   const [workoutPath, setWorkoutPath] = useState<string | null>(null);
+  const [readiness, setReadinessState] = useState<number | null>(null);
 
   useEffect(() => {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -73,6 +79,11 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
       } catch {
         localStorage.removeItem(OVERRIDES_KEY);
       }
+    }
+    const rawReadiness = localStorage.getItem(READINESS_KEY);
+    if (rawReadiness) {
+      const parsed = parseInt(rawReadiness, 10);
+      if (!isNaN(parsed)) setReadinessState(parsed);
     }
   }, []);
 
@@ -152,10 +163,20 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
 
   const updateLastWorkoutPath = (path: string) => setLastWorkoutPath(path);
 
+  const confirmReadiness = (level: number) => {
+    setReadinessState(level);
+    localStorage.setItem(READINESS_KEY, String(level));
+    // Persist to DB asynchronously (non-blocking)
+    if (sessionId != null) {
+      void setSessionReadiness(sessionId, level);
+    }
+  };
+
   const clearActiveWorkout = () => {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(REST_TIMERS_KEY);
     localStorage.removeItem(OVERRIDES_KEY);
+    localStorage.removeItem(READINESS_KEY);
     // Cancel all pending notification timeouts
     Object.values(restTimeoutRefs.current).forEach(clearTimeout);
     restTimeoutRefs.current = {};
@@ -165,6 +186,7 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
     setSessionId(null);
     setRestTimerEnds({});
     setLastWorkoutPath(null);
+    setReadinessState(null);
     clearOverrides();
   };
 
@@ -188,6 +210,8 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
         workoutPath,
         setActiveWorkout,
         clearActiveWorkout,
+        readiness,
+        confirmReadiness,
       }}
     >
       {children}

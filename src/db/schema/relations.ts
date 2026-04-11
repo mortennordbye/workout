@@ -35,6 +35,7 @@
  */
 
 import { relations } from "drizzle-orm";
+import { exercisePrs } from "./exercise-prs";
 import { exercises } from "./exercises";
 import { programExercises, programSets, programs } from "./programs";
 import { trainingCycleSlots, trainingCycles } from "./training-cycles";
@@ -49,6 +50,27 @@ export const usersRelations = relations(users, ({ many }) => ({
   programs: many(programs),
   trainingCycles: many(trainingCycles),
   weightEntries: many(userWeightEntries),
+  exercisePrs: many(exercisePrs),
+}));
+
+// Exercise PR relations
+export const exercisePrsRelations = relations(exercisePrs, ({ one }) => ({
+  user: one(users, {
+    fields: [exercisePrs.userId],
+    references: [users.id],
+  }),
+  exercise: one(exercises, {
+    fields: [exercisePrs.exerciseId],
+    references: [exercises.id],
+  }),
+  workoutSession: one(workoutSessions, {
+    fields: [exercisePrs.sessionId],
+    references: [workoutSessions.id],
+  }),
+  workoutSet: one(workoutSets, {
+    fields: [exercisePrs.setId],
+    references: [workoutSets.id],
+  }),
 }));
 
 // Weight entry relations

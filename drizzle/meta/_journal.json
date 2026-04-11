@@ -71,6 +71,13 @@
       "when": 1775929694910,
       "tag": "0009_swift_human_robot",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1775932811693,
+      "tag": "0010_dapper_maverick",
+      "breakpoints": true
     }
   ]
 }

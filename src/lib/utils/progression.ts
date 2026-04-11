@@ -65,6 +65,10 @@ export type ProgramSetData = {
   overloadIncrementKg: string | null;
   overloadIncrementReps: number | null;
   progressionMode: string | null;
+  /** Exercise movement pattern — used for adaptive increment sizing. Optional for backwards compatibility. */
+  movementPattern?: string | null;
+  /** Exercise name — optional, passed through to the suggestion for insight bucketing. */
+  exerciseName?: string;
 };
 
 /**
@@ -108,6 +112,9 @@ export function roundToNearest(value: number, increment: number): number {
  * The stored increment takes precedence; the user profile only adjusts
  * when the increment equals the schema default (2.5), meaning the user
  * has never customised it.
+ *
+ * @deprecated Use adaptiveIncrementKg for new code — it applies load-zone
+ * scaling in addition to profile-based defaults.
  */
 export function defaultIncrementKg(
   storedIncrement: number,
@@ -121,6 +128,49 @@ export function defaultIncrementKg(
   if (experienceLevel === "advanced") return 1.25;
   if (goal === "endurance") return 1.0;
   return 2.5;
+}
+
+/**
+ * Compute the effective kg increment using load-zone scaling.
+ *
+ * Priority:
+ *  1. User-customized increment (stored !== 2.5) — always respected
+ *  2. goal=endurance — 1kg regardless of load
+ *  3. experienceLevel profile override (beginner=5kg, advanced=1.25kg)
+ *  4. Load-zone scaling by movement pattern + current weight
+ *
+ * Compound movements: squat, hinge (deadlift), push (bench/OHP), pull (rows/pullups)
+ */
+export function adaptiveIncrementKg(
+  storedIncrement: number,
+  currentWeightKg: number,
+  movementPattern: string | null | undefined,
+  goal: string | null | undefined,
+  experienceLevel?: string | null,
+): number {
+  // User has customized — always respect it
+  if (storedIncrement !== 2.5) return storedIncrement;
+
+  // Endurance goal prioritizes small, precise increments regardless of load
+  if (goal === "endurance") return 1.0;
+
+  // Profile-based overrides (preserve existing behavior for users with set profiles)
+  if (experienceLevel === "beginner") return 5.0;
+  if (experienceLevel === "advanced") return 1.25;
+
+  const isCompound = ["squat", "hinge", "push", "pull"].includes(
+    movementPattern ?? "",
+  );
+
+  // Load-zone increments for users without an experience level set:
+  //   < 30kg   — small loads; isolation: 1kg, compound: 2.5kg
+  //   30–60kg  — moderate; isolation: 1.25kg, compound: 2.5kg
+  //   60–100kg — standard: 2.5kg for both
+  //   > 100kg  — heavy; compound: 5kg, isolation stays 2.5kg
+  if (currentWeightKg < 30) return isCompound ? 2.5 : 1.0;
+  if (currentWeightKg < 60) return isCompound ? 2.5 : 1.25;
+  if (currentWeightKg < 100) return 2.5;
+  return isCompound ? 5.0 : 2.5;
 }
 
 // ─── RPE confidence gate ────────────────────────────────────────────────────
@@ -146,6 +196,25 @@ export function isConfidentHit(row: HistoryRow, programTargetReps: number | null
   return false; // rpe 9-10
 }
 
+// ─── Internal helpers ───────────────────────────────────────────────────────
+
+/**
+ * Count how many sessions at the front of the array missed the target reps
+ * consecutively (most-recent first). Stops at the first success.
+ */
+function countConsecutiveFails(rows: HistoryRow[], targetReps: number | null): number {
+  let count = 0;
+  for (const row of rows) {
+    const target = row.targetReps ?? targetReps;
+    if (target != null && row.actualReps < target) {
+      count++;
+    } else {
+      break;
+    }
+  }
+  return count;
+}
+
 // ─── Core suggestion builder ────────────────────────────────────────────────
 
 /**
@@ -155,22 +224,27 @@ export function isConfidentHit(row: HistoryRow, programTargetReps: number | null
  *                 by date DESC (most-recent first). Pass up to CONSENSUS_WINDOW.
  * @param ps       Program set + exercise settings.
  * @param profile  User profile for default increment fallback. May be null.
+ * @param readiness Pre-workout readiness score (1–5). When ≤ 2, a progression
+ *                 suggestion is downgraded to "held-readiness".
  * @returns        A SetSuggestion, or null if there is no history to base one on.
  */
 export function buildSuggestion(
   rows: HistoryRow[],
   ps: ProgramSetData,
   profile: UserProfile | null,
+  readiness?: number | null,
 ): SetSuggestion | null {
   if (rows.length === 0) return null;
 
   const latest = rows[0]; // most recent session — used for "Last: 75kg" display
   const baseWeight = Number(latest.weightKg); // raw, no rounding
 
-  const incrementKg = defaultIncrementKg(
+  const incrementKg = adaptiveIncrementKg(
     Number(ps.overloadIncrementKg ?? 2.5),
-    profile?.experienceLevel ?? null,
-    profile?.goal ?? null,
+    baseWeight,
+    ps.movementPattern,
+    profile?.goal,
+    profile?.experienceLevel,
   );
   // For "time" mode, overloadIncrementReps encodes seconds increment.
   // (overloadIncrementReps is unused for timed exercises in all other modes.)
@@ -178,6 +252,14 @@ export function buildSuggestion(
   const mode = ps.progressionMode ?? "weight";
 
   const roundToInc = (kg: number) => roundToNearest(kg, incrementKg);
+
+  // ── Estimated 1RM from latest set ──────────────────────────────────────────
+  const estimated1RM: number | null =
+    baseWeight > 0 &&
+    latest.actualReps >= 2 &&
+    latest.actualReps <= 12
+      ? Math.round(estimate1RM(baseWeight, latest.actualReps) * 10) / 10
+      : null;
 
   // ── Consensus: count confident hits across the window ──
   const hitsWithConfidence = mode === "time"
@@ -187,7 +269,8 @@ export function buildSuggestion(
       })
     : rows.filter((r) => isConfidentHit(r, ps.targetReps));
 
-  const shouldProgress = hitsWithConfidence.length >= REQUIRED_HITS;
+  const hitsAchieved = hitsWithConfidence.length;
+  const shouldProgress = hitsAchieved >= REQUIRED_HITS;
 
   // ── Deload detection: last DELOAD_THRESHOLD sessions all missed ──
   // Only applies to weight-bearing modes (not manual, not time).
@@ -201,6 +284,19 @@ export function buildSuggestion(
     });
   const isStuck = canDeload && allRecentFailed && hitsWithConfidence.length === 0;
 
+  // ── Sessions until deload warning ──────────────────────────────────────────
+  let sessionsUntilDeload: number | null = null;
+  if (canDeload) {
+    if (isStuck) {
+      sessionsUntilDeload = 0;
+    } else {
+      const consecutiveFails = countConsecutiveFails(rows, ps.targetReps);
+      sessionsUntilDeload = consecutiveFails === 0
+        ? null
+        : DELOAD_THRESHOLD - consecutiveFails;
+    }
+  }
+
   // ── Shared "basedOn" fields ──
   const basedOn = {
     basedOnWeightKg: baseWeight,
@@ -208,7 +304,14 @@ export function buildSuggestion(
     basedOnFeeling: latest.feeling ?? "OK",
     basedOnDate: latest.date,
     basedOnRpe: latest.rpe ?? undefined,
-    basedOnHitCount: hitsWithConfidence.length,
+    basedOnHitCount: hitsAchieved,
+    // Enriched fields
+    hitsAchieved,
+    hitsRequired: REQUIRED_HITS,
+    sessionsUntilDeload,
+    estimated1RM,
+    readinessModulated: false,
+    exerciseName: ps.exerciseName,
   };
 
   // ── Deload takes priority over all mode-specific logic ──
@@ -220,19 +323,25 @@ export function buildSuggestion(
     };
   }
 
+  // ── Build mode-specific suggestion ──────────────────────────────────────────
+  let suggestion: SetSuggestion;
+
   switch (mode) {
     case "manual":
-      return { suggestedWeightKg: baseWeight, ...basedOn, reason: "manual" };
+      suggestion = { suggestedWeightKg: baseWeight, ...basedOn, reason: "manual" };
+      break;
 
     case "weight":
       if (shouldProgress && incrementKg > 0) {
-        return {
+        suggestion = {
           suggestedWeightKg: roundToInc(baseWeight + incrementKg),
           ...basedOn,
           reason: "progressed",
         };
+      } else {
+        suggestion = { suggestedWeightKg: baseWeight, ...basedOn, reason: "held" };
       }
-      return { suggestedWeightKg: baseWeight, ...basedOn, reason: "held" };
+      break;
 
     case "smart": {
       if (shouldProgress && incrementKg > 0) {
@@ -252,27 +361,31 @@ export function buildSuggestion(
             adjustedRepsForWeight = adj;
           }
         }
-        return {
+        suggestion = {
           suggestedWeightKg: newWeight,
           adjustedRepsForWeight,
           ...basedOn,
           reason: "progressed",
         };
+      } else {
+        suggestion = { suggestedWeightKg: baseWeight, ...basedOn, reason: "held" };
       }
-      return { suggestedWeightKg: baseWeight, ...basedOn, reason: "held" };
+      break;
     }
 
     case "reps": {
       const targetReps = ps.targetReps ?? latest.targetReps;
       if (shouldProgress && incrementReps > 0 && targetReps != null) {
-        return {
+        suggestion = {
           suggestedWeightKg: baseWeight,
           suggestedReps: targetReps + incrementReps,
           ...basedOn,
           reason: "progressed-reps",
         };
+      } else {
+        suggestion = { suggestedWeightKg: baseWeight, ...basedOn, reason: "held" };
       }
-      return { suggestedWeightKg: baseWeight, ...basedOn, reason: "held" };
+      break;
     }
 
     case "time": {
@@ -286,17 +399,35 @@ export function buildSuggestion(
         basedOnDurationSeconds: actualDuration > 0 ? actualDuration : undefined,
       };
       if (targetDuration != null && actualDuration >= targetDuration && shouldProgress) {
-        return {
+        suggestion = {
           suggestedWeightKg: baseWeight,
           suggestedDurationSeconds: actualDuration + incrementSecs,
           ...basedOnWithDuration,
           reason: "progressed-time",
         };
+      } else {
+        suggestion = { suggestedWeightKg: baseWeight, ...basedOnWithDuration, reason: "held" };
       }
-      return { suggestedWeightKg: baseWeight, ...basedOnWithDuration, reason: "held" };
+      break;
     }
 
     default:
-      return { suggestedWeightKg: baseWeight, ...basedOn, reason: "manual" };
+      suggestion = { suggestedWeightKg: baseWeight, ...basedOn, reason: "manual" };
   }
+
+  // ── Readiness modulation: low energy → hold progression ──────────────────
+  if (
+    readiness != null &&
+    readiness <= 2 &&
+    suggestion.reason === "progressed"
+  ) {
+    suggestion = {
+      ...suggestion,
+      reason: "held-readiness",
+      suggestedWeightKg: baseWeight, // revert to current weight
+      readinessModulated: true,
+    };
+  }
+
+  return suggestion;
 }
