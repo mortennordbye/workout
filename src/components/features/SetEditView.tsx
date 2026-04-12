@@ -132,13 +132,15 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
                     const val = e.target.value.replace(/[^\d.]/g, "");
                     setDistanceStr(val);
                     const km = parseFloat(val);
-                    if (!isNaN(km) && km > 0) setDistanceMeters(Math.round(km * 1000));
+                    if (!isNaN(km) && km >= 0) setDistanceMeters(Math.round(km * 1000));
                   }}
                   onBlur={() => {
-                    const km = parseFloat(distanceStr) || distanceMeters / 1000;
-                    const m = Math.round(km * 1000);
-                    setDistanceMeters(m);
-                    setDistanceStr(String(m / 1000));
+                    const km = parseFloat(distanceStr);
+                    if (!isNaN(km) && km >= 0) {
+                      const m = Math.round(km * 1000);
+                      setDistanceMeters(m);
+                      setDistanceStr(String(m / 1000));
+                    }
                   }}
                   className="flex-1 rounded-xl bg-background border border-border px-4 py-2.5 text-center text-xl font-bold outline-none focus:ring-2 ring-primary"
                 />

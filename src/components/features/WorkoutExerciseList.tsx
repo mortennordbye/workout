@@ -216,6 +216,13 @@ function SortableExerciseRow({
 
       {isEditing ? (
         <div className="w-7 h-7 rounded-full border-2 border-muted-foreground/30 shrink-0" />
+      ) : exercise.isRunning ? (
+        // Running exercises: non-interactive circle — must log per-set via LogRunModal
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+          isCompleted ? "bg-primary" : "border-2 border-muted-foreground/30"
+        }`}>
+          {isCompleted && <Check className="w-4 h-4 text-primary-foreground" />}
+        </div>
       ) : (
         <button
           onClick={onToggle}

@@ -54,12 +54,14 @@ export function NewSetView({
 
   const [reps, setReps] = useState(lastSet?.targetReps ?? 10);
   const [weight, setWeight] = useState(Number(lastSet?.weightKg ?? 0));
-  const [duration, setDuration] = useState(Number(lastSet?.durationSeconds ?? 60));
+  const initialDuration = isRunning
+    ? Number(lastSet?.durationSeconds ?? 0)
+    : Number(lastSet?.durationSeconds ?? 60);
+  const [duration, setDuration] = useState(initialDuration);
   const [distanceMeters, setDistanceMeters] = useState(lastSet?.distanceMeters ?? 5000);
   const [distanceStr, setDistanceStr] = useState(String((lastSet?.distanceMeters ?? 5000) / 1000));
   const [repsStr, setRepsStr] = useState(String(lastSet?.targetReps ?? 10));
   const [weightStr, setWeightStr] = useState(String(Number(lastSet?.weightKg ?? 0)));
-  const initialDuration = Number(lastSet?.durationSeconds ?? 60);
   const [durationMinStr, setDurationMinStr] = useState(String(Math.floor(initialDuration / 60)));
   const [durationSecStr, setDurationSecStr] = useState(String(initialDuration % 60));
   const weightScrollRef = useRef<HTMLDivElement>(null);
@@ -143,7 +145,15 @@ export function NewSetView({
                 {DISTANCE_PRESETS_M.map((m, i) => (
                   <button
                     key={m}
-                    onClick={() => { setDistanceMeters(m); setDistanceStr(String(m / 1000)); }}
+                    onClick={() => {
+                      if (m !== distanceMeters) {
+                        setDistanceMeters(m);
+                        setDistanceStr(String(m / 1000));
+                        setDuration(0);
+                        setDurationMinStr("0");
+                        setDurationSecStr("0");
+                      }
+                    }}
                     className={`flex-shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all active:scale-95 ${
                       distanceMeters === m
                         ? "bg-primary text-primary-foreground"
@@ -163,13 +173,15 @@ export function NewSetView({
                     const val = e.target.value.replace(/[^\d.]/g, "");
                     setDistanceStr(val);
                     const km = parseFloat(val);
-                    if (!isNaN(km) && km > 0) setDistanceMeters(Math.round(km * 1000));
+                    if (!isNaN(km) && km >= 0) setDistanceMeters(Math.round(km * 1000));
                   }}
                   onBlur={() => {
-                    const km = parseFloat(distanceStr) || distanceMeters / 1000;
-                    const m = Math.round(km * 1000);
-                    setDistanceMeters(m);
-                    setDistanceStr(String(m / 1000));
+                    const km = parseFloat(distanceStr);
+                    if (!isNaN(km) && km >= 0) {
+                      const m = Math.round(km * 1000);
+                      setDistanceMeters(m);
+                      setDistanceStr(String(m / 1000));
+                    }
                   }}
                   className="flex-1 rounded-xl bg-background border border-border px-4 py-2.5 text-center text-xl font-bold outline-none focus:ring-2 ring-primary"
                 />
@@ -235,7 +247,7 @@ export function NewSetView({
       <div className="p-4">
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || (isRunning && distanceMeters <= 0)}
           className="w-full rounded-xl bg-primary py-4 text-base font-semibold text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
         >
           {saving ? (
