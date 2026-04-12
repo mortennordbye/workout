@@ -30,18 +30,21 @@ export default async function ProgramExerciseDetailPage({ params, searchParams }
   const pe = program.programExercises.find((e) => e.id === peId);
   if (!pe) notFound();
 
+  const progressionMode = (pe.progressionMode ?? "weight") as "manual" | "weight" | "smart" | "reps" | "distance";
+
   return (
     <WorkoutSetsClient
       programId={programId}
       programExerciseId={peId}
       programName={program.name}
       exerciseName={pe.exercise.name}
+      exerciseCategory={pe.exercise.category ?? ""}
       sets={pe.programSets}
       isWorkout={false}
       initialEditing={edit === "true"}
       overloadIncrementKg={Number(pe.overloadIncrementKg ?? 2.5)}
       overloadIncrementReps={Number(pe.overloadIncrementReps ?? 0)}
-      progressionMode={(pe.progressionMode ?? "weight") as "manual" | "weight" | "smart" | "reps"}
+      progressionMode={progressionMode}
     />
   );
 }

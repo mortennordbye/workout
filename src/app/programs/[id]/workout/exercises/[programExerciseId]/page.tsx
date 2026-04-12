@@ -33,6 +33,7 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
 
   const loggedCount = await getExerciseLoggedCount(pe.exercise.id);
   const suggestions = suggestionsResult.success ? suggestionsResult.data : {};
+  const progressionMode = (pe.progressionMode ?? "weight") as "manual" | "weight" | "smart" | "reps" | "distance";
 
   return (
     <WorkoutSetsClient
@@ -49,7 +50,7 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
       suggestions={suggestions}
       overloadIncrementKg={Number(pe.overloadIncrementKg ?? 2.5)}
       overloadIncrementReps={Number(pe.overloadIncrementReps ?? 0)}
-      progressionMode={(pe.progressionMode ?? "weight") as "manual" | "weight" | "smart" | "reps"}
+      progressionMode={progressionMode}
     />
   );
 }
