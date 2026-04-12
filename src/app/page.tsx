@@ -34,16 +34,23 @@ export default async function Home() {
   monday.setHours(0, 0, 0, 0);
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
 
-  const [statsResult, cycleResult, sessionsResult] = await Promise.all([
+  // Fetch cycle first — needed to know today's program before we can fetch insight
+  const cycleResult = await getActiveCycleForUser(userId);
+  const info = cycleResult.success ? cycleResult.data : null;
+  const todayProgram = info?.todaySlot?.program ?? null;
+
+  // Batch remaining queries in parallel, including insight now that we know todayProgram
+  const [statsResult, sessionsResult, insight] = await Promise.all([
     getWorkoutStats(userId),
-    getActiveCycleForUser(userId),
     getCompletedSessions(userId, monday),
+    todayProgram
+      ? getWorkoutInsight(todayProgram.id, userId, cycleResult).catch(() => undefined)
+      : Promise.resolve(undefined),
   ]);
 
   const stats = statsResult.success
     ? statsResult.data
     : { totalWorkouts: 0, totalReps: 0, totalSets: 0, thisWeekWorkouts: 0 };
-  const info = cycleResult.success ? cycleResult.data : null;
   const completedDates = new Set(
     sessionsResult.success ? sessionsResult.data.map((s) => s.date) : [],
   );
@@ -52,12 +59,7 @@ export default async function Home() {
   const weekDates = getThisWeekDates();
   const completedToday = completedDates.has(todayStr);
 
-  const todayProgram = info?.todaySlot?.program ?? null;
   const isRestDay = info !== null && info.todaySlot !== null && !todayProgram;
-
-  const insight = todayProgram
-    ? await getWorkoutInsight(todayProgram.id, userId).catch(() => undefined)
-    : undefined;
 
   const slotByDay =
     info?.cycle.scheduleType === "day_of_week"

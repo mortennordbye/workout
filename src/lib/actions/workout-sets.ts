@@ -40,6 +40,7 @@ import {
 import type { HistoryRow, ProgramSetData } from "@/lib/utils/progression";
 import type {
     ActionResult,
+    ActiveCycleInfo,
     LogWorkoutSetResult,
     PRResult,
     SessionDetail,
@@ -348,33 +349,37 @@ export async function getWorkoutStats(
   userId: string,
 ): Promise<ActionResult<WorkoutStats>> {
   try {
-    // Lifetime totals
-    const [totals] = await db
-      .select({
-        totalWorkouts: sql<number>`COUNT(DISTINCT ${workoutSessions.id})`,
-        totalReps: sql<number>`COALESCE(SUM(${workoutSets.actualReps}), 0)`,
-        totalSets: sql<number>`COUNT(${workoutSets.id})`,
-      })
-      .from(workoutSessions)
-      .leftJoin(workoutSets, eq(workoutSets.sessionId, workoutSessions.id))
-      .where(
-        and(
-          eq(workoutSessions.userId, userId),
-          eq(workoutSessions.isCompleted, true),
+    const [
+      [totals],
+      [thisWeek],
+    ] = await Promise.all([
+      // Lifetime totals
+      db
+        .select({
+          totalWorkouts: sql<number>`COUNT(DISTINCT ${workoutSessions.id})`,
+          totalReps: sql<number>`COALESCE(SUM(${workoutSets.actualReps}), 0)`,
+          totalSets: sql<number>`COUNT(${workoutSets.id})`,
+        })
+        .from(workoutSessions)
+        .leftJoin(workoutSets, eq(workoutSets.sessionId, workoutSessions.id))
+        .where(
+          and(
+            eq(workoutSessions.userId, userId),
+            eq(workoutSessions.isCompleted, true),
+          ),
         ),
-      );
-
-    // This week's session count (Monday 00:00 UTC to now)
-    const [thisWeek] = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(workoutSessions)
-      .where(
-        and(
-          eq(workoutSessions.userId, userId),
-          eq(workoutSessions.isCompleted, true),
-          sql`${workoutSessions.startTime} >= date_trunc('week', NOW())`,
+      // This week's session count (Monday 00:00 UTC to now)
+      db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(workoutSessions)
+        .where(
+          and(
+            eq(workoutSessions.userId, userId),
+            eq(workoutSessions.isCompleted, true),
+            sql`${workoutSessions.startTime} >= date_trunc('week', NOW())`,
+          ),
         ),
-      );
+    ]);
 
     return {
       success: true,
@@ -576,34 +581,35 @@ export async function getSessionDetail(
   sessionId: number,
 ): Promise<ActionResult<SessionDetail>> {
   try {
-    const [sessionRow] = await db
-      .select({
-        id: workoutSessions.id,
-        userId: workoutSessions.userId,
-        programId: workoutSessions.programId,
-        date: workoutSessions.date,
-        startTime: workoutSessions.startTime,
-        endTime: workoutSessions.endTime,
-        notes: workoutSessions.notes,
-        feeling: workoutSessions.feeling,
-        isCompleted: workoutSessions.isCompleted,
-        readiness: workoutSessions.readiness,
-        programName: programs.name,
-      })
-      .from(workoutSessions)
-      .leftJoin(programs, eq(workoutSessions.programId, programs.id))
-      .where(eq(workoutSessions.id, sessionId));
+    const [[sessionRow], setsRows] = await Promise.all([
+      db
+        .select({
+          id: workoutSessions.id,
+          userId: workoutSessions.userId,
+          programId: workoutSessions.programId,
+          date: workoutSessions.date,
+          startTime: workoutSessions.startTime,
+          endTime: workoutSessions.endTime,
+          notes: workoutSessions.notes,
+          feeling: workoutSessions.feeling,
+          isCompleted: workoutSessions.isCompleted,
+          readiness: workoutSessions.readiness,
+          programName: programs.name,
+        })
+        .from(workoutSessions)
+        .leftJoin(programs, eq(workoutSessions.programId, programs.id))
+        .where(eq(workoutSessions.id, sessionId)),
+      db
+        .select({ set: workoutSets, exerciseName: exercises.name })
+        .from(workoutSets)
+        .innerJoin(exercises, eq(workoutSets.exerciseId, exercises.id))
+        .where(eq(workoutSets.sessionId, sessionId))
+        .orderBy(workoutSets.exerciseId, workoutSets.setNumber),
+    ]);
 
     if (!sessionRow) {
       return { success: false, error: "Session not found" };
     }
-
-    const setsRows = await db
-      .select({ set: workoutSets, exerciseName: exercises.name })
-      .from(workoutSets)
-      .innerJoin(exercises, eq(workoutSets.exerciseId, exercises.id))
-      .where(eq(workoutSets.sessionId, sessionId))
-      .orderBy(workoutSets.exerciseId, workoutSets.setNumber);
 
     // Group by exercise name
     const exerciseMap = new Map<
@@ -839,6 +845,7 @@ export type WorkoutInsight = {
 export async function getWorkoutInsight(
   programId: number,
   userId: string,
+  prefetchedCycleResult?: ActionResult<ActiveCycleInfo | null>,
 ): Promise<WorkoutInsight> {
   const [
     sessionCountRow,
@@ -859,7 +866,7 @@ export async function getWorkoutInsight(
         ),
       )
       .then((r) => Number(r[0]?.count ?? 0)),
-    getActiveCycleForUser(userId),
+    prefetchedCycleResult ?? getActiveCycleForUser(userId),
     getProgressiveSuggestions(programId, userId),
     // Fetch the current (incomplete) session to read readiness
     db

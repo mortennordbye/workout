@@ -23,7 +23,7 @@ import type {
   TrainingCycleSlot,
   TrainingCycleWithSlots,
 } from "@/types/workout";
-import { and, asc, count, eq, inArray } from "drizzle-orm";
+import { and, asc, count, eq, gte, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -149,7 +149,7 @@ export async function getActiveCycleForUser(
           (s) => s.dayOfWeek === dayOfWeek,
         ) ?? null;
     } else {
-      // Rotation: count completed sessions in this cycle since startDate
+      // Rotation: count completed sessions since this cycle started
       const [{ value: sessionCount }] = await db
         .select({ value: count() })
         .from(workoutSessions)
@@ -157,6 +157,7 @@ export async function getActiveCycleForUser(
           and(
             eq(workoutSessions.userId, userId),
             eq(workoutSessions.isCompleted, true),
+            gte(workoutSessions.startTime, startDate),
           ),
         );
 

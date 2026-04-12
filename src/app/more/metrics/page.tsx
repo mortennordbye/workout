@@ -17,23 +17,22 @@ export default async function MetricsPage() {
   const session = await requireSession();
   const userId = session.user.id;
 
-  const [metricsResult, summaryResult, topProgressResult, weightHistoryResult, userRow] = await Promise.all([
-    getMetricsData(userId),
-    getSummaryStats(userId),
-    getTopProgressingExercises(userId),
-    getWeightHistory(),
-    db.query.users.findFirst({ where: eq(users.id, userId) }),
-  ]);
-
+  // Fetch metrics first to discover the top exercise for the progress chart
+  const metricsResult = await getMetricsData(userId);
   const metrics = metricsResult.success
     ? metricsResult.data
     : { weekly: [], personalRecords: [], muscleBalance: [], moodDistribution: [] };
 
-  // Pre-fetch progress for the top PR so the chart is ready on load
   const topExercise = metrics.personalRecords[0] ?? null;
-  const progressResult = topExercise
-    ? await getExerciseProgress(userId, topExercise.exerciseId)
-    : null;
+
+  // Batch remaining queries in parallel, including progress chart now that we know the exercise
+  const [summaryResult, topProgressResult, weightHistoryResult, userRow, progressResult] = await Promise.all([
+    getSummaryStats(userId),
+    getTopProgressingExercises(userId),
+    getWeightHistory(),
+    db.query.users.findFirst({ where: eq(users.id, userId) }),
+    topExercise ? getExerciseProgress(userId, topExercise.exerciseId) : Promise.resolve(null),
+  ]);
 
   return (
     <MetricsClient

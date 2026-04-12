@@ -11,6 +11,7 @@
 
 import {
   date,
+  index,
   integer,
   pgTable,
   serial,
@@ -47,7 +48,9 @@ export const trainingCycles = pgTable("training_cycles", {
     .notNull(),
   endMessage: text("end_message"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_tc_user_status").on(t.userId, t.status),
+]);
 
 // -------------------------------------------------------------------
 // training_cycle_slots
