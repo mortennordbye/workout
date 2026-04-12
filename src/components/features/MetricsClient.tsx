@@ -1,11 +1,15 @@
 "use client";
 
 import {
+  getCycleMetrics,
   getExerciseProgress,
+  type CycleMetrics,
+  type CyclePickerItem,
   type ExerciseProgress,
   type MoodDistribution,
   type MuscleBalance,
   type PersonalRecord,
+  type RpeTrendPoint,
   type SummaryStats,
   type TopProgressingExercise,
   type WeeklyMetric,
@@ -17,7 +21,7 @@ import {
 } from "@/lib/actions/profile";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { estimate1RM } from "@/lib/utils/progression";
-import { ChevronLeft, ChevronRight, Plus, TrendingUp, Trash2, Zap } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, Plus, TrendingUp, Trash2, Zap } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
 
@@ -105,7 +109,7 @@ function SummaryStatsRow({ stats }: { stats: SummaryStats }) {
   );
 }
 
-function WeeklyChart({ data }: { data: WeeklyMetric[] }) {
+function WeeklyChart({ data, label }: { data: WeeklyMetric[]; label?: string }) {
   const maxVolume = Math.max(...data.map((w) => w.volumeKg), 1);
   const totalVolume = data.reduce((s, w) => s + w.volumeKg, 0);
   const totalSessions = data.reduce((s, w) => s + w.sessionCount, 0);
@@ -113,7 +117,7 @@ function WeeklyChart({ data }: { data: WeeklyMetric[] }) {
   return (
     <div className="rounded-2xl bg-muted p-4 space-y-3">
       <div className="flex items-baseline justify-between">
-        <SectionLabel>Volume · Last 8 weeks</SectionLabel>
+        <SectionLabel>{label ?? "Volume · Last 8 weeks"}</SectionLabel>
         <div className="text-xs text-muted-foreground">
           {totalSessions} sessions
         </div>
@@ -171,7 +175,7 @@ function MuscleBalanceSection({ data }: { data: MuscleBalance[] }) {
   if (data.length === 0) {
     return (
       <div className="rounded-2xl bg-muted p-4">
-        <SectionLabel>Muscle Balance · Last 28 days</SectionLabel>
+        <SectionLabel>Muscle Balance</SectionLabel>
         <p className="text-sm text-muted-foreground">No workouts logged yet.</p>
       </div>
     );
@@ -180,7 +184,7 @@ function MuscleBalanceSection({ data }: { data: MuscleBalance[] }) {
   return (
     <div className="rounded-2xl bg-muted p-4 space-y-3">
       <div className="flex items-baseline justify-between">
-        <SectionLabel>Muscle Balance · Last 28 days</SectionLabel>
+        <SectionLabel>Muscle Balance</SectionLabel>
         <span className="text-xs text-muted-foreground">{totalSets} sets</span>
       </div>
 
@@ -226,7 +230,7 @@ function MoodDistributionSection({ data }: { data: MoodDistribution[] }) {
 
   return (
     <div className="rounded-2xl bg-muted p-4 space-y-3">
-      <SectionLabel>Session Mood · Last 28 days</SectionLabel>
+      <SectionLabel>Session Mood</SectionLabel>
 
       {/* Segmented bar */}
       <div className="flex h-3 rounded-full overflow-hidden gap-px">
@@ -268,7 +272,7 @@ function TopProgressingSection({ data }: { data: TopProgressingExercise[] }) {
   return (
     <div className="rounded-2xl bg-muted p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <SectionLabel>Top Gains · Last 8 weeks</SectionLabel>
+        <SectionLabel>Top Gains</SectionLabel>
         <Zap className="w-4 h-4 text-muted-foreground flex-none" />
       </div>
       <div className="divide-y divide-border -mx-1">
@@ -682,7 +686,291 @@ function WeightHistorySection({
   );
 }
 
+// ── Cycle Tab Components ───────────────────────────────────────────────────
+
+const STATUS_LABELS: Record<string, string> = {
+  active: "Active",
+  completed: "Completed",
+  draft: "Draft",
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  active: "text-green-600 dark:text-green-400",
+  completed: "text-muted-foreground",
+  draft: "text-yellow-600 dark:text-yellow-400",
+};
+
+function CyclePicker({
+  cycles,
+  selectedId,
+  onSelect,
+}: {
+  cycles: CyclePickerItem[];
+  selectedId: number | null;
+  onSelect: (id: number) => void;
+}) {
+  if (cycles.length === 0) {
+    return (
+      <div className="rounded-2xl bg-muted p-4">
+        <p className="text-sm text-muted-foreground">No training cycles yet.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <SectionLabel>Select Cycle</SectionLabel>
+      {cycles.map((cycle) => {
+        const isSelected = cycle.id === selectedId;
+        const dateRange =
+          cycle.startDate && cycle.endDate
+            ? `${formatDateShort(cycle.startDate)} – ${formatDateShort(cycle.endDate)}`
+            : "No start date set";
+        return (
+          <button
+            key={cycle.id}
+            onClick={() => cycle.startDate ? onSelect(cycle.id) : undefined}
+            disabled={!cycle.startDate}
+            className={`w-full rounded-2xl p-4 text-left transition-colors min-h-[44px] ${
+              isSelected
+                ? "bg-primary/10 ring-1 ring-primary"
+                : "bg-muted active:bg-muted/70"
+            } disabled:opacity-50`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold truncate">{cycle.name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">{dateRange}</div>
+              </div>
+              <div className="text-right flex-none space-y-0.5">
+                <div className={`text-xs font-medium ${STATUS_COLORS[cycle.status]}`}>
+                  {STATUS_LABELS[cycle.status]}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {cycle.sessionCount} sessions
+                </div>
+              </div>
+            </div>
+            <div className="text-xs text-muted-foreground mt-1">
+              {cycle.durationWeeks}w
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function RpeTrendChart({ data }: { data: RpeTrendPoint[] }) {
+  const pointsWithData = data.filter((d) => d.avgRpe !== null);
+
+  if (pointsWithData.length === 0) {
+    return (
+      <div className="rounded-2xl bg-muted p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <SectionLabel>RPE Trend</SectionLabel>
+          <Activity className="w-4 h-4 text-muted-foreground flex-none" />
+        </div>
+        <p className="text-sm text-muted-foreground">No RPE data recorded yet.</p>
+      </div>
+    );
+  }
+
+  const W = 280;
+  const H = 56;
+  const PAD = 8;
+
+  const nonNullValues = pointsWithData.map((d) => d.avgRpe as number);
+  const dataMin = Math.max(4, Math.min(...nonNullValues) - 0.5);
+  const dataMax = Math.min(10, Math.max(...nonNullValues) + 0.5);
+  const range = dataMax - dataMin || 1;
+
+  const pts = data.map((d, i) => ({
+    x: PAD + (i / Math.max(data.length - 1, 1)) * (W - 2 * PAD),
+    y: d.avgRpe !== null
+      ? H - PAD - ((d.avgRpe - dataMin) / range) * (H - 2 * PAD)
+      : null,
+  }));
+
+  // Build connected polyline segments, skipping null gaps
+  const segments: string[][] = [];
+  let current: string[] = [];
+  for (const pt of pts) {
+    if (pt.y !== null) {
+      current.push(`${pt.x},${pt.y}`);
+    } else if (current.length > 0) {
+      segments.push(current);
+      current = [];
+    }
+  }
+  if (current.length > 0) segments.push(current);
+
+  const latestRpe = nonNullValues[nonNullValues.length - 1];
+  const firstRpe = nonNullValues[0];
+  const trend = Math.round((latestRpe - firstRpe) * 10) / 10;
+
+  return (
+    <div className="rounded-2xl bg-muted p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <SectionLabel>RPE Trend</SectionLabel>
+        <Activity className="w-4 h-4 text-muted-foreground flex-none" />
+      </div>
+
+      <div className="flex items-baseline gap-3">
+        <span className="text-2xl font-bold">{latestRpe.toFixed(1)}</span>
+        <span className="text-xs text-muted-foreground">avg RPE</span>
+        {trend !== 0 && (
+          <span className={`text-sm font-medium ml-auto ${
+            trend > 0 ? "text-rose-500" : "text-green-600 dark:text-green-400"
+          }`}>
+            {trend > 0 ? "+" : ""}{trend.toFixed(1)}
+          </span>
+        )}
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-14">
+        <defs>
+          <linearGradient id="rpeGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="currentColor" stopOpacity="0.12" className="text-primary" />
+            <stop offset="100%" stopColor="currentColor" stopOpacity="0" className="text-primary" />
+          </linearGradient>
+        </defs>
+        {segments.map((seg, i) => (
+          <polyline
+            key={i}
+            points={seg.join(" ")}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-primary"
+          />
+        ))}
+        {pts.map((p, i) =>
+          p.y !== null ? (
+            <circle key={i} cx={p.x} cy={p.y} r="3" fill="currentColor" className="text-primary" />
+          ) : null,
+        )}
+      </svg>
+
+      {/* Week labels row */}
+      <div className="flex gap-1">
+        {data.map((d) => (
+          <div key={d.weekIndex} className="flex-1 flex flex-col items-center gap-0.5">
+            {d.avgRpe !== null ? (
+              <span className="text-[9px] font-medium text-primary leading-none">{d.avgRpe.toFixed(1)}</span>
+            ) : (
+              <span className="text-[9px] text-muted-foreground/30 leading-none">–</span>
+            )}
+            <span className="text-[9px] text-muted-foreground leading-none">W{d.weekIndex}</span>
+          </div>
+        ))}
+      </div>
+
+      <p className="text-[10px] text-muted-foreground">
+        Higher RPE = more effort. A rising trend may signal accumulated fatigue.
+      </p>
+    </div>
+  );
+}
+
+function CycleMetricsView({ metrics }: { metrics: CycleMetrics }) {
+  const cycleStats = [
+    { label: "Sessions", value: String(metrics.summary.sessionCount) },
+    { label: "Total volume", value: formatVolume(metrics.summary.totalVolumeKg) },
+    {
+      label: "Avg. session",
+      value: metrics.summary.avgSessionDurationMinutes < 1
+        ? "–"
+        : `${Math.round(metrics.summary.avgSessionDurationMinutes)}m`,
+    },
+    {
+      label: "Sessions/week",
+      value: metrics.summary.sessionsPerWeek === 0
+        ? "–"
+        : String(metrics.summary.sessionsPerWeek),
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Summary stats */}
+      <div className="grid grid-cols-2 gap-2">
+        {cycleStats.map((card) => (
+          <div key={card.label} className="rounded-2xl bg-muted p-4 flex flex-col gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              {card.label}
+            </span>
+            <span className="text-2xl font-bold tabular-nums">{card.value}</span>
+          </div>
+        ))}
+      </div>
+
+      <WeeklyChart data={metrics.weekly} label="Volume · This Cycle" />
+      <MuscleBalanceSection data={metrics.muscleBalance} />
+      <MoodDistributionSection data={metrics.moodDistribution} />
+      <TopProgressingSection data={metrics.topGains} />
+      <RpeTrendChart data={metrics.rpeTrend} />
+    </div>
+  );
+}
+
+function CycleView({
+  cycles,
+  selectedCycleId,
+  onSelectCycle,
+  metrics,
+  loading,
+  error,
+}: {
+  cycles: CyclePickerItem[];
+  selectedCycleId: number | null;
+  onSelectCycle: (id: number) => void;
+  metrics: CycleMetrics | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  return (
+    <div className="space-y-4">
+      <CyclePicker
+        cycles={cycles}
+        selectedId={selectedCycleId}
+        onSelect={onSelectCycle}
+      />
+
+      {loading && (
+        <div className="flex justify-center py-8">
+          <span className="text-sm text-muted-foreground">Loading…</span>
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-2xl bg-destructive/10 p-4">
+          <p className="text-sm text-destructive">{error}</p>
+        </div>
+      )}
+
+      {!loading && !error && metrics && (
+        <CycleMetricsView metrics={metrics} />
+      )}
+
+      {!loading && !error && !metrics && selectedCycleId && (
+        <p className="text-sm text-muted-foreground text-center py-4">No data for this cycle.</p>
+      )}
+
+      {!selectedCycleId && cycles.length > 0 && (
+        <p className="text-xs text-center text-muted-foreground pb-2">
+          Select a cycle above to view its metrics
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
+
+type Tab = "alltime" | "cycle";
 
 type Props = {
   userId: string;
@@ -696,6 +984,7 @@ type Props = {
   initialExerciseId: number | null;
   weightHistory: WeightEntry[];
   profileWeightKg: number | null;
+  cycles: CyclePickerItem[];
 };
 
 export function MetricsClient({
@@ -710,10 +999,18 @@ export function MetricsClient({
   initialExerciseId,
   weightHistory,
   profileWeightKg,
+  cycles,
 }: Props) {
+  const [activeTab, setActiveTab] = useState<Tab>("alltime");
   const [selectedId, setSelectedId] = useState<number | null>(initialExerciseId);
   const [progressData, setProgressData] = useState<ExerciseProgress[]>(initialProgress);
   const [isPending, startTransition] = useTransition();
+
+  // Cycle tab state
+  const [selectedCycleId, setSelectedCycleId] = useState<number | null>(null);
+  const [cycleMetrics, setCycleMetrics] = useState<CycleMetrics | null>(null);
+  const [cycleLoading, setCycleLoading] = useState(false);
+  const [cycleError, setCycleError] = useState<string | null>(null);
 
   const selectedRecord = personalRecords.find((r) => r.exerciseId === selectedId);
 
@@ -724,6 +1021,21 @@ export function MetricsClient({
       const result = await getExerciseProgress(userId, exerciseId);
       if (result.success) setProgressData(result.data);
     });
+  }
+
+  async function selectCycle(cycleId: number) {
+    if (cycleId === selectedCycleId) return;
+    setSelectedCycleId(cycleId);
+    setCycleLoading(true);
+    setCycleError(null);
+    setCycleMetrics(null);
+    const result = await getCycleMetrics(userId, cycleId);
+    if (result.success) {
+      setCycleMetrics(result.data);
+    } else {
+      setCycleError(result.error);
+    }
+    setCycleLoading(false);
   }
 
   return (
@@ -737,101 +1049,130 @@ export function MetricsClient({
           <span className="text-sm font-medium">More</span>
         </Link>
       </div>
-      <div className="px-4 pt-2 pb-4 shrink-0">
-        <h1 className="text-3xl font-bold tracking-tight">Metrics</h1>
+      <div className="px-4 pt-2 pb-3 shrink-0">
+        <h1 className="text-3xl font-bold tracking-tight mb-3">Metrics</h1>
+        {/* Tab toggle */}
+        <div className="flex bg-muted rounded-xl p-1 gap-1">
+          {(["alltime", "cycle"] as Tab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors min-h-[36px] ${
+                activeTab === tab
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {tab === "alltime" ? "All Time" : "Cycle"}
+            </button>
+          ))}
+        </div>
       </div>
 
       <main className="flex-1 overflow-y-auto px-4 py-4 space-y-4 pb-nav-safe-lg">
 
-        {/* ── Summary Stats ──────────────────────────────────────── */}
-        {summaryStats && <SummaryStatsRow stats={summaryStats} />}
+        {activeTab === "alltime" ? (
+          <>
+            {/* ── Summary Stats ──────────────────────────────────────── */}
+            {summaryStats && <SummaryStatsRow stats={summaryStats} />}
 
-        {/* ── Body Weight ────────────────────────────────────────── */}
-        <WeightHistorySection initialEntries={weightHistory} profileWeightKg={profileWeightKg} />
+            {/* ── Body Weight ────────────────────────────────────────── */}
+            <WeightHistorySection initialEntries={weightHistory} profileWeightKg={profileWeightKg} />
 
-        {/* ── Volume & Frequency ─────────────────────────────────── */}
-        <WeeklyChart data={weekly} />
+            {/* ── Volume & Frequency ─────────────────────────────────── */}
+            <WeeklyChart data={weekly} />
 
-        {/* ── Muscle Balance ─────────────────────────────────────── */}
-        <MuscleBalanceSection data={muscleBalance} />
+            {/* ── Muscle Balance ─────────────────────────────────────── */}
+            <MuscleBalanceSection data={muscleBalance} />
 
-        {/* ── Session Mood ───────────────────────────────────────── */}
-        <MoodDistributionSection data={moodDistribution} />
+            {/* ── Session Mood ───────────────────────────────────────── */}
+            <MoodDistributionSection data={moodDistribution} />
 
-        {/* ── Top Gaining Exercises ──────────────────────────────── */}
-        <TopProgressingSection data={topProgressing} />
+            {/* ── Top Gaining Exercises ──────────────────────────────── */}
+            <TopProgressingSection data={topProgressing} />
 
-        {/* ── Personal Records ───────────────────────────────────── */}
-        <div className="rounded-2xl bg-muted p-4">
-          <SectionLabel>Personal Records</SectionLabel>
+            {/* ── Personal Records ───────────────────────────────────── */}
+            <div className="rounded-2xl bg-muted p-4">
+              <SectionLabel>Personal Records</SectionLabel>
 
-          {personalRecords.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No lifts recorded yet.</p>
-          ) : (
-            <div className="divide-y divide-border -mx-1">
-              {personalRecords.map((pr, i) => {
-                const isSelected = pr.exerciseId === selectedId;
-                return (
-                  <button
-                    key={pr.exerciseId}
-                    onClick={() => selectExercise(pr.exerciseId)}
-                    className={`w-full flex items-center gap-3 px-1 py-2.5 text-left active:bg-background/50 transition-colors rounded-lg ${
-                      isSelected ? "bg-background/70" : ""
-                    }`}
-                  >
-                    <span className="w-5 text-xs text-muted-foreground text-center flex-none">
-                      {i + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {pr.exerciseName}
-                      </div>
-                      {pr.muscleGroup && (
-                        <div className="text-xs text-muted-foreground">
-                          {MUSCLE_LABELS[pr.muscleGroup] ?? pr.muscleGroup}
+              {personalRecords.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No lifts recorded yet.</p>
+              ) : (
+                <div className="divide-y divide-border -mx-1">
+                  {personalRecords.map((pr, i) => {
+                    const isSelected = pr.exerciseId === selectedId;
+                    return (
+                      <button
+                        key={pr.exerciseId}
+                        onClick={() => selectExercise(pr.exerciseId)}
+                        className={`w-full flex items-center gap-3 px-1 py-2.5 text-left active:bg-background/50 transition-colors rounded-lg ${
+                          isSelected ? "bg-background/70" : ""
+                        }`}
+                      >
+                        <span className="w-5 text-xs text-muted-foreground text-center flex-none">
+                          {i + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {pr.exerciseName}
+                          </div>
+                          {pr.muscleGroup && (
+                            <div className="text-xs text-muted-foreground">
+                              {MUSCLE_LABELS[pr.muscleGroup] ?? pr.muscleGroup}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <span className="text-sm font-semibold tabular-nums flex-none">
-                      {pr.maxWeightKg} kg
-                    </span>
-                    <ChevronRight
-                      className={`w-3.5 h-3.5 flex-none transition-colors ${
-                        isSelected ? "text-primary" : "text-muted-foreground/40"
-                      }`}
-                    />
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* ── Exercise Progress ──────────────────────────────────── */}
-        {selectedRecord && (
-          <div className="rounded-2xl bg-muted p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <SectionLabel>Progress · {selectedRecord.exerciseName}</SectionLabel>
-              {isPending && (
-                <span className="text-xs text-muted-foreground">Loading…</span>
+                        <span className="text-sm font-semibold tabular-nums flex-none">
+                          {pr.maxWeightKg} kg
+                        </span>
+                        <ChevronRight
+                          className={`w-3.5 h-3.5 flex-none transition-colors ${
+                            isSelected ? "text-primary" : "text-muted-foreground/40"
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
               )}
-              <TrendingUp className="w-4 h-4 text-muted-foreground flex-none" />
             </div>
-            {!isPending && (
-              <div key={selectedId}>
-                <ProgressChart
-                  data={progressData}
-                  exerciseName={selectedRecord.exerciseName}
-                />
+
+            {/* ── Exercise Progress ──────────────────────────────────── */}
+            {selectedRecord && (
+              <div className="rounded-2xl bg-muted p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <SectionLabel>Progress · {selectedRecord.exerciseName}</SectionLabel>
+                  {isPending && (
+                    <span className="text-xs text-muted-foreground">Loading…</span>
+                  )}
+                  <TrendingUp className="w-4 h-4 text-muted-foreground flex-none" />
+                </div>
+                {!isPending && (
+                  <div key={selectedId}>
+                    <ProgressChart
+                      data={progressData}
+                      exerciseName={selectedRecord.exerciseName}
+                    />
+                  </div>
+                )}
               </div>
             )}
-          </div>
-        )}
 
-        {!selectedRecord && personalRecords.length > 0 && (
-          <p className="text-xs text-center text-muted-foreground pb-2">
-            Tap a record to see its progress chart
-          </p>
+            {!selectedRecord && personalRecords.length > 0 && (
+              <p className="text-xs text-center text-muted-foreground pb-2">
+                Tap a record to see its progress chart
+              </p>
+            )}
+          </>
+        ) : (
+          <CycleView
+            cycles={cycles}
+            selectedCycleId={selectedCycleId}
+            onSelectCycle={selectCycle}
+            metrics={cycleMetrics}
+            loading={cycleLoading}
+            error={cycleError}
+          />
         )}
       </main>
     </div>
