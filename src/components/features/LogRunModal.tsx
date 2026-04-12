@@ -38,7 +38,7 @@ export function LogRunModal({
     String(Math.floor((targetDurationSeconds ?? 0) / 60)),
   );
   const [secStr, setSecStr] = useState(
-    String((targetDurationSeconds ?? 0) % 60),
+    String((targetDurationSeconds ?? 0) % 60).padStart(2, "0"),
   );
   const [distanceStr, setDistanceStr] = useState(
     String((targetDistanceMeters ?? 5000) / 1000),
@@ -53,7 +53,7 @@ export function LogRunModal({
     setDurationSeconds(dur);
     setDistanceStr(String(dist / 1000));
     setMinStr(String(Math.floor(dur / 60)));
-    setSecStr(String(dur % 60));
+    setSecStr(String(dur % 60).padStart(2, "0"));
     setRpe(7);
   }, [open, targetDistanceMeters, targetDurationSeconds]);
 
@@ -170,7 +170,7 @@ export function LogRunModal({
                     const secs = Math.max(0, Math.min(59, parseInt(val) || 0));
                     setDurationSeconds(Math.floor(durationSeconds / 60) * 60 + secs);
                   }}
-                  onBlur={() => setSecStr(String(durationSeconds % 60))}
+                  onBlur={() => setSecStr(String(durationSeconds % 60).padStart(2, "0"))}
                   className="w-full rounded-xl bg-background border border-border px-2 py-3 text-center text-3xl font-bold outline-none focus:ring-2 ring-primary"
                 />
                 <span className="text-xs text-muted-foreground">sec</span>
@@ -217,7 +217,8 @@ export function LogRunModal({
         <div className="px-5 pt-6">
           <button
             onClick={handleConfirm}
-            className="w-full rounded-xl bg-primary py-4 text-base font-semibold text-primary-foreground transition-all active:scale-95"
+            disabled={distanceMeters <= 0}
+            className="w-full rounded-xl bg-primary py-4 text-base font-semibold text-primary-foreground transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {pace
               ? `Log Run — ${formatDistanceKm(distanceMeters)} at ${pace}`

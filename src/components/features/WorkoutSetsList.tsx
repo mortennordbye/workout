@@ -933,7 +933,7 @@ function SortableSetRow({
             {set.durationSeconds != null && (
               <p className="text-sm text-muted-foreground">
                 {formatTime(set.durationSeconds)}
-                {set.distanceMeters != null && set.durationSeconds > 0
+                {set.distanceMeters != null && set.distanceMeters > 0 && set.durationSeconds > 0
                   ? ` · ${formatPace(set.durationSeconds, set.distanceMeters)}`
                   : ""}
               </p>

@@ -3,11 +3,22 @@ import type { NextRequest } from "next/server";
 
 const PUBLIC_PATHS = ["/login", "/signup", "/api/auth"];
 
+// Static PWA assets that must be publicly accessible (e.g. iOS home-screen icon fetch)
+const PUBLIC_FILES = [
+  "/apple-touch-icon.png",
+  "/icon-192x192.png",
+  "/icon-512x512.png",
+  "/favicon-32.png",
+];
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths
+  // Allow public paths and static PWA assets
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+  if (PUBLIC_FILES.includes(pathname)) {
     return NextResponse.next();
   }
 

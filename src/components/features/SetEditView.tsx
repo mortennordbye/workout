@@ -39,7 +39,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
   const [weightStr, setWeightStr] = useState(String(override?.weightKg ?? Number(set.weightKg ?? 0)));
   const initialDuration = Number(set.durationSeconds ?? 60);
   const [durationMinStr, setDurationMinStr] = useState(String(Math.floor(initialDuration / 60)));
-  const [durationSecStr, setDurationSecStr] = useState(String(initialDuration % 60));
+  const [durationSecStr, setDurationSecStr] = useState(String(initialDuration % 60).padStart(2, "0"));
   const weightScrollRef = useRef<HTMLDivElement>(null);
   const repsScrollRef = useRef<HTMLDivElement>(null);
 
@@ -203,7 +203,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
       <div className="p-4">
         <button
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || (isRunning && !isWorkout && distanceMeters <= 0)}
           className="w-full rounded-xl bg-primary py-4 text-base font-semibold text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
         >
           {saving ? (
@@ -291,7 +291,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
                   onClick={() => {
                     setDuration(seconds);
                     setDurationMinStr(String(Math.floor(seconds / 60)));
-                    setDurationSecStr(String(seconds % 60));
+                    setDurationSecStr(String(seconds % 60).padStart(2, "0"));
                     setShowDurationPicker(false);
                   }}
                   className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all active:scale-95 ${
@@ -350,7 +350,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
                     const secs = Math.max(0, Math.min(59, parseInt(val) || 0));
                     setDuration(Math.floor(duration / 60) * 60 + secs);
                   }}
-                  onBlur={() => setDurationSecStr(String(duration % 60))}
+                  onBlur={() => setDurationSecStr(String(duration % 60).padStart(2, "0"))}
                   className="w-24 rounded-xl bg-background border border-border px-2 py-3 text-center text-3xl font-bold outline-none focus:ring-2 ring-primary"
                 />
                 <span className="text-xs text-muted-foreground">sec</span>

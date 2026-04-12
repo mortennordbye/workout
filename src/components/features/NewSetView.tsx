@@ -63,7 +63,7 @@ export function NewSetView({
   const [repsStr, setRepsStr] = useState(String(lastSet?.targetReps ?? 10));
   const [weightStr, setWeightStr] = useState(String(Number(lastSet?.weightKg ?? 0)));
   const [durationMinStr, setDurationMinStr] = useState(String(Math.floor(initialDuration / 60)));
-  const [durationSecStr, setDurationSecStr] = useState(String(initialDuration % 60));
+  const [durationSecStr, setDurationSecStr] = useState(String(initialDuration % 60).padStart(2, "0"));
   const weightScrollRef = useRef<HTMLDivElement>(null);
   const repsScrollRef = useRef<HTMLDivElement>(null);
 
@@ -151,7 +151,7 @@ export function NewSetView({
                         setDistanceStr(String(m / 1000));
                         setDuration(0);
                         setDurationMinStr("0");
-                        setDurationSecStr("0");
+                        setDurationSecStr("00");
                       }
                     }}
                     className={`flex-shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all active:scale-95 ${
@@ -279,7 +279,7 @@ export function NewSetView({
             {DURATION_OPTIONS.map((seconds) => (
               <button
                 key={seconds}
-                onClick={() => { setDuration(seconds); setDurationMinStr(String(Math.floor(seconds / 60))); setDurationSecStr(String(seconds % 60)); setShowDurationPicker(false); }}
+                onClick={() => { setDuration(seconds); setDurationMinStr(String(Math.floor(seconds / 60))); setDurationSecStr(String(seconds % 60).padStart(2, "0")); setShowDurationPicker(false); }}
                 className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all active:scale-95 ${
                   duration === seconds ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
                 }`}
@@ -324,7 +324,7 @@ export function NewSetView({
                     const secs = Math.max(0, Math.min(59, parseInt(val) || 0));
                     setDuration(Math.floor(duration / 60) * 60 + secs);
                   }}
-                  onBlur={() => setDurationSecStr(String(duration % 60))}
+                  onBlur={() => setDurationSecStr(String(duration % 60).padStart(2, "0"))}
                   className="w-24 rounded-xl bg-background border border-border px-2 py-3 text-center text-3xl font-bold outline-none focus:ring-2 ring-primary"
                 />
                 <span className="text-xs text-muted-foreground">sec</span>
