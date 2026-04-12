@@ -2,7 +2,7 @@
 
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { logWorkoutSet } from "@/lib/actions/workout-sets";
-import { buildSetSummary } from "@/lib/utils/format";
+import { buildRunSetSummary, buildSetSummary } from "@/lib/utils/format";
 import type { ProgramSet } from "@/types/workout";
 import {
   DndContext,
@@ -30,6 +30,7 @@ type Exercise = {
   name: string;
   sets: ProgramSet[];
   isTimed?: boolean;
+  isRunning?: boolean;
 };
 
 type Props = {
@@ -84,17 +85,31 @@ export function WorkoutExerciseList({
       if (sessionId != null) {
         await Promise.all(
           setsToLog.map((s) =>
-            logWorkoutSet({
-              sessionId,
-              exerciseId: exercise.exerciseId,
-              setNumber: exercise.sets.indexOf(s) + 1,
-              targetReps: s.targetReps ?? undefined,
-              actualReps: s.targetReps ?? 0,
-              weightKg: Number(s.weightKg ?? 0),
-              rpe: 7,
-              restTimeSeconds: s.restTimeSeconds ?? 0,
-              isCompleted: true,
-            }),
+            exercise.isRunning
+              ? logWorkoutSet({
+                  sessionId,
+                  exerciseId: exercise.exerciseId,
+                  setNumber: exercise.sets.indexOf(s) + 1,
+                  actualReps: 0,
+                  weightKg: 0,
+                  distanceMeters: s.distanceMeters ?? undefined,
+                  durationSeconds: s.durationSeconds ?? undefined,
+                  rpe: 7,
+                  restTimeSeconds: s.restTimeSeconds ?? 0,
+                  isCompleted: true,
+                })
+              : logWorkoutSet({
+                  sessionId,
+                  exerciseId: exercise.exerciseId,
+                  setNumber: exercise.sets.indexOf(s) + 1,
+                  targetReps: s.targetReps ?? undefined,
+                  actualReps: s.targetReps ?? 0,
+                  weightKg: Number(s.weightKg ?? 0),
+                  durationSeconds: s.durationSeconds ?? undefined,
+                  rpe: 7,
+                  restTimeSeconds: s.restTimeSeconds ?? 0,
+                  isCompleted: true,
+                }),
           ),
         );
       }
@@ -129,17 +144,21 @@ export function WorkoutExerciseList({
             programId={programId}
             isEditing={isEditing}
             isCompleted={isExerciseCompleted(exercise)}
-            summary={buildSetSummary(
-              exercise.sets.map((s) => {
-                const ov = workoutSession?.overrides[s.id];
-                if (!ov) return s;
-                const hasDuration = exercise.isTimed || s.durationSeconds != null;
-                return hasDuration
-                  ? { ...s, durationSeconds: ov.durationSeconds ?? s.durationSeconds }
-                  : { ...s, targetReps: ov.targetReps, weightKg: String(ov.weightKg) };
-              }),
-              exercise.isTimed,
-            )}
+            summary={
+              exercise.isRunning
+                ? buildRunSetSummary(exercise.sets)
+                : buildSetSummary(
+                    exercise.sets.map((s) => {
+                      const ov = workoutSession?.overrides[s.id];
+                      if (!ov) return s;
+                      const hasDuration = exercise.isTimed || s.durationSeconds != null;
+                      return hasDuration
+                        ? { ...s, durationSeconds: ov.durationSeconds ?? s.durationSeconds }
+                        : { ...s, targetReps: ov.targetReps, weightKg: String(ov.weightKg) };
+                    }),
+                    exercise.isTimed,
+                  )
+            }
             onToggle={() => { void toggleExercise(exercise); }}
             onDelete={() => onDeleteExercise?.(exercise.id)}
           />

@@ -18,17 +18,19 @@ import { useEffect, useMemo, useState } from "react";
 export type { SetSuggestion as SetSuggestionDisplay } from "@/types/workout";
 import type { SetSuggestion } from "@/types/workout";
 
-type ProgressionMode = "manual" | "weight" | "smart" | "reps" | "time";
+type ProgressionMode = "manual" | "weight" | "smart" | "reps" | "time" | "distance";
 
 const KG_INCREMENT_PRESETS = [0.5, 1, 2.5, 5, 10] as const;
 const REP_INCREMENT_PRESETS = [1, 2, 3] as const;
+const DISTANCE_INCREMENT_PRESETS_M = [500, 1000, 2000] as const;
 
 const MODE_OPTIONS: { mode: ProgressionMode; label: string; description: string }[] = [
-  { mode: "manual",  label: "Manual",       description: "No auto-progression" },
-  { mode: "weight",  label: "Weight",        description: "Add kg when target reps are hit" },
-  { mode: "smart",   label: "Smart weight",  description: "Add kg and adjust reps via 1RM formula" },
-  { mode: "reps",    label: "Reps",          description: "Add reps when target reps are hit" },
-  { mode: "time",    label: "Duration",      description: "Add seconds when target duration is hit" },
+  { mode: "manual",    label: "Manual",       description: "No auto-progression" },
+  { mode: "weight",    label: "Weight",        description: "Add kg when target reps are hit" },
+  { mode: "smart",     label: "Smart weight",  description: "Add kg and adjust reps via 1RM formula" },
+  { mode: "reps",      label: "Reps",          description: "Add reps when target reps are hit" },
+  { mode: "time",      label: "Duration",      description: "Add seconds when target duration is hit" },
+  { mode: "distance",  label: "Distance",      description: "Add 0.5km when target distance is completed" },
 ];
 
 type Props = {
@@ -104,6 +106,8 @@ export function WorkoutSetsClient({
     };
   });
 
+  const isRunning = exerciseCategory === "cardio";
+
   const pendingCount = isWorkout
     ? sets.filter((s) => {
         const sug = suggestions?.[s.id];
@@ -115,7 +119,8 @@ export function WorkoutSetsClient({
           currentWeight !== sug.suggestedWeightKg;
         const repsPending = sug.reason === "progressed-reps" && sug.suggestedReps !== undefined && sug.suggestedReps > currentReps;
         const timePending = sug.reason === "progressed-time" && sug.suggestedDurationSeconds !== undefined;
-        return weightPending || repsPending || timePending;
+        const distancePending = sug.reason === "progressed-distance" && sug.suggestedDistanceMeters !== undefined;
+        return weightPending || repsPending || timePending || distancePending;
       }).length
     : 0;
 
@@ -171,11 +176,12 @@ export function WorkoutSetsClient({
 
   function modeBadgeLabel(): string {
     switch (mode) {
-      case "manual": return "Manual";
-      case "weight": return increment > 0 ? `+${increment}kg` : "Weight";
-      case "smart":  return increment > 0 ? `+${increment}kg · smart` : "Smart";
-      case "reps":   return incrementReps > 0 ? `+${incrementReps} rep` : "Reps";
-      case "time":   return incrementReps > 0 ? `+${incrementReps}s` : "Duration";
+      case "manual":    return "Manual";
+      case "weight":    return increment > 0 ? `+${increment}kg` : "Weight";
+      case "smart":     return increment > 0 ? `+${increment}kg · smart` : "Smart";
+      case "reps":      return incrementReps > 0 ? `+${incrementReps} rep` : "Reps";
+      case "time":      return incrementReps > 0 ? `+${incrementReps}s` : "Duration";
+      case "distance":  return incrementReps > 0 ? `+${incrementReps / 1000}km` : "Distance";
     }
   }
 
@@ -278,7 +284,8 @@ export function WorkoutSetsClient({
             programExerciseId={programExerciseId}
             isEditing={isEditing}
             isWorkout={isWorkout}
-            isTimed={exerciseIsTimed || exerciseCategory === "cardio"}
+            isTimed={exerciseIsTimed && !isRunning}
+            isRunning={isRunning}
             exerciseId={exerciseId}
             sessionId={workoutSession?.sessionId ?? undefined}
             onDeleteSet={handleDeleteSet}
@@ -305,10 +312,13 @@ export function WorkoutSetsClient({
                 Progression
               </p>
               <div className="overflow-y-auto">
-                {/* Mode selector — "time" only shown for timed/cardio exercises */}
-                {MODE_OPTIONS.filter((opt) =>
-                  opt.mode !== "time" || exerciseIsTimed || exerciseCategory === "cardio"
-                ).map((opt, i) => (
+                {/* Mode selector — filter based on exercise type */}
+                {MODE_OPTIONS.filter((opt) => {
+                  if (isRunning) return opt.mode === "manual" || opt.mode === "distance";
+                  if (opt.mode === "distance") return false;
+                  if (opt.mode === "time") return exerciseIsTimed;
+                  return true;
+                }).map((opt, i) => (
                   <button
                     key={opt.mode}
                     onClick={() => handleModeChange(opt.mode)}
@@ -414,6 +424,30 @@ export function WorkoutSetsClient({
                       >
                         Set
                       </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Distance increment — shown for distance mode (running) */}
+                {mode === "distance" && (
+                  <div className="border-t border-border">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider px-4 pt-3 pb-1">
+                      Distance increment
+                    </p>
+                    <div className="flex gap-2 px-4 pb-3">
+                      {DISTANCE_INCREMENT_PRESETS_M.map((preset) => (
+                        <button
+                          key={preset}
+                          onClick={() => handleIncrementRepsChange(preset)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                            incrementReps === preset
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          +{preset / 1000}km
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}

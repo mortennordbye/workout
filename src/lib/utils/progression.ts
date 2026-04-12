@@ -47,6 +47,7 @@ export type HistoryRow = {
   targetReps: number | null;
   weightKg: string; // decimal returned as string from Drizzle
   durationSeconds: number | null;
+  distanceMeters?: number | null;
   feeling: string | null;
   date: string;
   rpe: number;
@@ -61,6 +62,7 @@ export type ProgramSetData = {
   setNumber: number;
   targetReps: number | null;
   durationSeconds: number | null;
+  distanceMeters?: number | null;
   exerciseId: number;
   overloadIncrementKg: string | null;
   overloadIncrementReps: number | null;
@@ -267,6 +269,11 @@ export function buildSuggestion(
         const target = ps.durationSeconds ?? r.durationSeconds;
         return target != null && (r.durationSeconds ?? 0) >= target;
       })
+    : mode === "distance"
+    ? rows.filter((r) => {
+        const target = ps.distanceMeters ?? r.distanceMeters;
+        return target != null && (r.distanceMeters ?? 0) >= target;
+      })
     : rows.filter((r) => isConfidentHit(r, ps.targetReps));
 
   const hitsAchieved = hitsWithConfidence.length;
@@ -411,6 +418,29 @@ export function buildSuggestion(
       break;
     }
 
+    case "distance": {
+      const targetDistance = ps.distanceMeters ?? latest.distanceMeters;
+      const actualDistance = latest.distanceMeters ?? 0;
+      // overloadIncrementReps doubles as meters increment for distance mode;
+      // fall back to 500m (+0.5km) if not configured.
+      const incrementMeters = incrementReps > 0 ? incrementReps : 500;
+      const basedOnWithDistance = {
+        ...basedOn,
+        basedOnDistanceMeters: actualDistance > 0 ? actualDistance : undefined,
+      };
+      if (targetDistance != null && actualDistance >= targetDistance && shouldProgress) {
+        suggestion = {
+          suggestedWeightKg: 0,
+          suggestedDistanceMeters: actualDistance + incrementMeters,
+          ...basedOnWithDistance,
+          reason: "progressed-distance",
+        };
+      } else {
+        suggestion = { suggestedWeightKg: 0, ...basedOnWithDistance, reason: "held" };
+      }
+      break;
+    }
+
     default:
       suggestion = { suggestedWeightKg: baseWeight, ...basedOn, reason: "manual" };
   }
@@ -421,7 +451,8 @@ export function buildSuggestion(
     readiness <= 2 &&
     (suggestion.reason === "progressed" ||
       suggestion.reason === "progressed-reps" ||
-      suggestion.reason === "progressed-time")
+      suggestion.reason === "progressed-time" ||
+      suggestion.reason === "progressed-distance")
   ) {
     suggestion = {
       ...suggestion,
@@ -429,6 +460,7 @@ export function buildSuggestion(
       suggestedWeightKg: baseWeight,
       suggestedReps: undefined,
       suggestedDurationSeconds: undefined,
+      suggestedDistanceMeters: undefined,
       readinessModulated: true,
     };
   }

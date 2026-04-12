@@ -28,7 +28,8 @@ export default async function ProgramDetailPage({ params, searchParams }: Props)
   const exercises = program.programExercises.map((pe) => ({
     id: pe.id,
     name: pe.exercise.name,
-    isTimed: pe.exercise.isTimed,
+    isTimed: pe.exercise.isTimed && pe.exercise.category !== "cardio",
+    isRunning: pe.exercise.category === "cardio",
     sets: pe.programSets,
   }));
 

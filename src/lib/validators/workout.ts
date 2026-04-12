@@ -74,6 +74,7 @@ export const logWorkoutSetSchema = z.object({
     .min(0, "Weight cannot be negative")
     .max(1000, "Weight must be under 1000kg"),
   durationSeconds: z.number().int().min(0).optional(),
+  distanceMeters: z.number().int().min(0).optional(),
   rpe: z
     .number()
     .int()
@@ -164,6 +165,7 @@ export const addProgramSetSchema = z.object({
   targetReps: z.number().int().positive().optional(),
   weightKg: z.number().min(0).max(1000).optional(),
   durationSeconds: z.number().int().min(0).optional(),
+  distanceMeters: z.number().int().min(0).optional(),
   restTimeSeconds: z.number().int().min(0).max(3600).default(60),
 });
 
@@ -226,7 +228,7 @@ const importProgramEntrySchema = z.object({
           overloadIncrementKg: z.number().min(0).max(100).default(2.5),
           overloadIncrementReps: z.number().int().min(0).max(100).default(0),
           progressionMode: z
-            .enum(["manual", "weight", "smart", "reps"])
+            .enum(["manual", "weight", "smart", "reps", "time", "distance"])
             .default("weight"),
           exercise: z.object({
             name: z.string().min(1).max(100),
@@ -287,6 +289,7 @@ const importProgramEntrySchema = z.object({
               targetReps: z.number().int().positive().nullable().optional(),
               weightKg: z.number().min(0).max(1000).nullable().optional(),
               durationSeconds: z.number().int().min(0).nullable().optional(),
+              distanceMeters: z.number().int().min(0).nullable().optional(),
               restTimeSeconds: z.number().int().min(0).max(3600).default(60),
             }),
           ),

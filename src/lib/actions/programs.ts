@@ -588,6 +588,7 @@ export async function exportProgram(
           targetReps: s.targetReps ?? null,
           weightKg: s.weightKg != null ? Number(s.weightKg) : null,
           durationSeconds: s.durationSeconds ?? null,
+          distanceMeters: s.distanceMeters ?? null,
           restTimeSeconds: s.restTimeSeconds ?? 60,
         })),
       })),
@@ -641,6 +642,7 @@ export async function exportAllPrograms(): Promise<ActionResult<ExportedPrograms
               targetReps: s.targetReps ?? null,
               weightKg: s.weightKg != null ? Number(s.weightKg) : null,
               durationSeconds: s.durationSeconds ?? null,
+              distanceMeters: s.distanceMeters ?? null,
               restTimeSeconds: s.restTimeSeconds ?? 60,
             })),
           })),
@@ -754,6 +756,7 @@ export async function importProgram(
                 targetReps: s.targetReps ?? undefined,
                 weightKg: s.weightKg != null ? s.weightKg.toString() : undefined,
                 durationSeconds: s.durationSeconds ?? undefined,
+                distanceMeters: s.distanceMeters ?? undefined,
                 restTimeSeconds: s.restTimeSeconds,
               })),
             );

@@ -3,7 +3,7 @@
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { updateProgramSet } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { formatTime } from "@/lib/utils/format";
+import { formatDistanceKm, formatPace, formatTime } from "@/lib/utils/format";
 import type { ProgramSet } from "@/types/workout";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -13,11 +13,14 @@ type Props = {
   set: ProgramSet;
   isWorkout?: boolean;
   isTimed?: boolean;
+  isRunning?: boolean;
 };
 
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 300, 600];
+const DISTANCE_PRESETS_M = [500, 1000, 2000, 3000, 5000, 10000, 15000, 21097, 42195];
+const DISTANCE_LABELS = ["0.5km", "1km", "2km", "3km", "5km", "10km", "15km", "21km", "42km"];
 
-export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) {
+export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning = false }: Props) {
   const router = useRouter();
   const [showRepsPicker, setShowRepsPicker] = useState(false);
   const [showWeightPicker, setShowWeightPicker] = useState(false);
@@ -29,7 +32,9 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
 
   const [reps, setReps] = useState(override?.targetReps ?? set.targetReps ?? 10);
   const [weight, setWeight] = useState(override?.weightKg ?? Number(set.weightKg ?? 0));
-  const [duration, setDuration] = useState(override?.durationSeconds ?? Number(set.durationSeconds ?? 60));
+  const [duration, setDuration] = useState(override?.durationSeconds ?? Number(set.durationSeconds ?? 0));
+  const [distanceMeters, setDistanceMeters] = useState(set.distanceMeters ?? 5000);
+  const [distanceStr, setDistanceStr] = useState(String((set.distanceMeters ?? 5000) / 1000));
   const [repsStr, setRepsStr] = useState(String(override?.targetReps ?? set.targetReps ?? 10));
   const [weightStr, setWeightStr] = useState(String(override?.weightKg ?? Number(set.weightKg ?? 0)));
   const initialDuration = Number(set.durationSeconds ?? 60);
@@ -73,7 +78,14 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
 
   const handleSave = async () => {
     setSaving(true);
-    if (isWorkout) {
+    if (isRunning) {
+      if (isWorkout) {
+        // During a workout: only update the duration target override (distance target is program-level)
+        workoutSession?.setOverride(set.id, { targetReps: 0, weightKg: 0, durationSeconds: duration > 0 ? duration : undefined });
+      } else {
+        await updateProgramSet({ id: set.id, distanceMeters, durationSeconds: duration > 0 ? duration : undefined });
+      }
+    } else if (isWorkout) {
       // During a workout, changes apply to the active session only — never write back to the program
       if (isTimed) {
         workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight, durationSeconds: duration });
@@ -91,7 +103,66 @@ export function SetEditView({ set, isWorkout = false, isTimed = false }: Props) 
   return (
     <>
       <div className="flex-1 px-4 animate-in fade-in duration-150">
-        {isTimed ? (
+        {isRunning ? (
+          /* Running mode: distance + optional duration */
+          <>
+            <div className="py-4 border-b border-border">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Distance</p>
+              <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                {DISTANCE_PRESETS_M.map((m, i) => (
+                  <button
+                    key={m}
+                    onClick={() => { setDistanceMeters(m); setDistanceStr(String(m / 1000)); }}
+                    className={`flex-shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                      distanceMeters === m
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground"
+                    }`}
+                  >
+                    {DISTANCE_LABELS[i]}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={distanceStr}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^\d.]/g, "");
+                    setDistanceStr(val);
+                    const km = parseFloat(val);
+                    if (!isNaN(km) && km > 0) setDistanceMeters(Math.round(km * 1000));
+                  }}
+                  onBlur={() => {
+                    const km = parseFloat(distanceStr) || distanceMeters / 1000;
+                    const m = Math.round(km * 1000);
+                    setDistanceMeters(m);
+                    setDistanceStr(String(m / 1000));
+                  }}
+                  className="flex-1 rounded-xl bg-background border border-border px-4 py-2.5 text-center text-xl font-bold outline-none focus:ring-2 ring-primary"
+                />
+                <span className="text-sm font-medium text-muted-foreground">km</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowDurationPicker(true)}
+              className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
+            >
+              <span className="text-base font-medium">Target duration <span className="text-xs text-muted-foreground">(optional)</span></span>
+              <span className="text-base text-muted-foreground">
+                {duration > 0 ? formatTime(duration) : "—"}
+              </span>
+            </button>
+            {distanceMeters > 0 && duration > 0 && (
+              <div className="py-3 flex items-center justify-center">
+                <span className="px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                  {formatPace(duration, distanceMeters)}
+                </span>
+              </div>
+            )}
+          </>
+        ) : isTimed ? (
           /* Duration row for timed exercises */
           <button
             onClick={() => { setShowDurationPicker(true); }}

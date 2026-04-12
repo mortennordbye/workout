@@ -1,7 +1,7 @@
 "use client";
 
 import { deleteWorkoutSession } from "@/lib/actions/workout-sessions";
-import { formatTime } from "@/lib/utils/format";
+import { formatDistanceKm, formatPace, formatTime } from "@/lib/utils/format";
 import type { SessionDetail } from "@/types/workout";
 import { ChevronLeftIcon, Dumbbell, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -43,8 +43,14 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
       : null;
 
   const totalVolume = detail.setsByExercise
+    .filter((g) => g.exerciseCategory !== "cardio")
     .flatMap((g) => g.sets)
     .reduce((sum, s) => sum + Number(s.weightKg) * s.actualReps, 0);
+
+  const totalDistanceM = detail.setsByExercise
+    .filter((g) => g.exerciseCategory === "cardio")
+    .flatMap((g) => g.sets)
+    .reduce((sum, s) => sum + (s.distanceMeters ?? 0), 0);
 
   const feelingColor = detail.feeling ? (FEELING_COLORS[detail.feeling] ?? "") : "";
 
@@ -87,6 +93,11 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
               · {totalVolume.toLocaleString()}kg total
             </span>
           )}
+          {totalDistanceM > 0 && (
+            <span className="text-sm text-muted-foreground">
+              · {formatDistanceKm(totalDistanceM)} run
+            </span>
+          )}
           {detail.feeling && FEELING_COLORS[detail.feeling] && (
             <span
               className={`text-xs font-medium rounded-full px-2.5 py-1 ${feelingColor}`}
@@ -107,24 +118,41 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
                 {group.exerciseName}
               </h2>
               <div className="space-y-0">
-                {group.sets.map((set) => (
-                  <div
-                    key={set.id}
-                    className="flex items-center justify-between py-2.5 border-b border-border text-sm"
-                  >
-                    <span className="text-muted-foreground w-12">
-                      Set {set.setNumber}
-                    </span>
-                    <span className="font-medium flex-1 text-center">
-                      {set.durationSeconds != null
-                        ? formatTime(Number(set.durationSeconds))
-                        : `${set.actualReps} × ${Number(set.weightKg)}kg`}
-                    </span>
-                    <span className="text-muted-foreground w-16 text-right">
-                      RPE {set.rpe}
-                    </span>
-                  </div>
-                ))}
+                {group.sets.map((set) => {
+                  const isRun = group.exerciseCategory === "cardio";
+                  return (
+                    <div
+                      key={set.id}
+                      className="flex items-center justify-between py-2.5 border-b border-border text-sm"
+                    >
+                      <span className="text-muted-foreground w-12">
+                        {isRun && group.sets.length > 1
+                          ? `Int ${set.setNumber}`
+                          : isRun
+                          ? "Run"
+                          : `Set ${set.setNumber}`}
+                      </span>
+                      <span className="font-medium flex-1 text-center">
+                        {isRun ? (
+                          [
+                            set.distanceMeters ? formatDistanceKm(set.distanceMeters) : null,
+                            set.durationSeconds != null ? formatTime(Number(set.durationSeconds)) : null,
+                            set.distanceMeters && set.durationSeconds
+                              ? formatPace(Number(set.durationSeconds), set.distanceMeters)
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || "—"
+                        ) : set.durationSeconds != null
+                          ? formatTime(Number(set.durationSeconds))
+                          : `${set.actualReps} × ${Number(set.weightKg)}kg`}
+                      </span>
+                      <span className="text-muted-foreground w-16 text-right">
+                        RPE {set.rpe}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}

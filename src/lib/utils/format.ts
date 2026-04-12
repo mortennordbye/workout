@@ -39,6 +39,48 @@ export function restToken(s: ProgramSet): string {
   return formatTime(Number(s.restTimeSeconds));
 }
 
+/**
+ * Format pace as "M:SS /km". distanceMeters must be > 0.
+ */
+export function formatPace(durationSeconds: number, distanceMeters: number): string {
+  const km = distanceMeters / 1000;
+  const secsPerKm = durationSeconds / km;
+  const m = Math.floor(secsPerKm / 60);
+  const s = Math.round(secsPerKm % 60).toString().padStart(2, "0");
+  return `${m}:${s} /km`;
+}
+
+/**
+ * Format a distance in meters as a human-readable km string.
+ * < 1km → "0.8 km", whole km → "5 km", fractional → "5.3 km"
+ */
+export function formatDistanceKm(meters: number): string {
+  const km = meters / 1000;
+  if (km < 1) return `${km.toFixed(1)} km`;
+  if (km % 1 === 0) return `${km} km`;
+  return `${km.toFixed(1)} km`;
+}
+
+/**
+ * Build a run set summary for the exercise list row.
+ * e.g. "5 km · 25:00 · 5:00 /km" or "1 km; 1 km; 1 km; ..." for intervals
+ */
+export function buildRunSetSummary(sets: ProgramSet[]): string {
+  if (sets.length === 0) return "";
+  const tokens = sets.map((s) => {
+    const parts: string[] = [];
+    if (s.distanceMeters) parts.push(formatDistanceKm(s.distanceMeters));
+    if (s.durationSeconds) parts.push(formatTime(s.durationSeconds));
+    if (s.distanceMeters && s.durationSeconds) {
+      parts.push(formatPace(s.durationSeconds, s.distanceMeters));
+    }
+    return parts.join(" · ") || "Run";
+  });
+  return tokens.length > 3
+    ? tokens.slice(0, 3).join("; ") + "; ..."
+    : tokens.join("; ");
+}
+
 export function buildSetSummary(sets: ProgramSet[], isTimed = false): string {
   if (sets.length === 0) return "";
   const tokens = sets.map((s) => {

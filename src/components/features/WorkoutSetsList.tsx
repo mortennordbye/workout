@@ -1,11 +1,12 @@
 "use client";
 
 import { BottomSheet } from "@/components/ui/BottomSheet";
+import { LogRunModal } from "@/components/features/LogRunModal";
 import { reorderProgramSets, updateProgramSet } from "@/lib/actions/programs";
 import { logWorkoutSet } from "@/lib/actions/workout-sets";
 import type { SetSuggestionDisplay } from "@/components/features/WorkoutSetsClient";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { formatTime } from "@/lib/utils/format";
+import { formatDistanceKm, formatPace, formatTime } from "@/lib/utils/format";
 import { computeMapping, toFlatItems } from "@/lib/utils/set-mapping";
 import type { FlatItem, RestFlatItem, SetFlatItem } from "@/lib/utils/set-mapping";
 import type { ProgramSet } from "@/types/workout";
@@ -39,6 +40,7 @@ type WorkoutSetsListProps = {
   isEditing?: boolean;
   isWorkout?: boolean;
   isTimed?: boolean;
+  isRunning?: boolean;
   exerciseId?: number;
   sessionId?: number;
   onDeleteSet?: (setId: number) => void;
@@ -61,6 +63,7 @@ export function WorkoutSetsList({
   isEditing = false,
   isWorkout = false,
   isTimed = false,
+  isRunning = false,
   exerciseId,
   sessionId,
   onDeleteSet,
@@ -98,6 +101,7 @@ export function WorkoutSetsList({
   } | null>(null);
   const [editingRestItemId, setEditingRestItemId] = useState<string | null>(null);
   const [restDraft, setRestDraft] = useState(60);
+  const [pendingRunSetId, setPendingRunSetId] = useState<number | null>(null);
   const [restMinStr, setRestMinStr] = useState("1");
   const [restSecStr, setRestSecStr] = useState("0");
 
@@ -296,6 +300,51 @@ export function WorkoutSetsList({
     }
   };
 
+  // ── Run confirmation handler ────────────────────────────────────────────────
+
+  const confirmRunLog = async (
+    setId: number,
+    distanceMeters: number,
+    runDurationSeconds: number,
+    rpe: number,
+  ) => {
+    setPendingRunSetId(null);
+    const flatIndex = flatItems.findIndex((i) => i.id === `set-${setId}`);
+    const setItems = flatItems.filter((i): i is SetFlatItem => i.type === "set");
+    const setIndex = setItems.findIndex((s) => s.set.id === setId);
+
+    if (completedSets) {
+      workoutSession!.addCompletedSet(setId);
+    } else {
+      setLocalCompletedSets((prev) => { const s = new Set(prev); s.add(setId); return s; });
+    }
+
+    const nextFlatItem = flatIndex >= 0 ? flatItems[flatIndex + 1] : undefined;
+    const restSeconds = nextFlatItem?.type === "rest" ? nextFlatItem.seconds : 0;
+
+    if (restSeconds > 0) {
+      setRestTimers((timers) => { const t = new Map(timers); t.set(setId, restSeconds); return t; });
+      if (isWorkout && workoutSession) {
+        workoutSession.setRestTimerEnd(setId, Date.now() + restSeconds * 1000);
+      }
+    }
+
+    if (isWorkout && sessionId != null && exerciseId != null) {
+      await logWorkoutSet({
+        sessionId,
+        exerciseId,
+        setNumber: setIndex + 1,
+        actualReps: 0,
+        weightKg: 0,
+        distanceMeters,
+        durationSeconds: runDurationSeconds > 0 ? runDurationSeconds : undefined,
+        rpe,
+        restTimeSeconds: restSeconds,
+        isCompleted: true,
+      });
+    }
+  };
+
   // ── Rest timer countdown ────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -467,15 +516,18 @@ export function WorkoutSetsList({
                     id={item.id}
                     set={item.set}
                     setNumber={setNumber}
+                    totalSets={flatItems.filter((i) => i.type === "set").length}
                     isEditing={isEditing}
                     isWorkout={isWorkout}
                     isTimed={isTimed}
+                    isRunning={isRunning}
                     isCompleted={activeCompletedSets.has(item.set.id)}
                     programId={programId}
                     programExerciseId={programExerciseId}
                     onToggle={() => toggleSet(item.set.id)}
                     onDelete={() => onDeleteSet?.(item.set.id)}
                     onStartTimer={startExerciseTimer}
+                    onOpenLogRun={isRunning ? (id) => setPendingRunSetId(id) : undefined}
                     suggestion={suggestions?.[item.set.id]}
                     onApplySuggestion={onApplySuggestion}
                     onApplyRepSuggestion={onApplyRepSuggestion}
@@ -611,6 +663,24 @@ export function WorkoutSetsList({
         </div>
       )}
 
+      {/* Log Run Modal */}
+      {pendingRunSetId !== null && (() => {
+        const setItems = flatItems.filter((i): i is SetFlatItem => i.type === "set");
+        const runSet = setItems.find((s) => s.set.id === pendingRunSetId)?.set;
+        const setNumber = setItems.findIndex((s) => s.set.id === pendingRunSetId) + 1;
+        return (
+          <LogRunModal
+            open={true}
+            onClose={() => setPendingRunSetId(null)}
+            onConfirm={(dist, dur, rpe) => confirmRunLog(pendingRunSetId, dist, dur, rpe)}
+            targetDistanceMeters={runSet?.distanceMeters}
+            targetDurationSeconds={runSet?.durationSeconds}
+            setNumber={setNumber}
+            totalSets={setItems.length}
+          />
+        );
+      })()}
+
       {/* Rest duration picker */}
       <BottomSheet
         open={editingRestItemId !== null}
@@ -732,15 +802,18 @@ function SortableSetRow({
   id,
   set,
   setNumber,
+  totalSets,
   isEditing,
   isWorkout,
   isTimed,
+  isRunning,
   isCompleted,
   programId,
   programExerciseId,
   onToggle,
   onDelete,
   onStartTimer,
+  onOpenLogRun,
   suggestion,
   onApplySuggestion,
   onApplyRepSuggestion,
@@ -750,15 +823,18 @@ function SortableSetRow({
   id: string;
   set: ProgramSet;
   setNumber: number;
+  totalSets: number;
   isEditing: boolean;
   isWorkout: boolean;
   isTimed: boolean;
+  isRunning: boolean;
   isCompleted: boolean;
   programId: number;
   programExerciseId: number;
   onToggle: () => void;
   onDelete: () => void;
   onStartTimer?: (setId: number, duration: number) => void;
+  onOpenLogRun?: (setId: number) => void;
   suggestion?: SetSuggestionDisplay;
   onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number, durationSeconds?: number) => void;
   onApplyRepSuggestion?: (setId: number, reps: number) => void;
@@ -788,7 +864,9 @@ function SortableSetRow({
   const handlePlayClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isEditing || !isWorkout) return;
-    if (isTimed && !isCompleted) {
+    if (isRunning && !isCompleted) {
+      onOpenLogRun?.(set.id);
+    } else if (isTimed && !isCompleted) {
       onStartTimer?.(set.id, overrideDurationSeconds ?? set.durationSeconds ?? 60);
     } else {
       onToggle();
@@ -841,7 +919,27 @@ function SortableSetRow({
       </div>
 
       <div className="flex-1">
-        {isTimed || set.durationSeconds != null ? (
+        {isRunning ? (
+          <div>
+            {set.distanceMeters ? (
+              <p className="text-lg font-medium">
+                {formatDistanceKm(set.distanceMeters)}
+              </p>
+            ) : (
+              <p className="text-lg font-medium text-muted-foreground">
+                {totalSets > 1 ? `Interval ${setNumber}` : "Run"}
+              </p>
+            )}
+            {set.durationSeconds != null && (
+              <p className="text-sm text-muted-foreground">
+                {formatTime(set.durationSeconds)}
+                {set.distanceMeters != null && set.durationSeconds > 0
+                  ? ` · ${formatPace(set.durationSeconds, set.distanceMeters)}`
+                  : ""}
+              </p>
+            )}
+          </div>
+        ) : isTimed || set.durationSeconds != null ? (
           <p className="text-lg font-medium">
             {formatTime(overrideDurationSeconds ?? Number(set.durationSeconds ?? 60))}
           </p>
@@ -865,7 +963,14 @@ function SortableSetRow({
           const timePending =
             suggestion.reason === "progressed-time" &&
             suggestion.suggestedDurationSeconds !== undefined;
-          const lastLabel = suggestion.basedOnRpe != null
+          const distancePending =
+            suggestion.reason === "progressed-distance" &&
+            suggestion.suggestedDistanceMeters !== undefined;
+          const lastLabel = isRunning
+            ? suggestion.basedOnDistanceMeters != null
+              ? `Last: ${formatDistanceKm(suggestion.basedOnDistanceMeters)} (${suggestion.basedOnFeeling})`
+              : `Last: (${suggestion.basedOnFeeling})`
+            : suggestion.basedOnRpe != null
             ? `Last: ${suggestion.basedOnWeightKg}kg (${suggestion.basedOnFeeling}, RPE ${suggestion.basedOnRpe})`
             : `Last: ${suggestion.basedOnWeightKg}kg (${suggestion.basedOnFeeling})`;
 
@@ -951,6 +1056,11 @@ function SortableSetRow({
                   >
                     ↑ {formatTime(suggestion.suggestedDurationSeconds!)} duration
                   </button>
+                )}
+                {distancePending && (
+                  <span className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold">
+                    ↑ {formatDistanceKm(suggestion.suggestedDistanceMeters!)} next time
+                  </span>
                 )}
                 {suggestion.readinessModulated && (
                   <span className="text-[10px] text-muted-foreground/60">

@@ -69,7 +69,8 @@ export default async function NewSetPage({ params }: Props) {
         programExerciseId={peId}
         nextSetNumber={nextSetNumber}
         lastSet={lastSet}
-        isTimed={pe.exercise.isTimed || pe.exercise.category === "cardio"}
+        isTimed={pe.exercise.isTimed && pe.exercise.category !== "cardio"}
+        isRunning={pe.exercise.category === "cardio"}
       />
     </div>
   );

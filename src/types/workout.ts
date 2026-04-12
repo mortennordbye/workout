@@ -104,7 +104,7 @@ export type SessionWithStats = WorkoutSession & {
  */
 export type SessionDetail = WorkoutSession & {
   programName: string | null;
-  setsByExercise: Array<{ exerciseName: string; sets: WorkoutSet[] }>;
+  setsByExercise: Array<{ exerciseName: string; exerciseCategory: string; sets: WorkoutSet[] }>;
 };
 
 // Training Cycles
@@ -155,14 +155,16 @@ export type SetSuggestion = {
   suggestedReps?: number;
   adjustedRepsForWeight?: number; // 1RM-estimated reps at new weight (smart mode)
   suggestedDurationSeconds?: number; // time mode: suggested new duration
+  suggestedDistanceMeters?: number; // distance mode: suggested new target distance
   basedOnWeightKg: number; // last logged weight (raw, no rounding)
   basedOnReps: number; // last logged actual reps
   basedOnDurationSeconds?: number; // last logged duration (time mode)
+  basedOnDistanceMeters?: number; // last logged distance (distance mode)
   basedOnFeeling: string; // last session feeling
   basedOnDate: string; // last session date
   basedOnRpe?: number; // last logged RPE (optional — null for old sessions)
   basedOnHitCount?: number; // how many of the last CONSENSUS_WINDOW sessions hit target with confidence
-  reason: "progressed" | "held" | "held-readiness" | "manual" | "progressed-reps" | "deload" | "progressed-time";
+  reason: "progressed" | "held" | "held-readiness" | "manual" | "progressed-reps" | "deload" | "progressed-time" | "progressed-distance";
   // ─── Enriched fields (populated by getProgressiveSuggestions) ───────────────
   /** How many confident hits have been recorded in the current consensus window. */
   hitsAchieved: number;
@@ -233,6 +235,7 @@ export type ExportedProgram = {
         targetReps: number | null;
         weightKg: number | null;
         durationSeconds: number | null;
+        distanceMeters: number | null;
         restTimeSeconds: number;
       }>;
     }>;

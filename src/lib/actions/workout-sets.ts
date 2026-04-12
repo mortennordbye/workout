@@ -92,6 +92,7 @@ export async function logWorkoutSet(
       actualReps,
       weightKg,
       durationSeconds,
+      distanceMeters,
       rpe,
       restTimeSeconds,
       isCompleted,
@@ -118,6 +119,7 @@ export async function logWorkoutSet(
         actualReps,
         weightKg: weightKg.toString(),
         durationSeconds,
+        distanceMeters,
         rpe,
         restTimeSeconds,
         isCompleted,
@@ -600,7 +602,7 @@ export async function getSessionDetail(
         .leftJoin(programs, eq(workoutSessions.programId, programs.id))
         .where(eq(workoutSessions.id, sessionId)),
       db
-        .select({ set: workoutSets, exerciseName: exercises.name })
+        .select({ set: workoutSets, exerciseName: exercises.name, exerciseCategory: exercises.category, exerciseId: exercises.id })
         .from(workoutSets)
         .innerJoin(exercises, eq(workoutSets.exerciseId, exercises.id))
         .where(eq(workoutSets.sessionId, sessionId))
@@ -611,19 +613,20 @@ export async function getSessionDetail(
       return { success: false, error: "Session not found" };
     }
 
-    // Group by exercise name
+    // Group by exercise id (to avoid collision on same-named exercises)
     const exerciseMap = new Map<
-      string,
-      { exerciseName: string; sets: WorkoutSet[] }
+      number,
+      { exerciseName: string; exerciseCategory: string; sets: WorkoutSet[] }
     >();
     for (const row of setsRows) {
-      if (!exerciseMap.has(row.exerciseName)) {
-        exerciseMap.set(row.exerciseName, {
+      if (!exerciseMap.has(row.exerciseId)) {
+        exerciseMap.set(row.exerciseId, {
           exerciseName: row.exerciseName,
+          exerciseCategory: row.exerciseCategory ?? "strength",
           sets: [],
         });
       }
-      exerciseMap.get(row.exerciseName)!.sets.push(row.set);
+      exerciseMap.get(row.exerciseId)!.sets.push(row.set);
     }
 
     return {
@@ -690,6 +693,7 @@ export async function getProgressiveSuggestions(
         setNumber: programSets.setNumber,
         targetReps: programSets.targetReps,
         durationSeconds: programSets.durationSeconds,
+        distanceMeters: programSets.distanceMeters,
         exerciseId: programExercises.exerciseId,
         overloadIncrementKg: programExercises.overloadIncrementKg,
         overloadIncrementReps: programExercises.overloadIncrementReps,
@@ -748,6 +752,7 @@ export async function getProgressiveSuggestions(
         targetReps: workoutSets.targetReps,
         weightKg: workoutSets.weightKg,
         durationSeconds: workoutSets.durationSeconds,
+        distanceMeters: workoutSets.distanceMeters,
         rpe: workoutSets.rpe,
         feeling: workoutSessions.feeling,
         date: workoutSessions.date,
@@ -786,6 +791,7 @@ export async function getProgressiveSuggestions(
         setNumber: ps.setNumber,
         targetReps: ps.targetReps,
         durationSeconds: ps.durationSeconds,
+        distanceMeters: ps.distanceMeters,
         exerciseId: ps.exerciseId,
         overloadIncrementKg: ps.overloadIncrementKg,
         overloadIncrementReps: ps.overloadIncrementReps,

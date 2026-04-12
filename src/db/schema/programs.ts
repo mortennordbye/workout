@@ -67,6 +67,8 @@ export const programSets = pgTable("program_sets", {
   weightKg: decimal("weight_kg", { precision: 6, scale: 2 }),
   // For time-based sets (seconds)
   durationSeconds: integer("duration_seconds"),
+  // For running/cardio sets (meters)
+  distanceMeters: integer("distance_meters"),
   // Rest after this set (seconds)
   restTimeSeconds: integer("rest_time_seconds").notNull().default(60),
 });
