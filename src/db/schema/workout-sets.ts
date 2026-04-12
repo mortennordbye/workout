@@ -31,6 +31,7 @@
 import {
     boolean,
     decimal,
+    index,
     integer,
     pgTable,
     serial,
@@ -56,4 +57,6 @@ export const workoutSets = pgTable("workout_sets", {
   restTimeSeconds: integer("rest_time_seconds").notNull(),
   isCompleted: boolean("is_completed").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("idx_wsets_session").on(t.sessionId),
+]);

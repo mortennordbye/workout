@@ -30,10 +30,14 @@ export default async function Home() {
   const session = await requireSession();
   const userId = session.user.id;
 
+  const monday = new Date();
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+
   const [statsResult, cycleResult, sessionsResult] = await Promise.all([
     getWorkoutStats(userId),
     getActiveCycleForUser(userId),
-    getCompletedSessions(userId),
+    getCompletedSessions(userId, monday),
   ]);
 
   const stats = statsResult.success

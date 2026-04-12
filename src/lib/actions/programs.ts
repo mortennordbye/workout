@@ -81,6 +81,31 @@ export async function getProgramWithExercises(
   }
 }
 
+export async function getProgramsWithExercises(
+  ids: number[],
+): Promise<Record<number, ProgramWithExercises>> {
+  if (ids.length === 0) return {};
+  try {
+    const rows = await db.query.programs.findMany({
+      where: inArray(programs.id, ids),
+      with: {
+        programExercises: {
+          orderBy: (pe, { asc }) => [asc(pe.orderIndex)],
+          with: {
+            exercise: true,
+            programSets: {
+              orderBy: (ps, { asc }) => [asc(ps.setNumber)],
+            },
+          },
+        },
+      },
+    });
+    return Object.fromEntries(rows.map((p) => [p.id, p as ProgramWithExercises]));
+  } catch {
+    return {};
+  }
+}
+
 export async function createProgram(
   data: unknown,
 ): Promise<ActionResult<Program>> {

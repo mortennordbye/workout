@@ -1,9 +1,8 @@
 import { CycleCalendarClient } from "@/components/features/CycleCalendarClient";
-import { getProgramWithExercises } from "@/lib/actions/programs";
+import { getProgramsWithExercises } from "@/lib/actions/programs";
 import { getAllCyclesWithSlots } from "@/lib/actions/training-cycles";
 import { getCompletedSessions } from "@/lib/actions/workout-sets";
 import { requireSession } from "@/lib/utils/session";
-import type { ProgramWithExercises } from "@/types/workout";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -11,9 +10,12 @@ export const dynamic = "force-dynamic";
 
 export default async function CalendarPage() {
   const session = await requireSession();
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+
   const [cyclesResult, sessionsResult] = await Promise.all([
     getAllCyclesWithSlots(session.user.id),
-    getCompletedSessions(session.user.id),
+    getCompletedSessions(session.user.id, oneYearAgo),
   ]);
 
   const cycles = cyclesResult.success ? cyclesResult.data : [];
@@ -29,14 +31,8 @@ export default async function CalendarPage() {
     }
   }
 
-  // Pre-fetch all referenced programs with their exercises
-  const programsMap: Record<number, ProgramWithExercises> = {};
-  await Promise.all(
-    [...programIds].map(async (id) => {
-      const result = await getProgramWithExercises(id);
-      if (result.success) programsMap[id] = result.data;
-    }),
-  );
+  // Pre-fetch all referenced programs in a single batched query
+  const programsMap = await getProgramsWithExercises([...programIds]);
 
   return (
     <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col overflow-hidden">

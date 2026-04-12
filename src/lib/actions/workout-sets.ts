@@ -50,7 +50,7 @@ import type {
     WorkoutSetWithExercise,
     WorkoutStats,
 } from "@/types/workout";
-import { and, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -499,6 +499,7 @@ export async function getWorkoutHistory(
  */
 export async function getCompletedSessions(
   userId: string,
+  since?: Date,
 ): Promise<ActionResult<SessionWithStats[]>> {
   try {
     const rows = await db
@@ -525,6 +526,7 @@ export async function getCompletedSessions(
         and(
           eq(workoutSessions.userId, userId),
           eq(workoutSessions.isCompleted, true),
+          since ? gte(workoutSessions.startTime, since) : undefined,
         ),
       )
       .groupBy(
@@ -838,51 +840,69 @@ export async function getWorkoutInsight(
   programId: number,
   userId: string,
 ): Promise<WorkoutInsight> {
-  // Fetch last 3 completed sessions for this program
-  const recentSessions = await db
-    .select({ feeling: workoutSessions.feeling })
-    .from(workoutSessions)
-    .where(
-      and(
-        eq(workoutSessions.userId, userId),
-        eq(workoutSessions.programId, programId),
-        eq(workoutSessions.isCompleted, true),
-        isNotNull(workoutSessions.feeling),
-      ),
-    )
-    .orderBy(desc(workoutSessions.startTime))
-    .limit(3);
-
-  const [sessionCountRow, cycleResult, suggestionsResult, currentSessionRow] =
-    await Promise.all([
-      db
-        .select({ count: sql<number>`COUNT(*)` })
-        .from(workoutSessions)
-        .where(
-          and(
-            eq(workoutSessions.userId, userId),
-            eq(workoutSessions.programId, programId),
-            eq(workoutSessions.isCompleted, true),
-          ),
-        )
-        .then((r) => Number(r[0]?.count ?? 0)),
-      getActiveCycleForUser(userId),
-      getProgressiveSuggestions(programId, userId),
-      // Fetch the current (incomplete) session to read readiness
-      db
-        .select({ readiness: workoutSessions.readiness })
-        .from(workoutSessions)
-        .where(
-          and(
-            eq(workoutSessions.userId, userId),
-            eq(workoutSessions.programId, programId),
-            eq(workoutSessions.isCompleted, false),
-          ),
-        )
-        .orderBy(desc(workoutSessions.startTime))
-        .limit(1)
-        .then((r) => r[0] ?? null),
-    ]);
+  const [
+    sessionCountRow,
+    cycleResult,
+    suggestionsResult,
+    currentSessionRow,
+    recentSessions,
+    recentPRsCount,
+  ] = await Promise.all([
+    db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(workoutSessions)
+      .where(
+        and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.programId, programId),
+          eq(workoutSessions.isCompleted, true),
+        ),
+      )
+      .then((r) => Number(r[0]?.count ?? 0)),
+    getActiveCycleForUser(userId),
+    getProgressiveSuggestions(programId, userId),
+    // Fetch the current (incomplete) session to read readiness
+    db
+      .select({ readiness: workoutSessions.readiness })
+      .from(workoutSessions)
+      .where(
+        and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.programId, programId),
+          eq(workoutSessions.isCompleted, false),
+        ),
+      )
+      .orderBy(desc(workoutSessions.startTime))
+      .limit(1)
+      .then((r) => r[0] ?? null),
+    // Fetch last 3 completed sessions for fatigue check
+    db
+      .select({ feeling: workoutSessions.feeling })
+      .from(workoutSessions)
+      .where(
+        and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.programId, programId),
+          eq(workoutSessions.isCompleted, true),
+          isNotNull(workoutSessions.feeling),
+        ),
+      )
+      .orderBy(desc(workoutSessions.startTime))
+      .limit(3),
+    // Fetch recent PR count for this program
+    db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(exercisePrs)
+      .innerJoin(workoutSessions, eq(exercisePrs.sessionId, workoutSessions.id))
+      .where(
+        and(
+          eq(exercisePrs.userId, userId),
+          eq(workoutSessions.programId, programId),
+          sql`${exercisePrs.achievedAt} >= NOW() - INTERVAL '7 days'`,
+        ),
+      )
+      .then((r) => Number(r[0]?.count ?? 0)),
+  ]);
 
   const sessionCount = sessionCountRow;
   const cycleWeek = cycleResult.success && cycleResult.data ? cycleResult.data.currentWeek : undefined;
@@ -999,20 +1019,7 @@ export async function getWorkoutInsight(
   }
 
   // ── Priority 5: pr_streak — PRs logged in this program's sessions recently ──
-  const recentPRs = await db
-    .select({ count: sql<number>`COUNT(*)` })
-    .from(exercisePrs)
-    .innerJoin(workoutSessions, eq(exercisePrs.sessionId, workoutSessions.id))
-    .where(
-      and(
-        eq(exercisePrs.userId, userId),
-        eq(workoutSessions.programId, programId),
-        sql`${exercisePrs.achievedAt} >= NOW() - INTERVAL '7 days'`,
-      ),
-    )
-    .then((r) => Number(r[0]?.count ?? 0));
-
-  if (recentPRs > 0) {
+  if (recentPRsCount > 0) {
     return {
       type: "pr_streak",
       headline: "You've hit personal records this week — great momentum!",

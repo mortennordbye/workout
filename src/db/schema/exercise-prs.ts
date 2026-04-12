@@ -15,7 +15,7 @@
  *   PR history  → ORDER BY achieved_at ASC (for trend curves)
  */
 
-import { decimal, integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
+import { decimal, index, integer, pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { exercises } from "./exercises";
 import { users } from "./users";
 import { workoutSessions } from "./workout-sessions";
@@ -44,4 +44,6 @@ export const exercisePrs = pgTable("exercise_prs", {
   achievedAt: timestamp("achieved_at").notNull().defaultNow(),
   // Set when a newer PR beats this one (NULL = current record)
   supersededAt: timestamp("superseded_at"),
-});
+}, (t) => [
+  index("idx_pr_user_exercise_superseded").on(t.userId, t.exerciseId, t.supersededAt),
+]);

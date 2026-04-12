@@ -24,6 +24,7 @@
 import {
     boolean,
     date,
+    index,
     integer,
     pgEnum,
     pgTable,
@@ -56,4 +57,6 @@ export const workoutSessions = pgTable("workout_sessions", {
   // Pre-workout readiness score (1=Drained → 5=Excellent), captured at session start.
   // Null for sessions created before this feature was added.
   readiness: integer("readiness"),
-});
+}, (t) => [
+  index("idx_ws_user_completed_start").on(t.userId, t.isCompleted, t.startTime),
+]);
