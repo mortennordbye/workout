@@ -69,6 +69,10 @@ export const programSets = pgTable("program_sets", {
   durationSeconds: integer("duration_seconds"),
   // For running/cardio sets (meters)
   distanceMeters: integer("distance_meters"),
+  // For running: treadmill incline (whole percent, 0-30)
+  inclinePercent: integer("incline_percent"),
+  // For running: target heart rate zone (1-5)
+  targetHeartRateZone: integer("target_heart_rate_zone"),
   // Rest after this set (seconds)
   restTimeSeconds: integer("rest_time_seconds").notNull().default(60),
 });

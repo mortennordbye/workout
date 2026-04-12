@@ -7,13 +7,23 @@ import { useState, useEffect } from "react";
 const DISTANCE_PRESETS_M = [500, 1000, 2000, 3000, 5000, 10000, 15000, 21097, 42195];
 const DISTANCE_LABELS = ["0.5km", "1km", "2km", "3km", "5km", "10km", "15km", "21km", "42km"];
 const RPE_OPTIONS = [6, 7, 8, 9, 10];
+const INCLINE_PRESETS = [0, 1, 2, 3, 5, 8, 10, 12, 15];
+const HR_ZONES = [
+  { zone: 1, label: "Z1", desc: "Recovery" },
+  { zone: 2, label: "Z2", desc: "Aerobic" },
+  { zone: 3, label: "Z3", desc: "Tempo" },
+  { zone: 4, label: "Z4", desc: "Threshold" },
+  { zone: 5, label: "Z5", desc: "VO₂Max" },
+];
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onConfirm: (distanceMeters: number, durationSeconds: number, rpe: number) => void;
+  onConfirm: (distanceMeters: number, durationSeconds: number, rpe: number, inclinePercent: number | null, heartRateZone: number | null) => void;
   targetDistanceMeters?: number | null;
   targetDurationSeconds?: number | null;
+  targetInclinePercent?: number | null;
+  targetHeartRateZone?: number | null;
   setNumber: number;
   totalSets: number;
 };
@@ -24,6 +34,8 @@ export function LogRunModal({
   onConfirm,
   targetDistanceMeters,
   targetDurationSeconds,
+  targetInclinePercent,
+  targetHeartRateZone,
   setNumber,
   totalSets,
 }: Props) {
@@ -34,6 +46,9 @@ export function LogRunModal({
     targetDurationSeconds ?? 0,
   );
   const [rpe, setRpe] = useState(7);
+  const [inclinePercent, setInclinePercent] = useState<number | null>(targetInclinePercent ?? null);
+  const [inclineStr, setInclineStr] = useState(targetInclinePercent != null ? String(targetInclinePercent) : "");
+  const [heartRateZone, setHeartRateZone] = useState<number | null>(targetHeartRateZone ?? null);
   const [minStr, setMinStr] = useState(
     String(Math.floor((targetDurationSeconds ?? 0) / 60)),
   );
@@ -55,7 +70,10 @@ export function LogRunModal({
     setMinStr(String(Math.floor(dur / 60)));
     setSecStr(String(dur % 60).padStart(2, "0"));
     setRpe(7);
-  }, [open, targetDistanceMeters, targetDurationSeconds]);
+    setInclinePercent(targetInclinePercent ?? null);
+    setInclineStr(targetInclinePercent != null ? String(targetInclinePercent) : "");
+    setHeartRateZone(targetHeartRateZone ?? null);
+  }, [open, targetDistanceMeters, targetDurationSeconds, targetInclinePercent, targetHeartRateZone]);
 
   const pace =
     distanceMeters > 0 && durationSeconds > 0
@@ -68,7 +86,7 @@ export function LogRunModal({
       : "Log Run";
 
   const handleConfirm = () => {
-    onConfirm(distanceMeters, durationSeconds, rpe);
+    onConfirm(distanceMeters, durationSeconds, rpe, inclinePercent, heartRateZone);
   };
 
   return (
@@ -186,6 +204,75 @@ export function LogRunModal({
               </span>
             </div>
           )}
+
+          {/* Incline */}
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+              Incline <span className="normal-case">(optional)</span>
+            </p>
+            <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+              {INCLINE_PRESETS.map((pct) => (
+                <button
+                  key={pct}
+                  onClick={() => {
+                    const next = inclinePercent === pct ? null : pct;
+                    setInclinePercent(next);
+                    setInclineStr(next != null ? String(next) : "");
+                  }}
+                  className={`flex-shrink-0 px-3 h-10 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                    inclinePercent === pct
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
+                  }`}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2 mt-2">
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="0"
+                value={inclineStr}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, "");
+                  setInclineStr(val);
+                  const n = parseInt(val);
+                  setInclinePercent(!isNaN(n) && val !== "" ? Math.min(30, n) : null);
+                }}
+                onBlur={() => {
+                  if (inclinePercent != null) setInclineStr(String(inclinePercent));
+                  else setInclineStr("");
+                }}
+                className="flex-1 rounded-xl bg-background border border-border px-4 py-2.5 text-center text-xl font-bold outline-none focus:ring-2 ring-primary"
+              />
+              <span className="text-sm font-medium text-muted-foreground w-5">%</span>
+            </div>
+          </div>
+
+          {/* Heart Rate Zone */}
+          <div>
+            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
+              Heart Rate Zone <span className="normal-case">(optional)</span>
+            </p>
+            <div className="flex gap-2">
+              {HR_ZONES.map(({ zone, label, desc }) => (
+                <button
+                  key={zone}
+                  onClick={() => setHeartRateZone(heartRateZone === zone ? null : zone)}
+                  className={`flex-1 flex flex-col items-center py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+                    heartRateZone === zone
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
+                  }`}
+                >
+                  <span>{label}</span>
+                  <span className="text-[10px] opacity-70 font-normal">{desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* RPE */}
           <div>

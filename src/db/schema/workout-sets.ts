@@ -54,6 +54,8 @@ export const workoutSets = pgTable("workout_sets", {
   weightKg: decimal("weight_kg", { precision: 6, scale: 2 }).notNull(),
   durationSeconds: integer("duration_seconds"),
   distanceMeters: integer("distance_meters"),
+  inclinePercent: integer("incline_percent"),
+  heartRateZone: integer("heart_rate_zone"), // 1-5
   rpe: integer("rpe").notNull(), // 1-10 scale
   restTimeSeconds: integer("rest_time_seconds").notNull(),
   isCompleted: boolean("is_completed").default(true).notNull(),

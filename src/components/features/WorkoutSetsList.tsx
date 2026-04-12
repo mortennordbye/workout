@@ -307,6 +307,8 @@ export function WorkoutSetsList({
     distanceMeters: number,
     runDurationSeconds: number,
     rpe: number,
+    inclinePercent: number | null,
+    heartRateZone: number | null,
   ) => {
     setPendingRunSetId(null);
     const flatIndex = flatItems.findIndex((i) => i.id === `set-${setId}`);
@@ -338,6 +340,8 @@ export function WorkoutSetsList({
         weightKg: 0,
         distanceMeters,
         durationSeconds: runDurationSeconds > 0 ? runDurationSeconds : undefined,
+        inclinePercent: inclinePercent ?? undefined,
+        heartRateZone: heartRateZone ?? undefined,
         rpe,
         restTimeSeconds: restSeconds,
         isCompleted: true,
@@ -672,9 +676,11 @@ export function WorkoutSetsList({
           <LogRunModal
             open={true}
             onClose={() => setPendingRunSetId(null)}
-            onConfirm={(dist, dur, rpe) => confirmRunLog(pendingRunSetId, dist, dur, rpe)}
+            onConfirm={(dist, dur, rpe, incline, hrZone) => confirmRunLog(pendingRunSetId, dist, dur, rpe, incline, hrZone)}
             targetDistanceMeters={runSet?.distanceMeters}
             targetDurationSeconds={runSet?.durationSeconds}
+            targetInclinePercent={runSet?.inclinePercent}
+            targetHeartRateZone={runSet?.targetHeartRateZone}
             setNumber={setNumber}
             totalSets={setItems.length}
           />

@@ -22,6 +22,14 @@ function gradientColor(index: number, total: number): string {
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 300, 600];
 const DISTANCE_PRESETS_M = [500, 1000, 2000, 3000, 5000, 10000, 15000, 21097, 42195];
 const DISTANCE_LABELS = ["0.5km", "1km", "2km", "3km", "5km", "10km", "15km", "21km", "42km"];
+const INCLINE_PRESETS = [0, 1, 2, 3, 5, 8, 10, 12, 15];
+const HR_ZONES = [
+  { zone: 1, label: "Z1", desc: "Recovery" },
+  { zone: 2, label: "Z2", desc: "Aerobic" },
+  { zone: 3, label: "Z3", desc: "Tempo" },
+  { zone: 4, label: "Z4", desc: "Threshold" },
+  { zone: 5, label: "Z5", desc: "VO₂Max" },
+];
 
 type Props = {
   programId: number;
@@ -60,6 +68,9 @@ export function NewSetView({
   const [duration, setDuration] = useState(initialDuration);
   const [distanceMeters, setDistanceMeters] = useState(lastSet?.distanceMeters ?? 5000);
   const [distanceStr, setDistanceStr] = useState(String((lastSet?.distanceMeters ?? 5000) / 1000));
+  const [inclinePercent, setInclinePercent] = useState<number | null>(lastSet?.inclinePercent ?? null);
+  const [inclineStr, setInclineStr] = useState(lastSet?.inclinePercent != null ? String(lastSet.inclinePercent) : "");
+  const [targetHeartRateZone, setTargetHeartRateZone] = useState<number | null>(lastSet?.targetHeartRateZone ?? null);
   const [repsStr, setRepsStr] = useState(String(lastSet?.targetReps ?? 10));
   const [weightStr, setWeightStr] = useState(String(Number(lastSet?.weightKg ?? 0)));
   const [durationMinStr, setDurationMinStr] = useState(String(Math.floor(initialDuration / 60)));
@@ -107,6 +118,8 @@ export function NewSetView({
         setNumber: nextSetNumber,
         distanceMeters,
         durationSeconds: duration > 0 ? duration : undefined,
+        inclinePercent: inclinePercent ?? undefined,
+        targetHeartRateZone: targetHeartRateZone ?? undefined,
         restTimeSeconds: 0,
       });
     } else if (isTimed) {
@@ -208,6 +221,73 @@ export function NewSetView({
                 </span>
               </div>
             )}
+            {/* Incline */}
+            <div className="py-4 border-b border-border">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
+                Incline <span className="normal-case text-xs">(optional)</span>
+              </p>
+              <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                {INCLINE_PRESETS.map((pct) => (
+                  <button
+                    key={pct}
+                    onClick={() => {
+                      const next = inclinePercent === pct ? null : pct;
+                      setInclinePercent(next);
+                      setInclineStr(next != null ? String(next) : "");
+                    }}
+                    className={`flex-shrink-0 px-3 h-10 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                      inclinePercent === pct
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground"
+                    }`}
+                  >
+                    {pct}%
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 mt-3">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  value={inclineStr}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setInclineStr(val);
+                    const n = parseInt(val);
+                    setInclinePercent(!isNaN(n) && val !== "" ? Math.min(30, n) : null);
+                  }}
+                  onBlur={() => {
+                    if (inclinePercent != null) setInclineStr(String(inclinePercent));
+                    else setInclineStr("");
+                  }}
+                  className="flex-1 rounded-xl bg-background border border-border px-4 py-2.5 text-center text-xl font-bold outline-none focus:ring-2 ring-primary"
+                />
+                <span className="text-sm font-medium text-muted-foreground">%</span>
+              </div>
+            </div>
+            {/* Target HR Zone */}
+            <div className="py-4 border-b border-border">
+              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
+                Target HR Zone <span className="normal-case text-xs">(optional)</span>
+              </p>
+              <div className="flex gap-2">
+                {HR_ZONES.map(({ zone, label, desc }) => (
+                  <button
+                    key={zone}
+                    onClick={() => setTargetHeartRateZone(targetHeartRateZone === zone ? null : zone)}
+                    className={`flex-1 flex flex-col items-center py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+                      targetHeartRateZone === zone
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground"
+                    }`}
+                  >
+                    <span>{label}</span>
+                    <span className="text-[10px] opacity-70 font-normal">{desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </>
         ) : isTimed ? (
           /* Duration row for timed exercises */

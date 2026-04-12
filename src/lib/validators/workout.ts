@@ -75,6 +75,8 @@ export const logWorkoutSetSchema = z.object({
     .max(1000, "Weight must be under 1000kg"),
   durationSeconds: z.number().int().min(0).optional(),
   distanceMeters: z.number().int().min(0).optional(),
+  inclinePercent: z.number().int().min(0).max(30).optional(),
+  heartRateZone: z.number().int().min(1).max(5).optional(),
   rpe: z
     .number()
     .int()
@@ -166,6 +168,8 @@ export const addProgramSetSchema = z.object({
   weightKg: z.number().min(0).max(1000).optional(),
   durationSeconds: z.number().int().min(0).optional(),
   distanceMeters: z.number().int().min(0).optional(),
+  inclinePercent: z.number().int().min(0).max(30).optional(),
+  targetHeartRateZone: z.number().int().min(1).max(5).optional(),
   restTimeSeconds: z.number().int().min(0).max(3600).default(60),
 });
 
