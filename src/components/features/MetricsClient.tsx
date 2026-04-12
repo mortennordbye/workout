@@ -185,7 +185,7 @@ function MuscleBalanceSection({ data }: { data: MuscleBalance[] }) {
     <div className="rounded-2xl bg-muted p-4 space-y-3">
       <div className="flex items-baseline justify-between">
         <SectionLabel>Muscle Balance</SectionLabel>
-        <span className="text-xs text-muted-foreground">{totalSets} sets</span>
+        <span className="text-xs text-muted-foreground">{totalSets} {totalSets === 1 ? "set" : "sets"}</span>
       </div>
 
       <div className="space-y-2">
@@ -198,7 +198,7 @@ function MuscleBalanceSection({ data }: { data: MuscleBalance[] }) {
                   {MUSCLE_LABELS[row.muscleGroup] ?? row.muscleGroup}
                 </span>
                 <span className="text-xs text-muted-foreground">
-                  {row.setCount} sets
+                  {row.setCount} {row.setCount === 1 ? "set" : "sets"}
                 </span>
               </div>
               <div className="h-1.5 bg-border rounded-full overflow-hidden">

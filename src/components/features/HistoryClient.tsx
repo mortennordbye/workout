@@ -68,10 +68,10 @@ export function HistoryClient({ sessions }: { sessions: SessionWithStats[] }) {
                     ) : (
                       <>
                         <span className="text-xs bg-muted rounded-full px-2.5 py-1">
-                          {session.setCount} sets
+                          {session.setCount} {session.setCount === 1 ? "set" : "sets"}
                         </span>
                         <span className="text-xs bg-muted rounded-full px-2.5 py-1">
-                          {session.exerciseCount} exercises
+                          {session.exerciseCount} {session.exerciseCount === 1 ? "exercise" : "exercises"}
                         </span>
                         {session.totalVolumeKg > 0 && (
                           <span className="text-xs bg-muted rounded-full px-2.5 py-1">
