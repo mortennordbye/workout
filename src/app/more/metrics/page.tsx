@@ -5,6 +5,7 @@ import {
   getMetricsCycles,
   getSummaryStats,
   getTopProgressingExercises,
+  getCardioMetrics,
 } from "@/lib/actions/metrics";
 import { getWeightHistory } from "@/lib/actions/profile";
 import { db } from "@/db";
@@ -27,7 +28,7 @@ export default async function MetricsPage() {
   const topExercise = metrics.personalRecords[0] ?? null;
 
   // Batch remaining queries in parallel, including progress chart now that we know the exercise
-  const [summaryResult, topProgressResult, weightHistoryResult, userRow, progressResult, cyclesResult] =
+  const [summaryResult, topProgressResult, weightHistoryResult, userRow, progressResult, cyclesResult, cardioResult] =
     await Promise.all([
       getSummaryStats(userId),
       getTopProgressingExercises(userId),
@@ -35,6 +36,7 @@ export default async function MetricsPage() {
       db.query.users.findFirst({ where: eq(users.id, userId) }),
       topExercise ? getExerciseProgress(userId, topExercise.exerciseId) : Promise.resolve(null),
       getMetricsCycles(userId),
+      getCardioMetrics(userId),
     ]);
 
   return (
@@ -51,6 +53,7 @@ export default async function MetricsPage() {
       weightHistory={weightHistoryResult.success ? weightHistoryResult.data : []}
       profileWeightKg={userRow?.weightKg ?? null}
       cycles={cyclesResult.success ? cyclesResult.data : []}
+      cardioMetrics={cardioResult.success ? cardioResult.data : null}
     />
   );
 }

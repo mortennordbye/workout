@@ -134,15 +134,27 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
                       </span>
                       <span className="font-medium flex-1 text-center">
                         {isRun ? (
-                          [
-                            set.distanceMeters ? formatDistanceKm(set.distanceMeters) : null,
-                            set.durationSeconds != null ? formatTime(Number(set.durationSeconds)) : null,
-                            set.distanceMeters && set.durationSeconds
-                              ? formatPace(Number(set.durationSeconds), set.distanceMeters)
-                              : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ") || "—"
+                          <>
+                            <span>
+                              {[
+                                set.distanceMeters ? formatDistanceKm(set.distanceMeters) : null,
+                                set.durationSeconds != null ? formatTime(Number(set.durationSeconds)) : null,
+                                set.distanceMeters && set.durationSeconds
+                                  ? formatPace(Number(set.durationSeconds), set.distanceMeters)
+                                  : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ") || "—"}
+                            </span>
+                            {(set.inclinePercent != null || set.heartRateZone != null) && (
+                              <span className="block text-xs text-muted-foreground mt-0.5">
+                                {[
+                                  set.inclinePercent != null ? `${set.inclinePercent}% incline` : null,
+                                  set.heartRateZone != null ? `Z${set.heartRateZone}` : null,
+                                ].filter(Boolean).join(" · ")}
+                              </span>
+                            )}
+                          </>
                         ) : set.durationSeconds != null
                           ? formatTime(Number(set.durationSeconds))
                           : `${set.actualReps} × ${Number(set.weightKg)}kg`}

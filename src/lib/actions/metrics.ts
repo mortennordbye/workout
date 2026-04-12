@@ -575,6 +575,210 @@ async function fetchCycleRpeTrend(
   });
 }
 
+// ── Cardio types ──────────────────────────────────────────────────────────
+
+export type WeeklyCardioMetric = {
+  weekStart: string;
+  distanceM: number;
+  sessionCount: number;
+};
+
+export type CardioHrZone = {
+  zone: number;
+  label: string;
+  distanceM: number;
+  setCount: number;
+};
+
+export type CardioPaceRecord = {
+  label: string;
+  distanceM: number;
+  bestPaceSecPerKm: number;
+  date: string;
+  exerciseName: string;
+};
+
+export type CardioMetrics = {
+  totalDistanceM: number;
+  totalSessions: number;
+  longestSingleRunM: number;
+  bestPaceSecPerKm: number | null;
+  weekly: WeeklyCardioMetric[];
+  hrZones: CardioHrZone[];
+  paceRecords: CardioPaceRecord[];
+};
+
+const HR_ZONE_LABELS: Record<number, string> = {
+  1: "Z1 Recovery",
+  2: "Z2 Aerobic",
+  3: "Z3 Tempo",
+  4: "Z4 Threshold",
+  5: "Z5 VO₂Max",
+};
+
+// Distance brackets for pace PRs (label, min meters, max meters)
+const PACE_BRACKETS = [
+  { label: "1 km",    min: 800,   max: 1200,  rep: 1000  },
+  { label: "3 km",    min: 2700,  max: 3300,  rep: 3000  },
+  { label: "5 km",    min: 4700,  max: 5300,  rep: 5000  },
+  { label: "10 km",   min: 9500,  max: 10500, rep: 10000 },
+  { label: "Half",    min: 20000, max: 22000, rep: 21097 },
+  { label: "Full",    min: 41000, max: 44000, rep: 42195 },
+];
+
+function fillWeeklyCardioGaps(rows: WeeklyCardioMetric[], weeks = 8): WeeklyCardioMetric[] {
+  const today = new Date();
+  const byWeek = new Map(rows.map((r) => [r.weekStart, r]));
+  return Array.from({ length: weeks }, (_, i) => {
+    const weekStart = getMondayOffset(today, weeks - 1 - i);
+    return byWeek.get(weekStart) ?? { weekStart, distanceM: 0, sessionCount: 0 };
+  });
+}
+
+export async function getCardioMetrics(
+  userId: string,
+): Promise<ActionResult<CardioMetrics>> {
+  try {
+    // All cardio sets with distance + duration for this user
+    const allSets = await db
+      .select({
+        distanceMeters: workoutSets.distanceMeters,
+        durationSeconds: workoutSets.durationSeconds,
+        heartRateZone: workoutSets.heartRateZone,
+        sessionDate: workoutSessions.date,
+        sessionStartTime: workoutSessions.startTime,
+        exerciseName: exercises.name,
+      })
+      .from(workoutSets)
+      .innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id))
+      .innerJoin(exercises, eq(workoutSets.exerciseId, exercises.id))
+      .where(
+        and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.isCompleted, true),
+          sql`${exercises.category} = 'cardio'`,
+          sql`${workoutSets.distanceMeters} > 0`,
+        ),
+      )
+      .orderBy(asc(workoutSessions.date));
+
+    // Summary totals
+    let totalDistanceM = 0;
+    let longestSingleRunM = 0;
+    let bestPaceSecPerKm: number | null = null;
+
+    const sessionDistances = new Map<string, number>();
+    const hrZoneMap = new Map<number, { distanceM: number; setCount: number }>();
+    const weeklyMap = new Map<string, { distanceM: number; sessionCount: number; sessions: Set<string> }>();
+    const paceMap = new Map<string, { bestPace: number; date: string; exerciseName: string; distanceM: number }>();
+
+    for (const set of allSets) {
+      const dist = Number(set.distanceMeters ?? 0);
+      const dur = Number(set.durationSeconds ?? 0);
+      if (dist <= 0) continue;
+
+      totalDistanceM += dist;
+      longestSingleRunM = Math.max(longestSingleRunM, dist);
+
+      // Track total distance per session (for longest session)
+      const sKey = `${set.sessionDate}`;
+      sessionDistances.set(sKey, (sessionDistances.get(sKey) ?? 0) + dist);
+
+      // HR zone
+      if (set.heartRateZone != null) {
+        const z = set.heartRateZone;
+        const existing = hrZoneMap.get(z) ?? { distanceM: 0, setCount: 0 };
+        hrZoneMap.set(z, { distanceM: existing.distanceM + dist, setCount: existing.setCount + 1 });
+      }
+
+      // Weekly distance
+      const weekKey = set.sessionStartTime
+        ? snapToMonday(new Date(set.sessionStartTime))
+        : snapToMonday(new Date(set.sessionDate + "T00:00:00"));
+      const wk = weeklyMap.get(weekKey) ?? { distanceM: 0, sessionCount: 0, sessions: new Set() };
+      wk.distanceM += dist;
+      wk.sessions.add(sKey);
+      weeklyMap.set(weekKey, wk);
+
+      // Pace PR per bracket
+      if (dur > 0) {
+        const paceSecPerKm = (dur / dist) * 1000;
+        // Best overall pace (for runs >= 400m to filter out tiny intervals)
+        if (dist >= 400) {
+          if (bestPaceSecPerKm === null || paceSecPerKm < bestPaceSecPerKm) {
+            bestPaceSecPerKm = paceSecPerKm;
+          }
+        }
+        // Bracket PRs
+        for (const bracket of PACE_BRACKETS) {
+          if (dist >= bracket.min && dist <= bracket.max) {
+            const existing = paceMap.get(bracket.label);
+            if (!existing || paceSecPerKm < existing.bestPace) {
+              paceMap.set(bracket.label, {
+                bestPace: paceSecPerKm,
+                date: set.sessionDate,
+                exerciseName: set.exerciseName,
+                distanceM: bracket.rep,
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Build weekly array
+    const weeklyRaw: WeeklyCardioMetric[] = Array.from(weeklyMap.entries()).map(([weekStart, v]) => ({
+      weekStart,
+      distanceM: v.distanceM,
+      sessionCount: v.sessions.size,
+    }));
+    const weekly = fillWeeklyCardioGaps(weeklyRaw);
+
+    // Count unique cardio sessions
+    const totalSessions = sessionDistances.size;
+
+    // HR zones array
+    const hrZones: CardioHrZone[] = [1, 2, 3, 4, 5]
+      .map((z) => ({
+        zone: z,
+        label: HR_ZONE_LABELS[z],
+        distanceM: hrZoneMap.get(z)?.distanceM ?? 0,
+        setCount: hrZoneMap.get(z)?.setCount ?? 0,
+      }))
+      .filter((z) => z.setCount > 0);
+
+    // Pace records (only brackets with data, ordered by distance)
+    const paceRecords: CardioPaceRecord[] = PACE_BRACKETS
+      .filter((b) => paceMap.has(b.label))
+      .map((b) => {
+        const p = paceMap.get(b.label)!;
+        return {
+          label: b.label,
+          distanceM: p.distanceM,
+          bestPaceSecPerKm: Math.round(p.bestPace),
+          date: p.date,
+          exerciseName: p.exerciseName,
+        };
+      });
+
+    return {
+      success: true,
+      data: {
+        totalDistanceM,
+        totalSessions,
+        longestSingleRunM,
+        bestPaceSecPerKm: bestPaceSecPerKm !== null ? Math.round(bestPaceSecPerKm) : null,
+        weekly,
+        hrZones,
+        paceRecords,
+      },
+    };
+  } catch (err) {
+    console.error("getCardioMetrics failed:", err);
+    return { success: false, error: "Failed to load cardio metrics" };
+  }
+}
+
 // ── Exported actions ───────────────────────────────────────────────────────
 
 export async function getMetricsData(

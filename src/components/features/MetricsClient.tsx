@@ -3,6 +3,9 @@
 import {
   getCycleMetrics,
   getExerciseProgress,
+  type CardioHrZone,
+  type CardioMetrics,
+  type CardioPaceRecord,
   type CycleMetrics,
   type CyclePickerItem,
   type ExerciseProgress,
@@ -12,6 +15,7 @@ import {
   type RpeTrendPoint,
   type SummaryStats,
   type TopProgressingExercise,
+  type WeeklyCardioMetric,
   type WeeklyMetric,
 } from "@/lib/actions/metrics";
 import {
@@ -686,6 +690,193 @@ function WeightHistorySection({
   );
 }
 
+// ── Cardio Section ─────────────────────────────────────────────────────────
+
+function formatPaceDisplay(secPerKm: number): string {
+  const mins = Math.floor(secPerKm / 60);
+  const secs = Math.round(secPerKm % 60);
+  return `${mins}:${String(secs).padStart(2, "0")} /km`;
+}
+
+function formatDistanceDisplay(meters: number): string {
+  if (meters === 0) return "0 km";
+  if (meters < 1000) return `${meters} m`;
+  const km = meters / 1000;
+  return km % 1 === 0 ? `${km} km` : `${km.toFixed(1)} km`;
+}
+
+const HR_ZONE_COLORS = ["bg-blue-400", "bg-green-400", "bg-yellow-400", "bg-orange-400", "bg-red-500"];
+
+function CardioSection({ data }: { data: CardioMetrics }) {
+  const hasAnyData = data.totalSessions > 0;
+
+  if (!hasAnyData) {
+    return (
+      <div className="rounded-2xl bg-muted p-4 space-y-2">
+        <SectionLabel>Cardio</SectionLabel>
+        <p className="text-sm text-muted-foreground">No runs logged yet.</p>
+      </div>
+    );
+  }
+
+  const summaryCards = [
+    { label: "Total distance", value: formatDistanceDisplay(data.totalDistanceM) },
+    { label: "Cardio sessions", value: String(data.totalSessions) },
+    { label: "Longest run", value: formatDistanceDisplay(data.longestSingleRunM) },
+    { label: "Best pace", value: data.bestPaceSecPerKm ? formatPaceDisplay(data.bestPaceSecPerKm) : "–" },
+  ];
+
+  // Weekly distance chart
+  const maxDist = Math.max(...data.weekly.map((w) => w.distanceM), 1);
+  const totalWeeklyDist = data.weekly.reduce((s, w) => s + w.distanceM, 0);
+
+  // HR zones
+  const totalHrDist = data.hrZones.reduce((s, z) => s + z.distanceM, 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Summary stats */}
+      <div className="rounded-2xl bg-muted p-4 space-y-3">
+        <SectionLabel>Cardio</SectionLabel>
+        <div className="grid grid-cols-2 gap-2">
+          {summaryCards.map((card) => (
+            <div key={card.label} className="rounded-xl bg-background/50 p-3 flex flex-col gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {card.label}
+              </span>
+              <span className="text-xl font-bold tabular-nums">{card.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Weekly distance chart */}
+      <div className="rounded-2xl bg-muted p-4 space-y-3">
+        <div className="flex items-baseline justify-between">
+          <SectionLabel>Distance · Last 8 weeks</SectionLabel>
+          <span className="text-xs text-muted-foreground">{formatDistanceDisplay(totalWeeklyDist)}</span>
+        </div>
+
+        <div className="flex items-end gap-1 h-20">
+          {data.weekly.map((week) => {
+            const pct = maxDist > 0 ? (week.distanceM / maxDist) * 100 : 0;
+            return (
+              <div
+                key={week.weekStart}
+                className="flex-1 flex flex-col items-center justify-end gap-1"
+              >
+                <div className="w-full relative flex flex-col justify-end" style={{ height: "60px" }}>
+                  {week.distanceM > 0 && (
+                    <div
+                      className="w-full bg-primary/80 rounded-t-sm"
+                      style={{ height: `${Math.max(pct, 4)}%` }}
+                    />
+                  )}
+                </div>
+                <span className="text-[9px] text-muted-foreground leading-none">
+                  {formatWeekLabel(week.weekStart)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Distance labels row */}
+        <div className="flex gap-1">
+          {data.weekly.map((week) => (
+            <div key={week.weekStart} className="flex-1 flex justify-center">
+              {week.distanceM > 0 ? (
+                <span className="text-[9px] font-medium text-primary">
+                  {(week.distanceM / 1000).toFixed(1)}
+                </span>
+              ) : (
+                <span className="text-[9px] text-muted-foreground/30">–</span>
+              )}
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-muted-foreground text-center">km per week</p>
+      </div>
+
+      {/* Pace PRs */}
+      {data.paceRecords.length > 0 && (
+        <div className="rounded-2xl bg-muted p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <SectionLabel>Pace Records</SectionLabel>
+            <TrendingUp className="w-4 h-4 text-muted-foreground flex-none" />
+          </div>
+          <div className="divide-y divide-border -mx-1">
+            {data.paceRecords.map((pr) => (
+              <div
+                key={pr.label}
+                className="flex items-center gap-3 px-1 py-2.5 min-h-[44px]"
+              >
+                <div className="w-12 flex-none">
+                  <span className="text-sm font-semibold">{pr.label}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium">{formatPaceDisplay(pr.bestPaceSecPerKm)}</div>
+                  <div className="text-xs text-muted-foreground truncate">{pr.exerciseName}</div>
+                </div>
+                <span className="text-xs text-muted-foreground flex-none">
+                  {formatDateShort(pr.date)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* HR Zone distribution */}
+      {data.hrZones.length > 0 && (
+        <div className="rounded-2xl bg-muted p-4 space-y-3">
+          <SectionLabel>Heart Rate Zones</SectionLabel>
+
+          {/* Segmented bar */}
+          <div className="flex h-3 rounded-full overflow-hidden gap-px">
+            {data.hrZones.map((z, i) => {
+              const pct = totalHrDist > 0 ? (z.distanceM / totalHrDist) * 100 : 0;
+              return (
+                <div
+                  key={z.zone}
+                  className={HR_ZONE_COLORS[z.zone - 1]}
+                  style={{ width: `${pct}%` }}
+                />
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div className="space-y-2">
+            {data.hrZones.map((z) => {
+              const pct = totalHrDist > 0 ? Math.round((z.distanceM / totalHrDist) * 100) : 0;
+              return (
+                <div key={z.zone} className="flex items-center gap-2 min-h-[28px]">
+                  <div className={`w-2.5 h-2.5 rounded-full ${HR_ZONE_COLORS[z.zone - 1]} flex-none`} />
+                  <span className="text-xs font-medium flex-none w-24">{z.label}</span>
+                  <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${HR_ZONE_COLORS[z.zone - 1]} rounded-full`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-muted-foreground flex-none w-12 text-right">
+                    {formatDistanceDisplay(z.distanceM)}
+                  </span>
+                  <span className="text-xs text-muted-foreground flex-none w-8 text-right">
+                    {pct}%
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground">Based on logged HR zones</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Cycle Tab Components ───────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<string, string> = {
@@ -985,6 +1176,7 @@ type Props = {
   weightHistory: WeightEntry[];
   profileWeightKg: number | null;
   cycles: CyclePickerItem[];
+  cardioMetrics: CardioMetrics | null;
 };
 
 export function MetricsClient({
@@ -1000,6 +1192,7 @@ export function MetricsClient({
   weightHistory,
   profileWeightKg,
   cycles,
+  cardioMetrics,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("alltime");
   const [selectedId, setSelectedId] = useState<number | null>(initialExerciseId);
@@ -1081,6 +1274,9 @@ export function MetricsClient({
 
             {/* ── Volume & Frequency ─────────────────────────────────── */}
             <WeeklyChart data={weekly} />
+
+            {/* ── Cardio ─────────────────────────────────────────────── */}
+            {cardioMetrics && <CardioSection data={cardioMetrics} />}
 
             {/* ── Muscle Balance ─────────────────────────────────────── */}
             <MuscleBalanceSection data={muscleBalance} />
