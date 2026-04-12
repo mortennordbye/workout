@@ -2,12 +2,12 @@
 
 import { authClient } from "@/lib/auth-client";
 import { updateUserProfile } from "@/lib/actions/profile";
+import type { Goal } from "@/lib/utils/goals";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { CheckCircle2, KeyRound, LogOut } from "lucide-react";
 import { useState } from "react";
 
 type Gender = "male" | "female" | "other" | "prefer_not_to_say";
-type Goal = "strength" | "muscle_gain" | "weight_loss" | "endurance" | "general_fitness";
 type ExperienceLevel = "beginner" | "intermediate" | "advanced";
 
 interface UserProfile {
@@ -15,7 +15,7 @@ interface UserProfile {
   birthYear: number | null;
   heightCm: number | null;
   weightKg: number | null;
-  goal: Goal | null;
+  goals: Goal[];
   experienceLevel: ExperienceLevel | null;
 }
 
@@ -90,6 +90,51 @@ function PickerRow<T extends string>({
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function GoalPickerRow({
+  values,
+  onChange,
+}: {
+  values: Goal[];
+  onChange: (v: Goal[]) => void;
+}) {
+  const options: Goal[] = ["strength", "muscle_gain", "weight_loss", "endurance", "general_fitness"];
+
+  function toggle(opt: Goal) {
+    if (values.includes(opt)) {
+      onChange(values.filter((v) => v !== opt));
+    } else {
+      onChange([...values, opt]);
+    }
+  }
+
+  return (
+    <div className="px-4 py-3.5">
+      <p className="text-xs text-muted-foreground mb-2">Goals</p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => {
+          const selected = values.includes(opt);
+          return (
+            <button
+              key={opt}
+              onClick={() => toggle(opt)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors active:opacity-70 ${
+                selected
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-transparent text-foreground border-border"
+              }`}
+            >
+              {GOAL_LABELS[opt]}
+            </button>
+          );
+        })}
+      </div>
+      {values.length === 0 && (
+        <p className="text-xs text-muted-foreground mt-2">Select all that apply</p>
+      )}
     </div>
   );
 }
@@ -185,8 +230,12 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
   async function handleSaveProfile() {
     setProfileSaving(true);
     setProfileError(null);
-    const { name: profileName, ...bodyFields } = profile;
-    const result = await updateUserProfile({ ...bodyFields, name: profileName.trim() || undefined });
+    const { name: profileName, goals, ...bodyFields } = profile;
+    const result = await updateUserProfile({
+      ...bodyFields,
+      name: profileName.trim() || undefined,
+      goals: goals.length > 0 ? goals : null,
+    });
     setProfileSaving(false);
     if (result.success) {
       setProfileSaved(true);
@@ -230,12 +279,9 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
         <div>
           <SectionLabel>Body &amp; Goals</SectionLabel>
           <div className="rounded-2xl bg-card overflow-hidden divide-y divide-border/50">
-            <PickerRow
-              label="Goal"
-              value={profile.goal}
-              options={["strength", "muscle_gain", "weight_loss", "endurance", "general_fitness"]}
-              labelMap={GOAL_LABELS}
-              onChange={(v) => setProfile((p) => ({ ...p, goal: v }))}
+            <GoalPickerRow
+              values={profile.goals}
+              onChange={(v) => setProfile((p) => ({ ...p, goals: v }))}
             />
             <PickerRow
               label="Experience level"

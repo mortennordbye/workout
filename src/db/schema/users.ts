@@ -20,5 +20,6 @@ export const users = pgTable("user", {
   heightCm: integer("height_cm"),
   weightKg: real("weight_kg"),
   goal: text("goal").$type<"strength" | "muscle_gain" | "weight_loss" | "endurance" | "general_fitness">(),
+  goals: text("goals").$type<string>(), // JSON array of Goal values, e.g. '["strength","muscle_gain"]'
   experienceLevel: text("experience_level").$type<"beginner" | "intermediate" | "advanced">(),
 });

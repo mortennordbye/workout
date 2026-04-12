@@ -1,4 +1,5 @@
 import { AccountClient } from "@/components/features/AccountClient";
+import { parseUserGoals } from "@/lib/utils/goals";
 import { db } from "@/db";
 import { users } from "@/db/schema/users";
 import { requireSession } from "@/lib/utils/session";
@@ -34,7 +35,7 @@ export default async function AccountPage() {
           birthYear: user?.birthYear ?? null,
           heightCm: user?.heightCm ?? null,
           weightKg: user?.weightKg ?? null,
-          goal: user?.goal ?? null,
+          goals: parseUserGoals(user?.goals, user?.goal),
           experienceLevel: user?.experienceLevel ?? null,
         }}
       />

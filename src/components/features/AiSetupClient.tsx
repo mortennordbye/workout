@@ -12,7 +12,7 @@ type UserProfile = {
   birthYear: number | null;
   heightCm: number | null;
   weightKg: number | null;
-  goal: string | null;
+  goals: string[];
   experienceLevel: string | null;
 };
 
@@ -51,8 +51,8 @@ export function AiSetupClient({ exercises, userProfile }: Props) {
       : "";
 
   const profileLines: string[] = [];
-  if (userProfile.goal)
-    profileLines.push(`Goal: ${GOAL_LABELS[userProfile.goal] ?? userProfile.goal}`);
+  if (userProfile.goals.length > 0)
+    profileLines.push(`Goals: ${userProfile.goals.map((g) => GOAL_LABELS[g] ?? g).join(", ")}`);
   if (userProfile.experienceLevel)
     profileLines.push(`Experience level: ${userProfile.experienceLevel}`);
   if (userProfile.gender && userProfile.gender !== "prefer_not_to_say")

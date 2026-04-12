@@ -1,5 +1,6 @@
 import { AiSetupClient } from "@/components/features/AiSetupClient";
 import { getAllExercises } from "@/lib/actions/exercises";
+import { parseUserGoals } from "@/lib/utils/goals";
 import { requireSession } from "@/lib/utils/session";
 import { db } from "@/db";
 import { users } from "@/db/schema/users";
@@ -22,7 +23,7 @@ export default async function AiSetupPage() {
     birthYear: user?.birthYear ?? null,
     heightCm: user?.heightCm ?? null,
     weightKg: user?.weightKg ?? null,
-    goal: user?.goal ?? null,
+    goals: parseUserGoals(user?.goals, user?.goal),
     experienceLevel: user?.experienceLevel ?? null,
   };
 

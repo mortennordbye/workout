@@ -3,6 +3,7 @@
 import { db } from "@/db";
 import { users } from "@/db/schema/users";
 import { userWeightEntries } from "@/db/schema/weight-history";
+import { GOAL_VALUES } from "@/lib/utils/goals";
 import { requireSession } from "@/lib/utils/session";
 import type { ActionResult } from "@/types/workout";
 import { and, desc, eq } from "drizzle-orm";
@@ -21,7 +22,7 @@ const updateProfileSchema = z.object({
   birthYear: z.number().int().min(1900).max(new Date().getFullYear()).nullable().optional(),
   heightCm: z.number().int().positive().max(300).nullable().optional(),
   weightKg: z.number().positive().max(500).nullable().optional(),
-  goal: z.enum(["strength", "muscle_gain", "weight_loss", "endurance", "general_fitness"]).nullable().optional(),
+  goals: z.array(z.enum(GOAL_VALUES)).max(5).nullable().optional(),
   experienceLevel: z.enum(["beginner", "intermediate", "advanced"]).nullable().optional(),
 });
 
@@ -33,7 +34,14 @@ export async function updateUserProfile(data: unknown): Promise<ActionResult<voi
   }
   try {
     const current = await db.query.users.findFirst({ where: eq(users.id, session.user.id) });
-    await db.update(users).set(parsed.data).where(eq(users.id, session.user.id));
+
+    const { goals, ...rest } = parsed.data;
+    const goalsValue =
+      goals !== undefined
+        ? { goals: goals && goals.length > 0 ? JSON.stringify(goals) : null }
+        : {};
+
+    await db.update(users).set({ ...rest, ...goalsValue }).where(eq(users.id, session.user.id));
 
     // Auto-log weight entry when weight changes
     const newWeight = parsed.data.weightKg;
