@@ -43,7 +43,7 @@ type WorkoutSetsListProps = {
   sessionId?: number;
   onDeleteSet?: (setId: number) => void;
   suggestions?: Record<number, SetSuggestionDisplay>;
-  onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number) => void;
+  onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number, durationSeconds?: number) => void;
   onApplyRepSuggestion?: (setId: number, reps: number) => void;
 };
 
@@ -759,7 +759,7 @@ function SortableSetRow({
   onDelete: () => void;
   onStartTimer?: (setId: number, duration: number) => void;
   suggestion?: SetSuggestionDisplay;
-  onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number) => void;
+  onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number, durationSeconds?: number) => void;
   onApplyRepSuggestion?: (setId: number, reps: number) => void;
   overrideDurationSeconds?: number;
   hasPR?: boolean;
@@ -875,12 +875,17 @@ function SortableSetRow({
 
           return (
             <div className="mt-0.5">
-              {/* First line: last set info + PR badge + progress dots */}
+              {/* First line: last set info + PR badge + progress dots + manual badge */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-muted-foreground">{lastLabel}</span>
                 {hasPR && (
                   <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-600 text-xs font-semibold">
                     🏆 PR
+                  </span>
+                )}
+                {suggestion.reason === "manual" && (
+                  <span className="text-[10px] text-muted-foreground/50 font-medium">
+                    Manual
                   </span>
                 )}
                 {showProgressDots && (
@@ -939,7 +944,7 @@ function SortableSetRow({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      onApplySuggestion?.(set.id, suggestion.suggestedWeightKg);
+                      onApplySuggestion?.(set.id, suggestion.suggestedWeightKg, undefined, suggestion.suggestedDurationSeconds);
                     }}
                     className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
                   >

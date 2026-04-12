@@ -32,7 +32,7 @@ export function sendNotification(title: string, body: string): void {
   // In-app: direct Notification API
   // TODO (out-of-app): route through Service Worker push instead
   try {
-    new Notification(title, { body, icon: "/icon-192.png", badge: "/icon-192.png" });
+    new Notification(title, { body, icon: "/icon-192x192.png", badge: "/icon-192x192.png" });
   } catch {
     // Some browsers throw if called outside a user gesture — silently ignore
   }

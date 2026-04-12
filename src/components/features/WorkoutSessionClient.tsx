@@ -235,6 +235,18 @@ export function WorkoutSessionClient({
         </div>
       )}
 
+      {/* Workout-level insight banner */}
+      {insight && insight.type !== "on_track" && (
+        <div className="px-4 pb-3 shrink-0">
+          <div className="bg-card rounded-2xl px-4 py-3">
+            <p className="text-sm font-semibold">{insight.headline}</p>
+            {insight.detail && (
+              <p className="text-xs text-muted-foreground mt-0.5">{insight.detail}</p>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Exercise insight pills */}
       {insight?.exerciseInsights && insight.exerciseInsights.length > 0 && (
         <div className="px-4 pb-3 shrink-0">

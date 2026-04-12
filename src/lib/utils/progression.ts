@@ -415,16 +415,20 @@ export function buildSuggestion(
       suggestion = { suggestedWeightKg: baseWeight, ...basedOn, reason: "manual" };
   }
 
-  // ── Readiness modulation: low energy → hold progression ──────────────────
+  // ── Readiness modulation: low energy → hold all progressions ────────────
   if (
     readiness != null &&
     readiness <= 2 &&
-    suggestion.reason === "progressed"
+    (suggestion.reason === "progressed" ||
+      suggestion.reason === "progressed-reps" ||
+      suggestion.reason === "progressed-time")
   ) {
     suggestion = {
       ...suggestion,
       reason: "held-readiness",
-      suggestedWeightKg: baseWeight, // revert to current weight
+      suggestedWeightKg: baseWeight,
+      suggestedReps: undefined,
+      suggestedDurationSeconds: undefined,
       readinessModulated: true,
     };
   }

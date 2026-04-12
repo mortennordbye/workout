@@ -119,12 +119,13 @@ export function WorkoutSetsClient({
       }).length
     : 0;
 
-  function applySuggestion(setId: number, suggestedWeightKg: number, adjustedReps?: number) {
+  function applySuggestion(setId: number, suggestedWeightKg: number, adjustedReps?: number, durationSeconds?: number) {
     if (!workoutSession) return;
     const set = sets.find((s) => s.id === setId);
     workoutSession.setOverride(setId, {
       weightKg: suggestedWeightKg,
       targetReps: adjustedReps ?? workoutSession.overrides[setId]?.targetReps ?? set?.targetReps ?? 0,
+      ...(durationSeconds != null ? { durationSeconds } : {}),
     });
   }
 

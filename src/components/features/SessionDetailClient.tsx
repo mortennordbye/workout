@@ -24,7 +24,7 @@ function formatDate(d: Date): string {
 }
 
 function formatDuration(ms: number): string {
-  const minutes = Math.round(ms / 60000);
+  const minutes = Math.max(1, Math.round(ms / 60000));
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
@@ -46,7 +46,7 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
     .flatMap((g) => g.sets)
     .reduce((sum, s) => sum + Number(s.weightKg) * s.actualReps, 0);
 
-  const feelingColor = detail.notes ? (FEELING_COLORS[detail.notes] ?? "") : "";
+  const feelingColor = detail.feeling ? (FEELING_COLORS[detail.feeling] ?? "") : "";
 
   async function handleDelete() {
     setDeleting(true);
@@ -87,14 +87,17 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
               · {totalVolume.toLocaleString()}kg total
             </span>
           )}
-          {detail.notes && FEELING_COLORS[detail.notes] && (
+          {detail.feeling && FEELING_COLORS[detail.feeling] && (
             <span
               className={`text-xs font-medium rounded-full px-2.5 py-1 ${feelingColor}`}
             >
-              {detail.notes}
+              {detail.feeling}
             </span>
           )}
         </div>
+        {detail.notes && (
+          <p className="mt-3 text-sm text-muted-foreground">{detail.notes}</p>
+        )}
 
         {/* Exercises */}
         <div className="mt-6 space-y-6">

@@ -368,3 +368,28 @@ describe("buildSuggestion — basedOn fields", () => {
     expect(result?.suggestedWeightKg).toBeCloseTo(78);
   });
 });
+
+describe("buildSuggestion — readiness modulation", () => {
+  it("downgrades weight progression to held-readiness when readiness ≤ 2", () => {
+    const rows = makeRows(REQUIRED_HITS, { rpe: 6 });
+    const result = buildSuggestion(rows, makePs(), null, 2);
+    expect(result?.reason).toBe("held-readiness");
+    expect(result?.readinessModulated).toBe(true);
+    expect(result?.suggestedWeightKg).toBeCloseTo(80); // reverted to base
+  });
+
+  it("downgrades rep progression to held-readiness when readiness ≤ 2", () => {
+    const rows = makeRows(REQUIRED_HITS, { rpe: 6 });
+    const result = buildSuggestion(rows, makePs({ progressionMode: "reps", overloadIncrementReps: 1 }), null, 1);
+    expect(result?.reason).toBe("held-readiness");
+    expect(result?.readinessModulated).toBe(true);
+    expect(result?.suggestedReps).toBeUndefined();
+  });
+
+  it("does not suppress progression when readiness is 3", () => {
+    const rows = makeRows(REQUIRED_HITS, { rpe: 6 });
+    const result = buildSuggestion(rows, makePs(), null, 3);
+    expect(result?.reason).toBe("progressed");
+    expect(result?.readinessModulated).toBe(false);
+  });
+});
