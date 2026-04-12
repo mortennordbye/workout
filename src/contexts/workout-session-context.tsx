@@ -56,10 +56,20 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
           startTime: string;
           sessionId: number | null;
         };
-        setProgramId(pid);
-        setStartTime(st);
-        setWorkoutPath(`/programs/${pid}/workout`);
-        if (sid != null) setSessionId(sid);
+        // Discard sessions older than 24 hours — they are stale and would show
+        // a wildly incorrect elapsed timer with no way to resume meaningfully.
+        const ageMs = Date.now() - new Date(st).getTime();
+        if (ageMs > 8 * 60 * 60 * 1000) {
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(REST_TIMERS_KEY);
+          localStorage.removeItem(OVERRIDES_KEY);
+          localStorage.removeItem(READINESS_KEY);
+        } else {
+          setProgramId(pid);
+          setStartTime(st);
+          setWorkoutPath(`/programs/${pid}/workout`);
+          if (sid != null) setSessionId(sid);
+        }
       } catch {
         localStorage.removeItem(STORAGE_KEY);
       }

@@ -154,10 +154,21 @@ export async function deleteProgram(
 export async function addExerciseToProgram(
   data: unknown,
 ): Promise<ActionResult<ProgramExercise>> {
+  const auth = await requireSession();
   try {
     const validation = addExerciseToProgramSchema.safeParse(data);
     if (!validation.success) {
       return { success: false, error: "Invalid input" };
+    }
+
+    // Verify the program belongs to the authenticated user
+    const [prog] = await db
+      .select({ userId: programs.userId })
+      .from(programs)
+      .where(eq(programs.id, validation.data.programId))
+      .limit(1);
+    if (!prog || prog.userId !== auth.user.id) {
+      return { success: false, error: "Program not found" };
     }
 
     // Place at end if no orderIndex given
@@ -186,12 +197,21 @@ export async function removeExerciseFromProgram(
   programExerciseId: number,
   programId: number,
 ): Promise<ActionResult<void>> {
+  const auth = await requireSession();
   const validation = removeExerciseFromProgramSchema.safeParse({
     programExerciseId,
     programId,
   });
   if (!validation.success) return { success: false, error: "Invalid input" };
   try {
+    const [prog] = await db
+      .select({ userId: programs.userId })
+      .from(programs)
+      .where(eq(programs.id, validation.data.programId))
+      .limit(1);
+    if (!prog || prog.userId !== auth.user.id) {
+      return { success: false, error: "Program not found" };
+    }
     await db
       .delete(programExercises)
       .where(eq(programExercises.id, validation.data.programExerciseId));
@@ -206,10 +226,20 @@ export async function updateProgramExerciseIncrement(
   programExerciseId: number,
   incrementKg: number,
 ): Promise<ActionResult<void>> {
+  const auth = await requireSession();
   if (incrementKg < 0 || incrementKg > 100) {
     return { success: false, error: "Increment must be between 0 and 100 kg" };
   }
   try {
+    const [check] = await db
+      .select({ userId: programs.userId })
+      .from(programExercises)
+      .innerJoin(programs, eq(programs.id, programExercises.programId))
+      .where(eq(programExercises.id, programExerciseId))
+      .limit(1);
+    if (!check || check.userId !== auth.user.id) {
+      return { success: false, error: "Not found" };
+    }
     const [pe] = await db
       .update(programExercises)
       .set({ overloadIncrementKg: incrementKg.toString() })
@@ -229,10 +259,20 @@ export async function updateProgramExerciseIncrementReps(
   programExerciseId: number,
   incrementReps: number,
 ): Promise<ActionResult<void>> {
+  const auth = await requireSession();
   if (!Number.isInteger(incrementReps) || incrementReps < 0 || incrementReps > 100) {
     return { success: false, error: "Increment must be a whole number between 0 and 100" };
   }
   try {
+    const [check] = await db
+      .select({ userId: programs.userId })
+      .from(programExercises)
+      .innerJoin(programs, eq(programs.id, programExercises.programId))
+      .where(eq(programExercises.id, programExerciseId))
+      .limit(1);
+    if (!check || check.userId !== auth.user.id) {
+      return { success: false, error: "Not found" };
+    }
     const [pe] = await db
       .update(programExercises)
       .set({ overloadIncrementReps: incrementReps })
@@ -255,10 +295,20 @@ export async function updateProgramExerciseProgressionMode(
   programExerciseId: number,
   mode: string,
 ): Promise<ActionResult<void>> {
+  const auth = await requireSession();
   if (!VALID_PROGRESSION_MODES.includes(mode as ProgressionMode)) {
     return { success: false, error: "Invalid progression mode" };
   }
   try {
+    const [check] = await db
+      .select({ userId: programs.userId })
+      .from(programExercises)
+      .innerJoin(programs, eq(programs.id, programExercises.programId))
+      .where(eq(programExercises.id, programExerciseId))
+      .limit(1);
+    if (!check || check.userId !== auth.user.id) {
+      return { success: false, error: "Not found" };
+    }
     const [pe] = await db
       .update(programExercises)
       .set({ progressionMode: mode })
@@ -278,12 +328,21 @@ export async function reorderProgramExercises(
   programId: number,
   orderedIds: number[],
 ): Promise<ActionResult<void>> {
+  const auth = await requireSession();
   const validation = reorderProgramExercisesSchema.safeParse({
     programId,
     orderedIds,
   });
   if (!validation.success) return { success: false, error: "Invalid input" };
   try {
+    const [prog] = await db
+      .select({ userId: programs.userId })
+      .from(programs)
+      .where(eq(programs.id, validation.data.programId))
+      .limit(1);
+    if (!prog || prog.userId !== auth.user.id) {
+      return { success: false, error: "Program not found" };
+    }
     await Promise.all(
       validation.data.orderedIds.map((id, index) =>
         db
@@ -306,10 +365,22 @@ export async function reorderProgramExercises(
 export async function addProgramSet(
   data: unknown,
 ): Promise<ActionResult<ProgramSet>> {
+  const auth = await requireSession();
   try {
     const validation = addProgramSetSchema.safeParse(data);
     if (!validation.success) {
       return { success: false, error: "Invalid input" };
+    }
+
+    // Verify ownership via programExercise → program
+    const [peCheck] = await db
+      .select({ programId: programExercises.programId, userId: programs.userId })
+      .from(programExercises)
+      .innerJoin(programs, eq(programs.id, programExercises.programId))
+      .where(eq(programExercises.id, validation.data.programExerciseId))
+      .limit(1);
+    if (!peCheck || peCheck.userId !== auth.user.id) {
+      return { success: false, error: "Not found" };
     }
 
     const [ps] = await db
@@ -339,6 +410,7 @@ export async function addProgramSet(
 export async function updateProgramSet(
   data: unknown,
 ): Promise<ActionResult<ProgramSet>> {
+  const auth = await requireSession();
   try {
     const validation = updateProgramSetSchema.safeParse(data);
     if (!validation.success) {
@@ -346,6 +418,18 @@ export async function updateProgramSet(
     }
 
     const { id, ...rest } = validation.data;
+
+    // Verify ownership via programSet → programExercise → program
+    const [check] = await db
+      .select({ userId: programs.userId })
+      .from(programSets)
+      .innerJoin(programExercises, eq(programExercises.id, programSets.programExerciseId))
+      .innerJoin(programs, eq(programs.id, programExercises.programId))
+      .where(eq(programSets.id, id))
+      .limit(1);
+    if (!check || check.userId !== auth.user.id) {
+      return { success: false, error: "Not found" };
+    }
     // Strip undefined values so partial updates don't overwrite existing fields
     const updates = Object.fromEntries(
       Object.entries(rest).filter(([, v]) => v !== undefined),
@@ -367,9 +451,18 @@ export async function deleteProgramSet(
   programId: number,
   programExerciseId: number,
 ): Promise<ActionResult<void>> {
+  const auth = await requireSession();
   const validation = deleteProgramSetSchema.safeParse({ programSetId });
   if (!validation.success) return { success: false, error: "Invalid input" };
   try {
+    const [prog] = await db
+      .select({ userId: programs.userId })
+      .from(programs)
+      .where(eq(programs.id, programId))
+      .limit(1);
+    if (!prog || prog.userId !== auth.user.id) {
+      return { success: false, error: "Program not found" };
+    }
     await db
       .delete(programSets)
       .where(eq(programSets.id, validation.data.programSetId));
@@ -385,12 +478,23 @@ export async function reorderProgramSets(
   programExerciseId: number,
   orderedIds: number[],
 ): Promise<ActionResult<void>> {
+  const auth = await requireSession();
   const validation = reorderProgramSetsSchema.safeParse({
     programExerciseId,
     orderedIds,
   });
   if (!validation.success) return { success: false, error: "Invalid input" };
   try {
+    // Verify ownership via programExercise → program
+    const [peCheck] = await db
+      .select({ programId: programExercises.programId, userId: programs.userId })
+      .from(programExercises)
+      .innerJoin(programs, eq(programs.id, programExercises.programId))
+      .where(eq(programExercises.id, validation.data.programExerciseId))
+      .limit(1);
+    if (!peCheck || peCheck.userId !== auth.user.id) {
+      return { success: false, error: "Not found" };
+    }
     await Promise.all(
       validation.data.orderedIds.map((id, index) =>
         db

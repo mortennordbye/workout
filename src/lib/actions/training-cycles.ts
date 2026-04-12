@@ -369,6 +369,7 @@ export async function restartTrainingCycle(
 export async function upsertCycleSlot(
   data: unknown,
 ): Promise<ActionResult<TrainingCycleSlot>> {
+  const auth = await requireSession();
   try {
     const validation = upsertCycleSlotSchema.safeParse(data);
     if (!validation.success) {
@@ -376,6 +377,16 @@ export async function upsertCycleSlot(
     }
 
     const { trainingCycleId, dayOfWeek, orderIndex, ...rest } = validation.data;
+
+    // Verify ownership of the cycle
+    const [cycle] = await db
+      .select({ userId: trainingCycles.userId })
+      .from(trainingCycles)
+      .where(eq(trainingCycles.id, trainingCycleId))
+      .limit(1);
+    if (!cycle || cycle.userId !== auth.user.id) {
+      return { success: false, error: "Cycle not found" };
+    }
 
     // Find existing slot to upsert
     let existingSlot = null;
@@ -422,7 +433,16 @@ export async function removeCycleSlot(
   slotId: number,
   cycleId: number,
 ): Promise<ActionResult<void>> {
+  const auth = await requireSession();
   try {
+    const [cycle] = await db
+      .select({ userId: trainingCycles.userId })
+      .from(trainingCycles)
+      .where(eq(trainingCycles.id, cycleId))
+      .limit(1);
+    if (!cycle || cycle.userId !== auth.user.id) {
+      return { success: false, error: "Cycle not found" };
+    }
     await db
       .delete(trainingCycleSlots)
       .where(eq(trainingCycleSlots.id, slotId));
@@ -437,9 +457,18 @@ export async function reorderCycleSlots(
   cycleId: number,
   orderedIds: number[],
 ): Promise<ActionResult<void>> {
+  const auth = await requireSession();
   const validation = reorderCycleSlotsSchema.safeParse({ cycleId, orderedIds });
   if (!validation.success) return { success: false, error: "Invalid input" };
   try {
+    const [cycle] = await db
+      .select({ userId: trainingCycles.userId })
+      .from(trainingCycles)
+      .where(eq(trainingCycles.id, cycleId))
+      .limit(1);
+    if (!cycle || cycle.userId !== auth.user.id) {
+      return { success: false, error: "Cycle not found" };
+    }
     await Promise.all(
       validation.data.orderedIds.map((id, index) =>
         db

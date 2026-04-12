@@ -91,6 +91,17 @@ export function WorkoutSessionClient({
       }
     }
 
+    // Discard sessions older than 24 hours — same rule as the context.
+    // Child effects run before parent effects so this check must live here too.
+    if (persistedStart != null && Date.now() - new Date(persistedStart).getTime() > 8 * 60 * 60 * 1000) {
+      localStorage.removeItem("activeWorkout");
+      localStorage.removeItem("restTimerEnds");
+      localStorage.removeItem("workoutOverrides");
+      localStorage.removeItem("workoutReadiness");
+      persistedStart = null;
+      persistedSessionId = null;
+    }
+
     // If there's a persisted session for this program, restore it without creating a new DB session
     if (persistedSessionId != null && persistedStart != null) {
       workoutSession?.setActiveWorkout(programId, persistedStart, persistedSessionId);

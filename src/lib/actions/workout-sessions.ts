@@ -165,10 +165,19 @@ export async function setSessionReadiness(
   sessionId: number,
   readiness: number,
 ): Promise<ActionResult<undefined>> {
+  const auth = await requireSession();
+
   if (!Number.isInteger(readiness) || readiness < 1 || readiness > 5) {
     return { success: false, error: "Readiness must be an integer between 1 and 5" };
   }
   try {
+    const [existing] = await db
+      .select({ userId: workoutSessions.userId })
+      .from(workoutSessions)
+      .where(eq(workoutSessions.id, sessionId));
+    if (!existing) return { success: false, error: "Workout session not found" };
+    if (existing.userId !== auth.user.id) return { success: false, error: "Unauthorized" };
+
     await db
       .update(workoutSessions)
       .set({ readiness })
@@ -177,21 +186,5 @@ export async function setSessionReadiness(
   } catch (error) {
     console.error("Error setting session readiness:", error);
     return { success: false, error: "Failed to set readiness" };
-  }
-}
-
-export async function getActiveSession(
-  userId: string,
-): Promise<ActionResult<WorkoutSession | null>> {
-  try {
-    const session = await db.query.workoutSessions.findFirst({
-      where: (sessions, { eq, and }) =>
-        and(eq(sessions.userId, userId), eq(sessions.isCompleted, false)),
-      orderBy: (sessions, { desc }) => [desc(sessions.startTime)],
-    });
-    return { success: true, data: session ?? null };
-  } catch (error) {
-    console.error("Error fetching active session:", error);
-    return { success: false, error: "Failed to fetch active session" };
   }
 }

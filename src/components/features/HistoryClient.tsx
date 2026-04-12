@@ -61,16 +61,24 @@ export function HistoryClient({ sessions }: { sessions: SessionWithStats[] }) {
                     )}
                   </div>
                   <div className="flex gap-2 mt-3 flex-wrap">
-                    <span className="text-xs bg-muted rounded-full px-2.5 py-1">
-                      {session.setCount} sets
-                    </span>
-                    <span className="text-xs bg-muted rounded-full px-2.5 py-1">
-                      {session.exerciseCount} exercises
-                    </span>
-                    {session.totalVolumeKg > 0 && (
-                      <span className="text-xs bg-muted rounded-full px-2.5 py-1">
-                        {session.totalVolumeKg.toLocaleString()}kg
+                    {session.setCount === 0 ? (
+                      <span className="text-xs text-muted-foreground/60 italic px-0.5">
+                        No sets tracked
                       </span>
+                    ) : (
+                      <>
+                        <span className="text-xs bg-muted rounded-full px-2.5 py-1">
+                          {session.setCount} sets
+                        </span>
+                        <span className="text-xs bg-muted rounded-full px-2.5 py-1">
+                          {session.exerciseCount} exercises
+                        </span>
+                        {session.totalVolumeKg > 0 && (
+                          <span className="text-xs bg-muted rounded-full px-2.5 py-1">
+                            {session.totalVolumeKg.toLocaleString()}kg
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

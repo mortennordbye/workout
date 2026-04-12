@@ -180,6 +180,7 @@ export function WorkoutSetsList({
         t.delete(setId);
         return t;
       });
+      setPrSetIds((prev) => { const s = new Set(prev); s.delete(setId); return s; });
       if (isWorkout && workoutSession) workoutSession.clearRestTimerEnd(setId);
     } else {
       // Collect all preceding sets that aren't already completed (catch-up)

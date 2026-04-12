@@ -96,6 +96,16 @@ export async function logWorkoutSet(
       isCompleted,
     } = validation.data;
 
+    // Verify the session belongs to the authenticated user
+    const [session] = await db
+      .select({ userId: workoutSessions.userId })
+      .from(workoutSessions)
+      .where(eq(workoutSessions.id, sessionId))
+      .limit(1);
+    if (!session || session.userId !== auth.user.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+
     // Insert set into database
     const [set] = await db
       .insert(workoutSets)
