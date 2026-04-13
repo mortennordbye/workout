@@ -156,11 +156,26 @@ export function WorkoutSetsList({
     if (orderedSetIds.length > 0) {
       await reorderProgramSets(programExerciseId, orderedSetIds);
     }
-    await Promise.all(
-      Array.from(restAssignments.entries()).map(([setId, seconds]) =>
-        updateProgramSet({ id: setId, restTimeSeconds: seconds }),
-      ),
+
+    // Build a map of current DB values so we only write sets whose rest changed
+    const currentRests = new Map<number, number>(
+      items
+        .filter((i): i is SetFlatItem => i.type === "set")
+        .map((i) => [i.set.id, Number(i.set.restTimeSeconds)]),
     );
+
+    const changed = Array.from(restAssignments.entries()).filter(
+      ([setId, seconds]) => currentRests.get(setId) !== seconds,
+    );
+
+    if (changed.length > 0) {
+      await Promise.all(
+        changed.map(([setId, seconds]) =>
+          updateProgramSet({ id: setId, restTimeSeconds: seconds }),
+        ),
+      );
+    }
+
     router.refresh();
   }
 
@@ -446,17 +461,25 @@ export function WorkoutSetsList({
   // ── Rest editing ────────────────────────────────────────────────────────────
 
   function insertRest(insertIndex: number) {
+    const existingRests = flatItems
+      .filter((i): i is RestFlatItem => i.type === "rest")
+      .map((i) => i.seconds);
+    const defaultSeconds =
+      existingRests.length > 0
+        ? existingRests[Math.floor(existingRests.length / 2)]
+        : 60;
+
     const newId = `rest-new-${Date.now()}`;
-    const newItem: RestFlatItem = { type: "rest", id: newId, seconds: 60 };
+    const newItem: RestFlatItem = { type: "rest", id: newId, seconds: defaultSeconds };
     const newItems = [
       ...flatItems.slice(0, insertIndex),
       newItem,
       ...flatItems.slice(insertIndex),
     ];
     setFlatItems(newItems);
-    setRestDraft(60);
-    setRestMinStr("1");
-    setRestSecStr("0");
+    setRestDraft(defaultSeconds);
+    setRestMinStr(String(Math.floor(defaultSeconds / 60)));
+    setRestSecStr(String(defaultSeconds % 60));
     setEditingRestItemId(newId);
   }
 

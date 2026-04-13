@@ -170,7 +170,7 @@ export const addProgramSetSchema = z.object({
   distanceMeters: z.number().int().min(0).optional(),
   inclinePercent: z.number().int().min(0).max(30).optional(),
   targetHeartRateZone: z.number().int().min(1).max(5).optional(),
-  restTimeSeconds: z.number().int().min(0).max(3600).default(60),
+  restTimeSeconds: z.number().int().min(0).max(3600).default(0),
 });
 
 export const updateProgramSetSchema = addProgramSetSchema

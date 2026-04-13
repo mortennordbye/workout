@@ -117,9 +117,9 @@ describe("addProgramSetSchema", () => {
     expect(addProgramSetSchema.safeParse(valid).success).toBe(true);
   });
 
-  it("defaults restTimeSeconds to 60", () => {
+  it("defaults restTimeSeconds to 0", () => {
     const result = addProgramSetSchema.safeParse(valid);
-    expect(result.success && result.data.restTimeSeconds).toBe(60);
+    expect(result.success && result.data.restTimeSeconds).toBe(0);
   });
 
   it("accepts optional weightKg", () => {
