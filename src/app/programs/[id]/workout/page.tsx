@@ -40,8 +40,8 @@ export default async function WorkoutSessionPage({ params }: Props) {
     id: pe.id,
     name: pe.exercise.name,
     exerciseId: pe.exercise.id,
-    isTimed: pe.exercise.isTimed && pe.exercise.category !== "cardio",
-    isRunning: pe.exercise.category === "cardio",
+    isTimed: pe.exercise.isTimed,
+    isRunning: pe.exercise.name === "Running",
     sets: pe.programSets,
   }));
 

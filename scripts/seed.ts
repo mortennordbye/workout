@@ -158,21 +158,21 @@ const EXERCISES = [
   { name: "Wall Ball",             category: "strength", isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "other",      movementPattern: "push" },
 
   // ── Cardio / Warm-up ───────────────────────────────────────────────────────
-  { name: "Warm Up",               category: "cardio",   isCustom: false, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "cardio" },
-  { name: "Running",               category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
-  { name: "Walking",               category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
-  { name: "Sprint",                category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
-  { name: "High Knees",            category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
-  { name: "Jump Rope",             category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "other",      movementPattern: "cardio" },
-  { name: "Box Jump",              category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
-  { name: "Cycling",               category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
-  { name: "Stair Climber",         category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
-  { name: "Elliptical",            category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
-  { name: "Rowing Machine",        category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
-  { name: "Assault Bike",          category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
-  { name: "Ski Erg",               category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
-  { name: "Swimming",              category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
-  { name: "Battle Ropes",          category: "cardio",   isCustom: false, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "other",      movementPattern: "cardio" },
+  { name: "Warm Up",               category: "cardio",   isCustom: false, isTimed: true, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Running",               category: "cardio",   isCustom: false,               bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Walking",               category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Sprint",                category: "cardio",   isCustom: false,               bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "High Knees",            category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Jump Rope",             category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "other",      movementPattern: "cardio" },
+  { name: "Box Jump",              category: "cardio",   isCustom: false,               bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Cycling",               category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
+  { name: "Stair Climber",         category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
+  { name: "Elliptical",            category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
+  { name: "Rowing Machine",        category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
+  { name: "Assault Bike",          category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
+  { name: "Ski Erg",               category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
+  { name: "Swimming",              category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Battle Ropes",          category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "other",      movementPattern: "cardio" },
 
   // ── Calisthenics — Push ────────────────────────────────────────────────────
   { name: "Wide Push-up",              category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "chest",      equipment: "bodyweight", movementPattern: "push" },
@@ -184,7 +184,7 @@ const EXERCISES = [
   { name: "Pike Push-up",              category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "push" },
   { name: "Handstand Push-up",         category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "push" },
   { name: "Handstand Hold",            category: "strength",    isCustom: false, isTimed: true, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "isometric" },
-  { name: "Handstand",                 category: "cardio",      isCustom: false, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "isometric" },
+  { name: "Handstand",                 category: "cardio",      isCustom: false, isTimed: true, bodyArea: "upper_body", muscleGroup: "shoulders",  equipment: "bodyweight", movementPattern: "isometric" },
   { name: "Ring Dip",                  category: "strength",    isCustom: false, bodyArea: "upper_body", muscleGroup: "triceps",    equipment: "other",      movementPattern: "push" },
 
   // ── Calisthenics — Pull ────────────────────────────────────────────────────
@@ -246,7 +246,12 @@ async function seed() {
     // Mark inherently time-based exercises (isometric holds, warm-up) as isTimed.
     // This also updates rows that existed before the is_timed column was added.
     const timedExerciseNames = [
-      "Warm Up",
+      // Cardio — sustained / machine-based (no reps/kg)
+      "Warm Up", "Walking", "High Knees", "Jump Rope",
+      "Cycling", "Stair Climber", "Elliptical", "Rowing Machine",
+      "Assault Bike", "Ski Erg", "Swimming", "Battle Ropes",
+      "Handstand",
+      // Isometric holds
       "Handstand Hold",
       "Plank", "Side Plank", "Hollow Hold", "Dead Hang",
       "L-sit", "Wall Sit", "Copenhagen Plank", "Arch Hold",
