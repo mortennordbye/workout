@@ -179,6 +179,9 @@ export const updateProgramSetSchema = addProgramSetSchema
     id: z.number().int().positive(),
     // No default — partial updates must not overwrite fields that weren't provided
     restTimeSeconds: z.number().int().min(0).max(3600).optional(),
+    // Allow explicit null to clear these fields (e.g., switching run mode from distance to time)
+    distanceMeters: z.number().int().min(0).nullable().optional(),
+    durationSeconds: z.number().int().min(0).nullable().optional(),
   });
 
 export const removeExerciseFromProgramSchema = z.object({

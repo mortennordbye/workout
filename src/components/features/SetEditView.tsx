@@ -17,6 +17,7 @@ type Props = {
 };
 
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 300, 600];
+const RUNNING_DURATION_PRESETS_S = [600, 1200, 1800, 2400, 3000, 3600, 4500, 5400, 7200]; // 10–120 min
 const DISTANCE_PRESETS_M = [500, 1000, 2000, 3000, 5000, 10000, 15000, 21097, 42195];
 const DISTANCE_LABELS = ["0.5km", "1km", "2km", "3km", "5km", "10km", "15km", "21km", "42km"];
 const INCLINE_PRESETS = [0, 1, 2, 3, 5, 8, 10, 12, 15];
@@ -38,6 +39,11 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
   const workoutSession = useWorkoutSession();
   const override = isWorkout ? (workoutSession?.overrides[set.id] ?? null) : null;
 
+  const [runMode, setRunMode] = useState<"distance" | "time">(
+    set.distanceMeters != null ? "distance"
+    : set.durationSeconds != null ? "time"
+    : "distance"
+  );
   const [reps, setReps] = useState(override?.targetReps ?? set.targetReps ?? 10);
   const [weight, setWeight] = useState(override?.weightKg ?? Number(set.weightKg ?? 0));
   const [duration, setDuration] = useState(override?.durationSeconds ?? Number(set.durationSeconds ?? 0));
@@ -93,8 +99,10 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
       if (isWorkout) {
         // During a workout: only update the duration target override (distance target is program-level)
         workoutSession?.setOverride(set.id, { targetReps: 0, weightKg: 0, durationSeconds: duration > 0 ? duration : undefined });
-      } else {
+      } else if (runMode === "distance") {
         await updateProgramSet({ id: set.id, distanceMeters, durationSeconds: duration > 0 ? duration : undefined, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined });
+      } else {
+        await updateProgramSet({ id: set.id, distanceMeters: null, durationSeconds: duration, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined });
       }
     } else if (isWorkout) {
       // During a workout, changes apply to the active session only — never write back to the program
@@ -115,65 +123,118 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
     <>
       <div className="flex-1 px-4 animate-in fade-in duration-150">
         {isRunning ? (
-          /* Running mode: distance + optional duration */
+          /* Running mode: distance or time toggle */
           <>
-            <div className="py-4 border-b border-border">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Distance</p>
-              <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                {DISTANCE_PRESETS_M.map((m, i) => (
-                  <button
-                    key={m}
-                    onClick={() => { setDistanceMeters(m); setDistanceStr(String(m / 1000)); }}
-                    className={`flex-shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all active:scale-95 ${
-                      distanceMeters === m
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-foreground"
-                    }`}
-                  >
-                    {DISTANCE_LABELS[i]}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 mt-3">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={distanceStr}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/[^\d.]/g, "");
-                    setDistanceStr(val);
-                    const km = parseFloat(val);
-                    if (!isNaN(km) && km >= 0) setDistanceMeters(Math.round(km * 1000));
-                  }}
-                  onBlur={() => {
-                    const km = parseFloat(distanceStr);
-                    if (!isNaN(km) && km >= 0) {
-                      const m = Math.round(km * 1000);
-                      setDistanceMeters(m);
-                      setDistanceStr(String(m / 1000));
-                    }
-                  }}
-                  className="flex-1 rounded-xl bg-background border border-border px-4 py-2.5 text-center text-xl font-bold outline-none focus:ring-2 ring-primary"
-                />
-                <span className="text-sm font-medium text-muted-foreground">km</span>
-              </div>
+            {/* Mode toggle */}
+            <div className="flex rounded-xl overflow-hidden border border-border mb-4 mt-2">
+              <button
+                onClick={() => setRunMode("distance")}
+                className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${runMode === "distance" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
+              >
+                Distance
+              </button>
+              <button
+                onClick={() => setRunMode("time")}
+                className={`flex-1 py-2.5 text-sm font-semibold transition-colors ${runMode === "time" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
+              >
+                Time
+              </button>
             </div>
-            <button
-              onClick={() => setShowDurationPicker(true)}
-              className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
-            >
-              <span className="text-base font-medium">Target duration <span className="text-xs text-muted-foreground">(optional)</span></span>
-              <span className="text-base text-muted-foreground">
-                {duration > 0 ? formatTime(duration) : "—"}
-              </span>
-            </button>
-            {distanceMeters > 0 && duration > 0 && (
-              <div className="py-3 flex items-center justify-center">
-                <span className="px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold">
-                  {formatPace(duration, distanceMeters)}
-                </span>
+
+            {runMode === "distance" && (
+              <>
+                <div className="py-4 border-b border-border">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Distance</p>
+                  <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                    {DISTANCE_PRESETS_M.map((m, i) => (
+                      <button
+                        key={m}
+                        onClick={() => { setDistanceMeters(m); setDistanceStr(String(m / 1000)); }}
+                        className={`flex-shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                          distanceMeters === m
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-foreground"
+                        }`}
+                      >
+                        {DISTANCE_LABELS[i]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 mt-3">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={distanceStr}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^\d.]/g, "");
+                        setDistanceStr(val);
+                        const km = parseFloat(val);
+                        if (!isNaN(km) && km >= 0) setDistanceMeters(Math.round(km * 1000));
+                      }}
+                      onBlur={() => {
+                        const km = parseFloat(distanceStr);
+                        if (!isNaN(km) && km >= 0) {
+                          const m = Math.round(km * 1000);
+                          setDistanceMeters(m);
+                          setDistanceStr(String(m / 1000));
+                        }
+                      }}
+                      className="flex-1 rounded-xl bg-background border border-border px-4 py-2.5 text-center text-xl font-bold outline-none focus:ring-2 ring-primary"
+                    />
+                    <span className="text-sm font-medium text-muted-foreground">km</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDurationPicker(true)}
+                  className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
+                >
+                  <span className="text-base font-medium">Target duration <span className="text-xs text-muted-foreground">(optional)</span></span>
+                  <span className="text-base text-muted-foreground">
+                    {duration > 0 ? formatTime(duration) : "—"}
+                  </span>
+                </button>
+                {distanceMeters > 0 && duration > 0 && (
+                  <div className="py-3 flex items-center justify-center">
+                    <span className="px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold">
+                      {formatPace(duration, distanceMeters)}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+
+            {runMode === "time" && (
+              <div className="py-4 border-b border-border">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Duration</p>
+                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
+                  {RUNNING_DURATION_PRESETS_S.map((secs) => (
+                    <button
+                      key={secs}
+                      onClick={() => {
+                        setDuration(secs);
+                        setDurationMinStr(String(Math.floor(secs / 60)));
+                        setDurationSecStr("00");
+                      }}
+                      className={`flex-shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                        duration === secs ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                      }`}
+                    >
+                      {secs % 3600 === 0 ? (secs / 3600) + "h" : (secs / 60) + "m"}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowDurationPicker(true)}
+                  className="w-full flex items-center justify-between mt-3 px-4 py-2.5 rounded-xl bg-muted/50 active:bg-muted/70 transition-colors"
+                >
+                  <span className="text-sm text-muted-foreground">Custom</span>
+                  <span className={`text-sm font-semibold ${duration > 0 && !RUNNING_DURATION_PRESETS_S.includes(duration) ? "text-foreground" : "text-muted-foreground"}`}>
+                    {duration > 0 && !RUNNING_DURATION_PRESETS_S.includes(duration) ? formatTime(duration) : "—"}
+                  </span>
+                </button>
               </div>
             )}
+
             {/* Incline */}
             <div className="py-4 border-b border-border">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
@@ -281,7 +342,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
       <div className="p-4">
         <button
           onClick={handleSave}
-          disabled={saving || (isRunning && !isWorkout && distanceMeters <= 0)}
+          disabled={saving || (isRunning && !isWorkout && runMode === "distance" && distanceMeters <= 0) || (isRunning && !isWorkout && runMode === "time" && duration <= 0)}
           className="w-full rounded-xl bg-primary py-4 text-base font-semibold text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95"
         >
           {saving ? (
@@ -363,7 +424,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
               </button>
             </div>
             <div className="flex gap-2 overflow-x-auto pb-4">
-              {DURATION_OPTIONS.map((seconds) => (
+              {(isRunning && runMode === "time" ? RUNNING_DURATION_PRESETS_S : DURATION_OPTIONS).map((seconds) => (
                 <button
                   key={seconds}
                   onClick={() => {
