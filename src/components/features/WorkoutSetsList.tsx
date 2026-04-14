@@ -490,11 +490,38 @@ export function WorkoutSetsList({
 
   async function handleSaveRest() {
     if (!editingRestItemId) return;
+
+    // Capture old duration before overwriting flatItems
+    const oldDuration = (flatItems.find((i) => i.id === editingRestItemId) as RestFlatItem | undefined)?.seconds;
+
     const newItems = flatItems.map((i) =>
       i.id === editingRestItemId ? { ...i, seconds: restDraft } : i,
     );
     setFlatItems(newItems);
     setEditingRestItemId(null);
+
+    // If a rest timer is actively counting down, shift its end time by the duration delta
+    if (isWorkout && workoutSession && oldDuration !== undefined && oldDuration !== restDraft) {
+      const restIdx = flatItems.findIndex((i) => i.id === editingRestItemId);
+      const precedingSet = flatItems
+        .slice(0, restIdx)
+        .reverse()
+        .find((i): i is SetFlatItem => i.type === "set");
+      if (precedingSet) {
+        const setId = precedingSet.set.id;
+        const currentEndMs = workoutSession.restTimerEnds[setId];
+        if (currentEndMs && currentEndMs > Date.now()) {
+          const newEndMs = currentEndMs + (restDraft - oldDuration) * 1000;
+          workoutSession.setRestTimerEnd(setId, newEndMs);
+          // Update local countdown immediately (don't wait for the next 1s tick)
+          setRestTimers((prev) => {
+            const newRemaining = Math.max(0, Math.ceil((newEndMs - Date.now()) / 1000));
+            return new Map(prev).set(setId, newRemaining);
+          });
+        }
+      }
+    }
+
     await saveCurrentState(newItems);
   }
 

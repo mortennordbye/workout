@@ -147,6 +147,12 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
     });
 
   const setRestTimerEnd = (setId: number, endMs: number) => {
+    // Cancel any existing notification timeout so it can be rescheduled at the new end time
+    const existing = restTimeoutRefs.current[setId];
+    if (existing !== undefined) {
+      clearTimeout(existing);
+      delete restTimeoutRefs.current[setId];
+    }
     setRestTimerEnds((prev) => {
       const next = { ...prev, [setId]: endMs };
       localStorage.setItem(REST_TIMERS_KEY, JSON.stringify(next));
