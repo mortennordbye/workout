@@ -297,7 +297,7 @@ const importProgramEntrySchema = z.object({
               weightKg: z.number().min(0).max(1000).nullable().optional(),
               durationSeconds: z.number().int().min(0).nullable().optional(),
               distanceMeters: z.number().int().min(0).nullable().optional(),
-              restTimeSeconds: z.number().int().min(0).max(3600).default(60),
+              restTimeSeconds: z.number().int().min(0).max(3600).default(0),
             }),
           ),
         }),

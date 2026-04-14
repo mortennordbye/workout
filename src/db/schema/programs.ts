@@ -74,5 +74,5 @@ export const programSets = pgTable("program_sets", {
   // For running: target heart rate zone (1-5)
   targetHeartRateZone: integer("target_heart_rate_zone"),
   // Rest after this set (seconds)
-  restTimeSeconds: integer("rest_time_seconds").notNull().default(60),
+  restTimeSeconds: integer("rest_time_seconds").notNull().default(0),
 });
