@@ -686,7 +686,7 @@ export function WorkoutSetsList({
                 stroke="currentColor"
                 strokeWidth="3"
                 strokeLinecap="round"
-                className="text-primary transition-all duration-1000"
+                className="text-primary transition-[stroke-dashoffset] duration-1000 ease-linear"
                 strokeDasharray={`${2 * Math.PI * 44}`}
                 strokeDashoffset={`${2 * Math.PI * 44 * (1 - exerciseTimer.remaining / exerciseTimer.total)}`}
               />
@@ -942,7 +942,7 @@ function SortableSetRow({
         transition,
         opacity: isDragging ? 0.4 : 1,
       }}
-      className={`flex items-center gap-3 py-4 border-t border-b border-border${(isEditing || isWorkout) ? " cursor-pointer" : ""}`}
+      className={`flex items-center gap-3 py-4 border-t border-b border-border transition-opacity duration-200${(isEditing || isWorkout) ? " cursor-pointer" : ""}${isWorkout && isCompleted ? " opacity-50" : ""}`}
       onClick={handleRowClick}
     >
       {isEditing && (
@@ -958,7 +958,7 @@ function SortableSetRow({
       {isWorkout && (
         <button
           onClick={handlePlayClick}
-          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-colors border-2 ${
+          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-150 border-2 active:scale-90 ${
             isCompleted
               ? "bg-primary border-primary"
               : "border-primary bg-transparent"
@@ -1254,7 +1254,7 @@ function SortableRestRow({
           </div>
           <div className="mt-1 h-1 bg-primary/20 rounded-full overflow-hidden">
             <div
-              className="h-full bg-primary rounded-full transition-all duration-1000"
+              className="h-full bg-primary rounded-full transition-[width] duration-1000 ease-linear"
               style={{ width: `${restProgress}%` }}
             />
           </div>
