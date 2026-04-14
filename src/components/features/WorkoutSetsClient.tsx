@@ -76,7 +76,12 @@ export function WorkoutSetsClient({
   const [sets, setSets] = useState(initial);
   const [increment, setIncrement] = useState(initialIncrement);
   const [incrementReps, setIncrementReps] = useState(initialIncrementReps);
-  const [mode, setMode] = useState<ProgressionMode>(initialMode);
+  const [mode, setMode] = useState<ProgressionMode>(() => {
+    // Snap stale modes to sensible defaults for the exercise type
+    if (exerciseIsTimed && initialMode !== "manual" && initialMode !== "time") return "time";
+    if (exerciseCategory === "cardio" && !exerciseIsTimed && initialMode !== "manual" && initialMode !== "distance") return "manual";
+    return initialMode;
+  });
   const workoutSession = useWorkoutSession();
 
   useEffect(() => {
@@ -315,8 +320,8 @@ export function WorkoutSetsClient({
                 {/* Mode selector — filter based on exercise type */}
                 {MODE_OPTIONS.filter((opt) => {
                   if (isRunning) return opt.mode === "manual" || opt.mode === "distance";
-                  if (opt.mode === "distance") return false;
-                  if (opt.mode === "time") return exerciseIsTimed;
+                  if (exerciseIsTimed) return opt.mode === "manual" || opt.mode === "time";
+                  if (opt.mode === "distance" || opt.mode === "time") return false;
                   return true;
                 }).map((opt, i) => (
                   <button
@@ -424,6 +429,30 @@ export function WorkoutSetsClient({
                       >
                         Set
                       </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Duration increment — shown for time mode */}
+                {mode === "time" && (
+                  <div className="border-t border-border">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider px-4 pt-3 pb-1">
+                      Duration increment
+                    </p>
+                    <div className="flex gap-2 px-4 pb-3">
+                      {[5, 10, 15, 30, 60].map((preset) => (
+                        <button
+                          key={preset}
+                          onClick={() => handleIncrementRepsChange(preset)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                            incrementReps === preset
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          +{preset}s
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
