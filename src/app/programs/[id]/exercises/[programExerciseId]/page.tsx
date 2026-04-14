@@ -30,7 +30,7 @@ export default async function ProgramExerciseDetailPage({ params, searchParams }
   const pe = program.programExercises.find((e) => e.id === peId);
   if (!pe) notFound();
 
-  const progressionMode = (pe.progressionMode ?? "weight") as "manual" | "weight" | "smart" | "reps" | "distance";
+  const progressionMode = (pe.progressionMode ?? "weight") as "manual" | "weight" | "smart" | "reps" | "time" | "distance";
 
   return (
     <WorkoutSetsClient
@@ -39,6 +39,7 @@ export default async function ProgramExerciseDetailPage({ params, searchParams }
       programName={program.name}
       exerciseName={pe.exercise.name}
       exerciseCategory={pe.exercise.category ?? ""}
+      exerciseIsTimed={pe.exercise.isTimed}
       sets={pe.programSets}
       isWorkout={false}
       initialEditing={edit === "true"}

@@ -313,7 +313,7 @@ export async function updateProgramExerciseIncrementReps(
   }
 }
 
-const VALID_PROGRESSION_MODES = ["manual", "weight", "smart", "reps"] as const;
+const VALID_PROGRESSION_MODES = ["manual", "weight", "smart", "reps", "time", "distance"] as const;
 type ProgressionMode = (typeof VALID_PROGRESSION_MODES)[number];
 
 export async function updateProgramExerciseProgressionMode(
