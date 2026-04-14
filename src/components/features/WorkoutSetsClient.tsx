@@ -106,7 +106,7 @@ export function WorkoutSetsClient({
     };
   });
 
-  const isRunning = exerciseCategory === "cardio";
+  const isRunning = exerciseCategory === "cardio" && !exerciseIsTimed;
 
   const pendingCount = isWorkout
     ? sets.filter((s) => {
