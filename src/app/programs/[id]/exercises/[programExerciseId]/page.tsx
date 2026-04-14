@@ -43,7 +43,7 @@ export default async function ProgramExerciseDetailPage({ params, searchParams }
       sets={pe.programSets}
       isWorkout={false}
       initialEditing={edit === "true"}
-      overloadIncrementKg={Number(pe.overloadIncrementKg ?? 2.5)}
+      overloadIncrementKg={pe.overloadIncrementKg != null ? Number(pe.overloadIncrementKg) : null}
       overloadIncrementReps={Number(pe.overloadIncrementReps ?? 0)}
       progressionMode={progressionMode}
     />

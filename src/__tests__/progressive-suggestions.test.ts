@@ -36,7 +36,7 @@ function makePs(overrides: Partial<ProgramSetData> = {}): ProgramSetData {
     targetReps: 8,
     durationSeconds: null,
     exerciseId: 1,
-    overloadIncrementKg: "2.50",
+    overloadIncrementKg: null,
     overloadIncrementReps: 0,
     progressionMode: "weight",
     ...overrides,
@@ -110,28 +110,30 @@ describe("roundToNearest", () => {
 // ─── defaultIncrementKg ───────────────────────────────────────────────────────
 
 describe("defaultIncrementKg", () => {
-  it("returns beginner default 5kg when stored is schema default", () => {
-    expect(defaultIncrementKg(2.5, "beginner", null)).toBe(5.0);
+  it("returns beginner default 5kg when increment is null (unconfigured)", () => {
+    expect(defaultIncrementKg(null, "beginner", null)).toBe(5.0);
   });
 
-  it("returns advanced default 1.25kg when stored is schema default", () => {
-    expect(defaultIncrementKg(2.5, "advanced", null)).toBe(1.25);
+  it("returns advanced default 1.25kg when increment is null (unconfigured)", () => {
+    expect(defaultIncrementKg(null, "advanced", null)).toBe(1.25);
   });
 
-  it("returns endurance default 1kg for endurance goal", () => {
-    expect(defaultIncrementKg(2.5, "intermediate", "endurance")).toBe(1.0);
+  it("returns endurance default 1kg for endurance goal when unconfigured", () => {
+    expect(defaultIncrementKg(null, "intermediate", "endurance")).toBe(1.0);
   });
 
-  it("respects user custom value regardless of experience level", () => {
+  it("respects user explicit value regardless of experience level", () => {
     expect(defaultIncrementKg(10, "beginner", null)).toBe(10);
     expect(defaultIncrementKg(1, "advanced", null)).toBe(1);
     expect(defaultIncrementKg(5, "intermediate", "endurance")).toBe(5);
+    // explicit 2.5 is always respected even for beginners
+    expect(defaultIncrementKg(2.5, "beginner", null)).toBe(2.5);
   });
 
-  it("returns 2.5 as fallback for intermediate/general fitness", () => {
-    expect(defaultIncrementKg(2.5, "intermediate", null)).toBe(2.5);
-    expect(defaultIncrementKg(2.5, null, null)).toBe(2.5);
-    expect(defaultIncrementKg(2.5, null, "strength")).toBe(2.5);
+  it("returns 2.5 as fallback for intermediate/general fitness when unconfigured", () => {
+    expect(defaultIncrementKg(null, "intermediate", null)).toBe(2.5);
+    expect(defaultIncrementKg(null, null, null)).toBe(2.5);
+    expect(defaultIncrementKg(null, null, "strength")).toBe(2.5);
   });
 });
 
@@ -321,14 +323,14 @@ describe("buildSuggestion — time mode", () => {
 });
 
 describe("buildSuggestion — user profile increment defaults", () => {
-  it("uses beginner default of 5kg when stored is 2.5", () => {
+  it("uses beginner default of 5kg when increment is null (unconfigured)", () => {
     const rows = makeRows(REQUIRED_HITS, { rpe: 6 });
     const profile: UserProfile = { experienceLevel: "beginner", goal: null };
     const result = buildSuggestion(rows, makePs(), profile);
     expect(result?.suggestedWeightKg).toBeCloseTo(85); // 80 + 5
   });
 
-  it("uses advanced default of 1.25kg when stored is 2.5", () => {
+  it("uses advanced default of 1.25kg when increment is null (unconfigured)", () => {
     const rows = makeRows(REQUIRED_HITS, { weightKg: "80.00", rpe: 6 });
     const profile: UserProfile = { experienceLevel: "advanced", goal: null };
     const result = buildSuggestion(rows, makePs(), profile);
@@ -340,6 +342,13 @@ describe("buildSuggestion — user profile increment defaults", () => {
     const profile: UserProfile = { experienceLevel: "beginner", goal: null };
     const result = buildSuggestion(rows, makePs({ overloadIncrementKg: "10.00" }), profile);
     expect(result?.suggestedWeightKg).toBeCloseTo(90); // 80 + 10
+  });
+
+  it("respects explicit 2.5 override even for beginner profile", () => {
+    const rows = makeRows(REQUIRED_HITS, { rpe: 6 });
+    const profile: UserProfile = { experienceLevel: "beginner", goal: null };
+    const result = buildSuggestion(rows, makePs({ overloadIncrementKg: "2.50" }), profile);
+    expect(result?.suggestedWeightKg).toBeCloseTo(82.5); // 80 + 2.5, not 80 + 5
   });
 });
 

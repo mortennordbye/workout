@@ -45,7 +45,7 @@ type Props = {
   exerciseCategory?: string;
   exerciseIsTimed?: boolean;
   suggestions?: Record<number, SetSuggestion>;
-  overloadIncrementKg?: number;
+  overloadIncrementKg?: number | null;
   overloadIncrementReps?: number;
   progressionMode?: ProgressionMode;
   initialEditing?: boolean;
@@ -63,7 +63,7 @@ export function WorkoutSetsClient({
   exerciseCategory,
   exerciseIsTimed = false,
   suggestions,
-  overloadIncrementKg: initialIncrement = 2.5,
+  overloadIncrementKg: initialIncrement = null,
   overloadIncrementReps: initialIncrementReps = 0,
   progressionMode: initialMode = "weight",
   initialEditing = false,
@@ -182,8 +182,8 @@ export function WorkoutSetsClient({
   function modeBadgeLabel(): string {
     switch (mode) {
       case "manual":    return "Manual";
-      case "weight":    return increment > 0 ? `+${increment}kg` : "Weight";
-      case "smart":     return increment > 0 ? `+${increment}kg · smart` : "Smart";
+      case "weight":    return increment != null && increment > 0 ? `+${increment}kg` : "Weight";
+      case "smart":     return increment != null && increment > 0 ? `+${increment}kg · smart` : "Smart";
       case "reps":      return incrementReps > 0 ? `+${incrementReps} rep` : "Reps";
       case "time":      return incrementReps > 0 ? `+${incrementReps}s` : "Duration";
       case "distance":  return incrementReps > 0 ? `+${incrementReps / 1000}km` : "Distance";

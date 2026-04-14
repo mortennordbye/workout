@@ -112,20 +112,19 @@ export function roundToNearest(value: number, increment: number): number {
 /**
  * Choose the effective kg increment for a program exercise.
  * The stored increment takes precedence; the user profile only adjusts
- * when the increment equals the schema default (2.5), meaning the user
- * has never customised it.
+ * when the increment is null (never configured by the user).
  *
  * @deprecated Use adaptiveIncrementKg for new code — it applies load-zone
  * scaling in addition to profile-based defaults.
  */
 export function defaultIncrementKg(
-  storedIncrement: number,
+  storedIncrement: number | null,
   experienceLevel: string | null,
   goal: string | null,
 ): number {
-  // User has a custom value — respect it unconditionally
-  if (storedIncrement !== 2.5) return storedIncrement;
-  // Profile-based defaults only when the schema default is still in place
+  // User has an explicit value — always respect it
+  if (storedIncrement !== null) return storedIncrement;
+  // Profile-based defaults only when increment is unconfigured (null)
   if (experienceLevel === "beginner") return 5.0;
   if (experienceLevel === "advanced") return 1.25;
   if (goal === "endurance") return 1.0;
@@ -136,7 +135,7 @@ export function defaultIncrementKg(
  * Compute the effective kg increment using load-zone scaling.
  *
  * Priority:
- *  1. User-customized increment (stored !== 2.5) — always respected
+ *  1. User-configured increment (non-null) — always respected
  *  2. goal=endurance — 1kg regardless of load
  *  3. experienceLevel profile override (beginner=5kg, advanced=1.25kg)
  *  4. Load-zone scaling by movement pattern + current weight
@@ -144,14 +143,14 @@ export function defaultIncrementKg(
  * Compound movements: squat, hinge (deadlift), push (bench/OHP), pull (rows/pullups)
  */
 export function adaptiveIncrementKg(
-  storedIncrement: number,
+  storedIncrement: number | null,
   currentWeightKg: number,
   movementPattern: string | null | undefined,
   goal: string | null | undefined,
   experienceLevel?: string | null,
 ): number {
-  // User has customized — always respect it
-  if (storedIncrement !== 2.5) return storedIncrement;
+  // User has an explicit increment — always respect it
+  if (storedIncrement !== null) return storedIncrement;
 
   // Endurance goal prioritizes small, precise increments regardless of load
   if (goal === "endurance") return 1.0;
@@ -242,7 +241,7 @@ export function buildSuggestion(
   const baseWeight = Number(latest.weightKg); // raw, no rounding
 
   const incrementKg = adaptiveIncrementKg(
-    Number(ps.overloadIncrementKg ?? 2.5),
+    ps.overloadIncrementKg != null ? Number(ps.overloadIncrementKg) : null,
     baseWeight,
     ps.movementPattern,
     profile?.goal,

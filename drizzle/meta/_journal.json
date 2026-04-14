@@ -120,6 +120,13 @@
       "when": 1776060000000,
       "tag": "0016_rest_time_default_zero",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1776185776038,
+      "tag": "0017_faithful_ravenous",
+      "breakpoints": true
     }
   ]
 }
