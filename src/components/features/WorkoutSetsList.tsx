@@ -281,8 +281,13 @@ export function WorkoutSetsList({
             restTimeSeconds: restSeconds,
             isCompleted: true,
           });
-          if (result.success && result.data.newPRs.length > 0) {
-            const best = result.data.newPRs[0];
+          // Only celebrate when an existing record was beaten (previousValue defined).
+          // First-time baselines are stored silently — no celebration.
+          const beatenPRs = result.success
+            ? result.data.newPRs.filter((pr) => pr.previousValue !== undefined)
+            : [];
+          if (beatenPRs.length > 0) {
+            const best = beatenPRs[0];
             const label =
               best.type === "weight"
                 ? `${best.value}kg`
