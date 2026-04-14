@@ -120,9 +120,9 @@ export function WorkoutSetsClient({
         const currentWeight = workoutSession?.overrides[s.id]?.weightKg ?? Number(s.weightKg ?? 0);
         const currentReps = workoutSession?.overrides[s.id]?.targetReps ?? s.targetReps ?? 0;
         const weightPending =
-          (sug.reason === "progressed" || sug.reason === "deload") &&
+          (sug.reason === "progressed" || sug.reason === "deload" || sug.reason === "retry") &&
           currentWeight !== sug.suggestedWeightKg;
-        const repsPending = sug.reason === "progressed-reps" && sug.suggestedReps !== undefined && sug.suggestedReps > currentReps;
+        const repsPending = (sug.reason === "progressed-reps" || (sug.reason === "retry" && sug.suggestedReps !== undefined)) && sug.suggestedReps !== undefined && sug.suggestedReps > currentReps;
         const timePending = sug.reason === "progressed-time" && sug.suggestedDurationSeconds !== undefined;
         const distancePending = sug.reason === "progressed-distance" && sug.suggestedDistanceMeters !== undefined;
         return weightPending || repsPending || timePending || distancePending;

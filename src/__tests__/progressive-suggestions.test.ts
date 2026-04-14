@@ -352,6 +352,64 @@ describe("buildSuggestion — user profile increment defaults", () => {
   });
 });
 
+describe("buildSuggestion — recovery (retry)", () => {
+  it("suggests previous weight when most recent session logged less than the one before", () => {
+    const rows = [
+      makeRow({ weightKg: "75.00", actualReps: 8, date: "2024-01-02" }), // dropped
+      makeRow({ weightKg: "80.00", actualReps: 8, date: "2024-01-01" }), // was here
+    ];
+    const result = buildSuggestion(rows, makePs(), null);
+    expect(result?.reason).toBe("retry");
+    expect(result?.suggestedWeightKg).toBe(80);
+  });
+
+  it("suggests previous reps when same weight but fewer reps last session", () => {
+    const rows = [
+      makeRow({ weightKg: "80.00", actualReps: 2, date: "2024-01-02" }), // dropped reps
+      makeRow({ weightKg: "80.00", actualReps: 3, date: "2024-01-01" }), // was here
+    ];
+    const result = buildSuggestion(rows, makePs(), null);
+    expect(result?.reason).toBe("retry");
+    expect(result?.suggestedWeightKg).toBe(80);
+    expect(result?.suggestedReps).toBe(3);
+  });
+
+  it("does not trigger retry when weight is the same and reps are the same", () => {
+    const rows = [
+      makeRow({ weightKg: "80.00", actualReps: 8, date: "2024-01-02" }),
+      makeRow({ weightKg: "80.00", actualReps: 8, date: "2024-01-01" }),
+    ];
+    const result = buildSuggestion(rows, makePs(), null);
+    expect(result?.reason).not.toBe("retry");
+  });
+
+  it("does not trigger retry when weight increased (normal progression path)", () => {
+    const rows = [
+      makeRow({ weightKg: "82.50", actualReps: 8, date: "2024-01-02" }),
+      makeRow({ weightKg: "80.00", actualReps: 8, date: "2024-01-01" }),
+    ];
+    const result = buildSuggestion(rows, makePs(), null);
+    expect(result?.reason).not.toBe("retry");
+  });
+
+  it("deload takes priority over weight retry when stuck", () => {
+    // DELOAD_THRESHOLD consecutive misses → deload fires even though weight dropped
+    const rows = Array.from({ length: DELOAD_THRESHOLD }, (_, i) =>
+      makeRow({ weightKg: "75.00", actualReps: 4, targetReps: 8, rpe: 9, date: `2024-01-${String(DELOAD_THRESHOLD - i).padStart(2, "0")}` }),
+    );
+    // previous row at higher weight, also a miss (rpe 9 so not a confident hit)
+    rows.push(makeRow({ weightKg: "80.00", actualReps: 4, targetReps: 8, rpe: 9, date: "2023-12-31" }));
+    const result = buildSuggestion(rows, makePs(), null);
+    expect(result?.reason).toBe("deload");
+  });
+
+  it("does not trigger retry with only one row of history", () => {
+    const rows = [makeRow({ weightKg: "80.00", actualReps: 8 })];
+    const result = buildSuggestion(rows, makePs(), null);
+    expect(result?.reason).not.toBe("retry");
+  });
+});
+
 describe("buildSuggestion — basedOn fields", () => {
   it("exposes basedOnRpe from the most recent row", () => {
     const rows = makeRows(REQUIRED_HITS, { rpe: 7 });

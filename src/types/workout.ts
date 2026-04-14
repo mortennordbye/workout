@@ -164,7 +164,7 @@ export type SetSuggestion = {
   basedOnDate: string; // last session date
   basedOnRpe?: number; // last logged RPE (optional — null for old sessions)
   basedOnHitCount?: number; // how many of the last CONSENSUS_WINDOW sessions hit target with confidence
-  reason: "progressed" | "held" | "held-readiness" | "manual" | "progressed-reps" | "deload" | "progressed-time" | "progressed-distance";
+  reason: "progressed" | "held" | "held-readiness" | "manual" | "progressed-reps" | "deload" | "progressed-time" | "progressed-distance" | "retry";
   // ─── Enriched fields (populated by getProgressiveSuggestions) ───────────────
   /** How many confident hits have been recorded in the current consensus window. */
   hitsAchieved: number;

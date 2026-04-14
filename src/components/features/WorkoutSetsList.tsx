@@ -984,6 +984,13 @@ function SortableSetRow({
           const weightPending =
             (suggestion.reason === "progressed" || suggestion.reason === "deload") &&
             currentWeight !== suggestion.suggestedWeightKg;
+          const retryWeightPending =
+            suggestion.reason === "retry" &&
+            suggestion.suggestedReps === undefined &&
+            currentWeight !== suggestion.suggestedWeightKg;
+          const retryRepsPending =
+            suggestion.reason === "retry" &&
+            suggestion.suggestedReps !== undefined;
           const repsPending =
             suggestion.reason === "progressed-reps" &&
             !hasSmartAdjustment &&
@@ -1062,6 +1069,28 @@ function SortableSetRow({
                     className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 text-xs font-semibold active:opacity-60 transition-opacity"
                   >
                     ↓ {suggestion.suggestedWeightKg}kg — deload
+                  </button>
+                )}
+                {retryWeightPending && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onApplySuggestion?.(set.id, suggestion.suggestedWeightKg);
+                    }}
+                    className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 text-xs font-semibold active:opacity-60 transition-opacity"
+                  >
+                    ↑ {suggestion.suggestedWeightKg}kg — retry
+                  </button>
+                )}
+                {retryRepsPending && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onApplySuggestion?.(set.id, suggestion.suggestedWeightKg, suggestion.suggestedReps);
+                    }}
+                    className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 text-xs font-semibold active:opacity-60 transition-opacity"
+                  >
+                    ↑ {suggestion.suggestedReps} reps — retry
                   </button>
                 )}
                 {repsPending && (

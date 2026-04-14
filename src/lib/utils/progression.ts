@@ -329,6 +329,33 @@ export function buildSuggestion(
     };
   }
 
+  // ── Recovery: last session was lower weight or fewer reps than the one before ─
+  // Suggest returning to the previous value before progressing further.
+  // Only applies to weight-bearing modes; deload already handled above.
+  if (rows.length >= 2 && (mode === "weight" || mode === "smart" || mode === "reps")) {
+    const prev = rows[1];
+    const prevWeight = Number(prev.weightKg);
+
+    if (prevWeight > baseWeight) {
+      // Weight decreased — suggest returning to previous weight
+      return {
+        suggestedWeightKg: prevWeight,
+        ...basedOn,
+        reason: "retry",
+      };
+    }
+
+    if (prevWeight === baseWeight && prev.actualReps > latest.actualReps && prev.actualReps > 0) {
+      // Same weight but fewer reps — suggest matching previous rep count
+      return {
+        suggestedWeightKg: baseWeight,
+        suggestedReps: prev.actualReps,
+        ...basedOn,
+        reason: "retry",
+      };
+    }
+  }
+
   // ── Build mode-specific suggestion ──────────────────────────────────────────
   let suggestion: SetSuggestion;
 
