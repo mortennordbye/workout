@@ -1009,7 +1009,7 @@ function SortableSetRow({
             {set.targetReps ?? "?"} x {Number(set.weightKg ?? 0)}kg
           </p>
         )}
-        {isWorkout && suggestion && (() => {
+        {isWorkout && suggestion && !isCompleted && (() => {
           const currentWeight = Number(set.weightKg ?? 0);
           const currentReps = set.targetReps ?? 0;
           const hasSmartAdjustment = suggestion.adjustedRepsForWeight !== undefined;
