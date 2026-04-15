@@ -1,6 +1,7 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
+import { updateActivityPrivacy } from "@/lib/actions/friends";
 import { updateUserProfile } from "@/lib/actions/profile";
 import type { Goal } from "@/lib/utils/goals";
 import { BottomSheet } from "@/components/ui/BottomSheet";
@@ -24,6 +25,7 @@ interface AccountClientProps {
   email: string;
   role: string;
   profile: UserProfile;
+  showActivityToFriends: boolean;
 }
 
 interface ProfileState extends UserProfile {
@@ -175,7 +177,7 @@ function NumberRow({
   );
 }
 
-export function AccountClient({ name, email, role, profile: initialProfile }: AccountClientProps) {
+export function AccountClient({ name, email, role, profile: initialProfile, showActivityToFriends: initialActivityPrivacy }: AccountClientProps) {
   const [showPasswordSheet, setShowPasswordSheet] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -187,6 +189,8 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileError, setProfileError] = useState<string | null>(null);
+
+  const [activityPrivacy, setActivityPrivacy] = useState(initialActivityPrivacy);
 
   async function handleSignOut() {
     await authClient.signOut();
@@ -243,6 +247,12 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
     } else {
       setProfileError(result.error ?? "Failed to save profile");
     }
+  }
+
+  async function handleActivityPrivacyToggle() {
+    const next = !activityPrivacy;
+    setActivityPrivacy(next);
+    await updateActivityPrivacy({ showActivityToFriends: next });
   }
 
   return (
@@ -343,6 +353,33 @@ export function AccountClient({ name, email, role, profile: initialProfile }: Ac
             >
               <KeyRound className="w-5 h-5 text-muted-foreground" />
               <span className="text-sm font-medium">Change Password</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Privacy */}
+        <div>
+          <SectionLabel>Privacy</SectionLabel>
+          <div className="rounded-2xl bg-card overflow-hidden">
+            <button
+              onClick={handleActivityPrivacyToggle}
+              className="flex items-center gap-3 w-full px-4 py-3.5 active:opacity-60"
+            >
+              <div className="flex-1 text-left">
+                <p className="text-sm font-medium">Show workout activity to friends</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Friends can see when you worked out today</p>
+              </div>
+              <div
+                className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
+                  activityPrivacy ? "bg-primary" : "bg-muted-foreground/30"
+                }`}
+              >
+                <div
+                  className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform ${
+                    activityPrivacy ? "translate-x-5" : "translate-x-0.5"
+                  }`}
+                />
+              </div>
             </button>
           </div>
         </div>

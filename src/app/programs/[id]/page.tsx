@@ -1,4 +1,5 @@
 import { ProgramDetailClient } from "@/components/features/ProgramDetailClient";
+import { getFriends } from "@/lib/actions/friends";
 import { getProgramWithExercises } from "@/lib/actions/programs";
 import { getLastCompletedSession } from "@/lib/actions/workout-sessions";
 import { requireSession } from "@/lib/utils/session";
@@ -18,9 +19,10 @@ export default async function ProgramDetailPage({ params, searchParams }: Props)
   if (isNaN(programId)) notFound();
 
   await requireSession();
-  const [programResult, lastSessionResult] = await Promise.all([
+  const [programResult, lastSessionResult, friendsResult] = await Promise.all([
     getProgramWithExercises(programId),
     getLastCompletedSession(programId),
+    getFriends(),
   ]);
   if (!programResult.success) notFound();
 
@@ -40,6 +42,7 @@ export default async function ProgramDetailPage({ params, searchParams }: Props)
       exercises={exercises}
       initialEditing={editing === "true"}
       lastSession={lastSessionResult.success ? lastSessionResult.data : null}
+      friends={friendsResult.success ? friendsResult.data : []}
     />
   );
 }

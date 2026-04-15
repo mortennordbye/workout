@@ -37,6 +37,8 @@
 import { relations } from "drizzle-orm";
 import { exercisePrs } from "./exercise-prs";
 import { exercises } from "./exercises";
+import { friendships } from "./friendships";
+import { programShares } from "./program-shares";
 import { programExercises, programSets, programs } from "./programs";
 import { trainingCycleSlots, trainingCycles } from "./training-cycles";
 import { users } from "./users";
@@ -51,6 +53,10 @@ export const usersRelations = relations(users, ({ many }) => ({
   trainingCycles: many(trainingCycles),
   weightEntries: many(userWeightEntries),
   exercisePrs: many(exercisePrs),
+  sentFriendRequests: many(friendships, { relationName: "requester" }),
+  receivedFriendRequests: many(friendships, { relationName: "addressee" }),
+  programSharesSent: many(programShares, { relationName: "sharedBy" }),
+  programSharesReceived: many(programShares, { relationName: "sharedWith" }),
 }));
 
 // Exercise PR relations
@@ -95,6 +101,7 @@ export const programsRelations = relations(programs, ({ one, many }) => ({
   }),
   programExercises: many(programExercises),
   trainingCycleSlots: many(trainingCycleSlots),
+  shares: many(programShares),
 }));
 
 // ProgramExercise relations
@@ -175,3 +182,39 @@ export const trainingCycleSlotsRelations = relations(
     }),
   }),
 );
+
+// Friendship relations
+export const friendshipsRelations = relations(friendships, ({ one }) => ({
+  requester: one(users, {
+    fields: [friendships.requesterId],
+    references: [users.id],
+    relationName: "requester",
+  }),
+  addressee: one(users, {
+    fields: [friendships.addresseeId],
+    references: [users.id],
+    relationName: "addressee",
+  }),
+}));
+
+// Program Share relations
+export const programSharesRelations = relations(programShares, ({ one }) => ({
+  program: one(programs, {
+    fields: [programShares.programId],
+    references: [programs.id],
+  }),
+  sharedBy: one(users, {
+    fields: [programShares.sharedByUserId],
+    references: [users.id],
+    relationName: "sharedBy",
+  }),
+  sharedWith: one(users, {
+    fields: [programShares.sharedWithUserId],
+    references: [users.id],
+    relationName: "sharedWith",
+  }),
+  copiedProgram: one(programs, {
+    fields: [programShares.copiedProgramId],
+    references: [programs.id],
+  }),
+}));

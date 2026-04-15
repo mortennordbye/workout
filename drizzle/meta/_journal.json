@@ -127,6 +127,13 @@
       "when": 1776185776038,
       "tag": "0017_faithful_ravenous",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1776274471232,
+      "tag": "0018_friend_system",
+      "breakpoints": true
     }
   ]
 }

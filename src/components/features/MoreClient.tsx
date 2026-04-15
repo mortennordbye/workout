@@ -2,7 +2,7 @@
 
 import { authClient } from "@/lib/auth-client";
 import { DEMO_USER_EMAIL } from "@/lib/constants/demo";
-import { BarChart2, CalendarDays, ChevronRight, Clock, Library, LogOut, MessageSquare, Settings, Shield, Sparkles, UserCircle } from "lucide-react";
+import { BarChart2, CalendarDays, ChevronRight, Clock, Library, LogOut, MessageSquare, Settings, Shield, Sparkles, UserCircle, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -12,6 +12,12 @@ const baseItems = [
     href: "/more/ai-setup",
     icon: Sparkles,
     description: "Generate your programs and training schedule with AI",
+  },
+  {
+    label: "Friends",
+    href: "/more/friends",
+    icon: Users,
+    description: "Connect and share programs with friends",
   },
   {
     label: "Account",

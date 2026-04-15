@@ -205,6 +205,59 @@ export type LogWorkoutSetResult = {
 // Program Import/Export
 // ============================================================================
 
+// ============================================================================
+// Friend System Types
+// ============================================================================
+
+export type UserSearchResult = {
+  id: string;
+  name: string;
+  email: string;
+  image: string | null;
+  friendshipStatus: "none" | "pending_sent" | "pending_received" | "accepted";
+  friendshipId: number | null;
+};
+
+export type FriendWithActivity = {
+  friendshipId: number;
+  userId: string;
+  name: string;
+  image: string | null;
+  workedOutToday: boolean | null; // null = friend has activity privacy on
+};
+
+export type PendingRequest = {
+  friendshipId: number;
+  requesterId: string;
+  requesterName: string;
+  requesterImage: string | null;
+  createdAt: Date;
+};
+
+export type IncomingShare = {
+  shareId: number;
+  programId: number;
+  programName: string;
+  sharedByUserId: string;
+  sharedByName: string;
+  sharedByImage: string | null;
+  sharedAt: Date;
+  alreadyCopied: boolean;
+};
+
+export type OutgoingShare = {
+  shareId: number;
+  sharedWithUserId: string;
+  sharedWithName: string;
+  sharedWithImage: string | null;
+  copiedProgramId: number | null;
+  sharedAt: Date;
+};
+
+// ============================================================================
+// Program Import/Export
+// ============================================================================
+
 export type ExportedPrograms = {
   version: 1;
   exportedAt: string;

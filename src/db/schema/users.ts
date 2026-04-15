@@ -22,4 +22,5 @@ export const users = pgTable("user", {
   goal: text("goal").$type<"strength" | "muscle_gain" | "weight_loss" | "endurance" | "general_fitness">(),
   goals: text("goals").$type<string>(), // JSON array of Goal values, e.g. '["strength","muscle_gain"]'
   experienceLevel: text("experience_level").$type<"beginner" | "intermediate" | "advanced">(),
+  showActivityToFriends: boolean("show_activity_to_friends").notNull().default(true),
 });

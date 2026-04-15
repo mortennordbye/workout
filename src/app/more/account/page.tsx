@@ -38,6 +38,7 @@ export default async function AccountPage() {
           goals: parseUserGoals(user?.goals, user?.goal),
           experienceLevel: user?.experienceLevel ?? null,
         }}
+        showActivityToFriends={user?.showActivityToFriends ?? true}
       />
     </div>
   );
