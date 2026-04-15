@@ -235,7 +235,7 @@ const importProgramEntrySchema = z.object({
           overloadIncrementKg: z.number().min(0).max(100).default(2.5),
           overloadIncrementReps: z.number().int().min(0).max(100).default(0),
           progressionMode: z
-            .enum(["manual", "weight", "smart", "reps", "time", "distance"])
+            .enum(["none", "manual", "weight", "smart", "reps", "time", "distance"])
             .default("weight"),
           exercise: z.object({
             name: z.string().min(1).max(100),

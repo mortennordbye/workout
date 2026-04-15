@@ -18,19 +18,20 @@ import { useEffect, useMemo, useState } from "react";
 export type { SetSuggestion as SetSuggestionDisplay } from "@/types/workout";
 import type { SetSuggestion } from "@/types/workout";
 
-type ProgressionMode = "manual" | "weight" | "smart" | "reps" | "time" | "distance";
+type ProgressionMode = "none" | "manual" | "weight" | "smart" | "reps" | "time" | "distance";
 
 const KG_INCREMENT_PRESETS = [0.5, 1, 2.5, 5, 10] as const;
 const REP_INCREMENT_PRESETS = [1, 2, 3] as const;
 const DISTANCE_INCREMENT_PRESETS_M = [500, 1000, 2000] as const;
 
 const MODE_OPTIONS: { mode: ProgressionMode; label: string; description: string }[] = [
-  { mode: "manual",    label: "Manual",       description: "No auto-progression" },
-  { mode: "weight",    label: "Weight",        description: "Add kg when target reps are hit" },
-  { mode: "smart",     label: "Smart weight",  description: "Add kg and adjust reps via 1RM formula" },
-  { mode: "reps",      label: "Reps",          description: "Add reps when target reps are hit" },
-  { mode: "time",      label: "Duration",      description: "Add seconds when target duration is hit" },
-  { mode: "distance",  label: "Distance",      description: "Add 0.5km when target distance is completed" },
+  { mode: "none",      label: "No progression", description: "Log freely — no suggestions or hints" },
+  { mode: "manual",    label: "Manual",          description: "No auto-progression" },
+  { mode: "weight",    label: "Weight",          description: "Add kg when target reps are hit" },
+  { mode: "smart",     label: "Smart weight",    description: "Add kg and adjust reps via 1RM formula" },
+  { mode: "reps",      label: "Reps",            description: "Add reps when target reps are hit" },
+  { mode: "time",      label: "Duration",        description: "Add seconds when target duration is hit" },
+  { mode: "distance",  label: "Distance",        description: "Add 0.5km when target distance is completed" },
 ];
 
 type Props = {
@@ -181,6 +182,7 @@ export function WorkoutSetsClient({
 
   function modeBadgeLabel(): string {
     switch (mode) {
+      case "none":      return "No progression";
       case "manual":    return "Manual";
       case "weight":    return increment != null && increment > 0 ? `+${increment}kg` : "Weight";
       case "smart":     return increment != null && increment > 0 ? `+${increment}kg · smart` : "Smart";
@@ -247,9 +249,9 @@ export function WorkoutSetsClient({
       <div className="px-4 pb-4 shrink-0 flex items-center gap-2">
         <button
           onClick={() => setShowProgressionPicker(true)}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-muted text-xs font-semibold text-muted-foreground active:scale-95 transition-all"
+          className={`flex items-center gap-1 px-3 py-1.5 rounded-full bg-muted text-xs font-semibold active:scale-95 transition-all ${mode === "none" ? "text-muted-foreground/40" : "text-muted-foreground"}`}
         >
-          ↑ {modeBadgeLabel()}
+          {mode !== "none" && "↑ "}{modeBadgeLabel()}
         </button>
         {isWorkout && bestEstimated1RM != null && (
           <span className="px-3 py-1.5 rounded-full bg-primary/10 text-xs font-semibold text-primary">

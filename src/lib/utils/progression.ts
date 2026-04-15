@@ -360,6 +360,9 @@ export function buildSuggestion(
   let suggestion: SetSuggestion;
 
   switch (mode) {
+    case "none":
+      return null;
+
     case "manual":
       suggestion = { suggestedWeightKg: baseWeight, ...basedOn, reason: "manual" };
       break;

@@ -49,7 +49,7 @@ export const programExercises = pgTable("program_exercises", {
   notes: text("notes"),
   overloadIncrementKg: decimal("overload_increment_kg", { precision: 4, scale: 2 }),
   overloadIncrementReps: integer("overload_increment_reps").default(0),
-  // "manual" | "weight" | "smart" | "reps"
+  // "none" | "manual" | "weight" | "smart" | "reps" | "time" | "distance"
   progressionMode: text("progression_mode").default("weight"),
 });
 
