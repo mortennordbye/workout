@@ -1038,6 +1038,8 @@ function SortableSetRow({
             ? suggestion.basedOnDistanceMeters != null
               ? `Last: ${formatDistanceKm(suggestion.basedOnDistanceMeters)} (${suggestion.basedOnFeeling})`
               : `Last: (${suggestion.basedOnFeeling})`
+            : isTimed && suggestion.basedOnDurationSeconds != null
+            ? `Last: ${formatTime(suggestion.basedOnDurationSeconds)} (${suggestion.basedOnFeeling})`
             : suggestion.basedOnRpe != null
             ? `Last: ${suggestion.basedOnWeightKg}kg (${suggestion.basedOnFeeling}, RPE ${suggestion.basedOnRpe})`
             : `Last: ${suggestion.basedOnWeightKg}kg (${suggestion.basedOnFeeling})`;
