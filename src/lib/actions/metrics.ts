@@ -779,6 +779,140 @@ export async function getCardioMetrics(
   }
 }
 
+// ── New metric types ───────────────────────────────────────────────────────
+
+export type HeatmapDay = {
+  date: string;
+  volumeKg: number;
+  sessionCount: number;
+};
+
+export type MovementPatternBalance = {
+  pattern: string;
+  setCount: number;
+};
+
+export type ReadinessPerformancePoint = {
+  readiness: number;
+  avgVolumeKg: number;
+  sessionCount: number;
+};
+
+// ── New metric queries ─────────────────────────────────────────────────────
+
+async function fetchHeatmapData(userId: string): Promise<HeatmapDay[]> {
+  const rows = await db
+    .select({
+      date: workoutSessions.date,
+      volumeKg: sql<number>`COALESCE(SUM(CAST(${workoutSets.weightKg} AS numeric) * ${workoutSets.actualReps}), 0)`,
+      sessionCount: sql<number>`COUNT(DISTINCT ${workoutSessions.id})`,
+    })
+    .from(workoutSessions)
+    .leftJoin(workoutSets, eq(workoutSets.sessionId, workoutSessions.id))
+    .where(
+      and(
+        eq(workoutSessions.userId, userId),
+        eq(workoutSessions.isCompleted, true),
+        sql`${workoutSessions.date} >= CURRENT_DATE - INTERVAL '365 days'`,
+      ),
+    )
+    .groupBy(workoutSessions.date)
+    .orderBy(asc(workoutSessions.date));
+
+  return rows.map((r) => ({
+    date: String(r.date),
+    volumeKg: Number(r.volumeKg),
+    sessionCount: Number(r.sessionCount),
+  }));
+}
+
+async function fetchMovementPatternBalance(userId: string): Promise<MovementPatternBalance[]> {
+  const rows = await db
+    .select({
+      pattern: exercises.movementPattern,
+      setCount: sql<number>`COUNT(${workoutSets.id})`,
+    })
+    .from(workoutSets)
+    .innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id))
+    .innerJoin(exercises, eq(workoutSets.exerciseId, exercises.id))
+    .where(
+      and(
+        eq(workoutSessions.userId, userId),
+        eq(workoutSessions.isCompleted, true),
+        sql`${workoutSessions.startTime} >= NOW() - INTERVAL '28 days'`,
+        isNotNull(exercises.movementPattern),
+      ),
+    )
+    .groupBy(exercises.movementPattern)
+    .orderBy(desc(sql`COUNT(${workoutSets.id})`));
+
+  return rows
+    .filter((r) => r.pattern !== null)
+    .map((r) => ({ pattern: r.pattern!, setCount: Number(r.setCount) }));
+}
+
+async function fetchReadinessPerformance(userId: string): Promise<ReadinessPerformancePoint[]> {
+  const rows = await db
+    .select({
+      readiness: workoutSessions.readiness,
+      sessionId: workoutSessions.id,
+      volumeKg: sql<number>`COALESCE(SUM(CAST(${workoutSets.weightKg} AS numeric) * ${workoutSets.actualReps}), 0)`,
+    })
+    .from(workoutSessions)
+    .leftJoin(workoutSets, eq(workoutSets.sessionId, workoutSessions.id))
+    .where(
+      and(
+        eq(workoutSessions.userId, userId),
+        eq(workoutSessions.isCompleted, true),
+        isNotNull(workoutSessions.readiness),
+        sql`${workoutSessions.readiness} > 0`,
+      ),
+    )
+    .groupBy(workoutSessions.id, workoutSessions.readiness);
+
+  const grouped = new Map<number, number[]>();
+  for (const row of rows) {
+    const r = Number(row.readiness);
+    if (!grouped.has(r)) grouped.set(r, []);
+    grouped.get(r)!.push(Number(row.volumeKg));
+  }
+
+  return Array.from(grouped.entries())
+    .map(([readiness, volumes]) => ({
+      readiness,
+      avgVolumeKg: volumes.reduce((a, b) => a + b, 0) / volumes.length,
+      sessionCount: volumes.length,
+    }))
+    .sort((a, b) => a.readiness - b.readiness);
+}
+
+export async function getHeatmapData(userId: string): Promise<ActionResult<HeatmapDay[]>> {
+  try {
+    return { success: true, data: await fetchHeatmapData(userId) };
+  } catch (err) {
+    console.error("getHeatmapData failed:", err);
+    return { success: false, error: "Failed to load heatmap data" };
+  }
+}
+
+export async function getMovementPatternBalance(userId: string): Promise<ActionResult<MovementPatternBalance[]>> {
+  try {
+    return { success: true, data: await fetchMovementPatternBalance(userId) };
+  } catch (err) {
+    console.error("getMovementPatternBalance failed:", err);
+    return { success: false, error: "Failed to load movement pattern data" };
+  }
+}
+
+export async function getReadinessPerformance(userId: string): Promise<ActionResult<ReadinessPerformancePoint[]>> {
+  try {
+    return { success: true, data: await fetchReadinessPerformance(userId) };
+  } catch (err) {
+    console.error("getReadinessPerformance failed:", err);
+    return { success: false, error: "Failed to load readiness data" };
+  }
+}
+
 // ── Exported actions ───────────────────────────────────────────────────────
 
 export async function getMetricsData(

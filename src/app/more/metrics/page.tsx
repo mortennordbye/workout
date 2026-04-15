@@ -6,6 +6,9 @@ import {
   getSummaryStats,
   getTopProgressingExercises,
   getCardioMetrics,
+  getHeatmapData,
+  getMovementPatternBalance,
+  getReadinessPerformance,
 } from "@/lib/actions/metrics";
 import { getWeightHistory } from "@/lib/actions/profile";
 import { db } from "@/db";
@@ -28,16 +31,29 @@ export default async function MetricsPage() {
   const topExercise = metrics.personalRecords[0] ?? null;
 
   // Batch remaining queries in parallel, including progress chart now that we know the exercise
-  const [summaryResult, topProgressResult, weightHistoryResult, userRow, progressResult, cyclesResult, cardioResult] =
-    await Promise.all([
-      getSummaryStats(userId),
-      getTopProgressingExercises(userId),
-      getWeightHistory(),
-      db.query.users.findFirst({ where: eq(users.id, userId) }),
-      topExercise ? getExerciseProgress(userId, topExercise.exerciseId) : Promise.resolve(null),
-      getMetricsCycles(userId),
-      getCardioMetrics(userId),
-    ]);
+  const [
+    summaryResult,
+    topProgressResult,
+    weightHistoryResult,
+    userRow,
+    progressResult,
+    cyclesResult,
+    cardioResult,
+    heatmapResult,
+    movementResult,
+    readinessResult,
+  ] = await Promise.all([
+    getSummaryStats(userId),
+    getTopProgressingExercises(userId),
+    getWeightHistory(),
+    db.query.users.findFirst({ where: eq(users.id, userId) }),
+    topExercise ? getExerciseProgress(userId, topExercise.exerciseId) : Promise.resolve(null),
+    getMetricsCycles(userId),
+    getCardioMetrics(userId),
+    getHeatmapData(userId),
+    getMovementPatternBalance(userId),
+    getReadinessPerformance(userId),
+  ]);
 
   return (
     <MetricsClient
@@ -54,6 +70,9 @@ export default async function MetricsPage() {
       profileWeightKg={userRow?.weightKg ?? null}
       cycles={cyclesResult.success ? cyclesResult.data : []}
       cardioMetrics={cardioResult.success ? cardioResult.data : null}
+      heatmapData={heatmapResult.success ? heatmapResult.data : []}
+      movementPatternData={movementResult.success ? movementResult.data : []}
+      readinessData={readinessResult.success ? readinessResult.data : []}
     />
   );
 }

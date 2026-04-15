@@ -9,9 +9,12 @@ import {
   type CycleMetrics,
   type CyclePickerItem,
   type ExerciseProgress,
+  type HeatmapDay,
   type MoodDistribution,
+  type MovementPatternBalance,
   type MuscleBalance,
   type PersonalRecord,
+  type ReadinessPerformancePoint,
   type RpeTrendPoint,
   type SummaryStats,
   type TopProgressingExercise,
@@ -877,6 +880,201 @@ function CardioSection({ data }: { data: CardioMetrics }) {
   );
 }
 
+// ── Year Heatmap ───────────────────────────────────────────────────────────
+
+function YearHeatmapSection({ data }: { data: HeatmapDay[] }) {
+  const byDate = new Map(data.map((d) => [d.date, d]));
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dayOfWeek = today.getDay();
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const thisMonday = new Date(today);
+  thisMonday.setDate(today.getDate() + diff);
+
+  const startMonday = new Date(thisMonday);
+  startMonday.setDate(thisMonday.getDate() - 51 * 7);
+
+  const weeks: string[][] = [];
+  for (let w = 0; w < 52; w++) {
+    const week: string[] = [];
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(startMonday);
+      date.setDate(startMonday.getDate() + w * 7 + d);
+      if (date <= today) {
+        week.push(date.toISOString().split("T")[0]);
+      } else {
+        week.push("");
+      }
+    }
+    weeks.push(week);
+  }
+
+  const maxVol = Math.max(...data.map((d) => d.volumeKg), 1);
+
+  function cellColor(date: string): string {
+    if (!date) return "bg-transparent";
+    const d = byDate.get(date);
+    if (!d || d.sessionCount === 0) return "bg-border/40";
+    const intensity = d.volumeKg / maxVol;
+    if (intensity > 0.75) return "bg-primary";
+    if (intensity > 0.4)  return "bg-primary/70";
+    if (intensity > 0.1)  return "bg-primary/40";
+    return "bg-primary/20";
+  }
+
+  const totalSessions = data.reduce((s, d) => s + d.sessionCount, 0);
+  const activeDays = data.filter((d) => d.sessionCount > 0).length;
+
+  return (
+    <div className="rounded-2xl bg-muted p-4 space-y-3">
+      <div className="flex items-baseline justify-between">
+        <SectionLabel>Activity · Last 12 Months</SectionLabel>
+        <span className="text-xs text-muted-foreground">{totalSessions} sessions</span>
+      </div>
+      <div className="flex gap-[3px] overflow-x-auto pb-1">
+        {weeks.map((week, wi) => (
+          <div key={wi} className="flex flex-col gap-[3px]">
+            {week.map((date, di) => (
+              <div key={di} className={`w-[10px] h-[10px] rounded-[2px] shrink-0 ${cellColor(date)}`} />
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] text-muted-foreground">{activeDays} active days</span>
+        <div className="flex items-center gap-1">
+          <span className="text-[10px] text-muted-foreground">Less</span>
+          {(["bg-border/40", "bg-primary/20", "bg-primary/40", "bg-primary/70", "bg-primary"] as const).map((c, i) => (
+            <div key={i} className={`w-2 h-2 rounded-[2px] ${c}`} />
+          ))}
+          <span className="text-[10px] text-muted-foreground">More</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Movement Pattern Balance ────────────────────────────────────────────────
+
+const MOVEMENT_LABELS: Record<string, string> = {
+  push:      "Push",
+  pull:      "Pull",
+  hinge:     "Hinge",
+  squat:     "Squat",
+  carry:     "Carry",
+  rotation:  "Rotation",
+  isometric: "Isometric",
+  cardio:    "Cardio",
+};
+
+const MOVEMENT_COLORS: Record<string, string> = {
+  push:      "bg-blue-500",
+  pull:      "bg-emerald-500",
+  hinge:     "bg-orange-500",
+  squat:     "bg-violet-500",
+  carry:     "bg-yellow-500",
+  rotation:  "bg-pink-500",
+  isometric: "bg-cyan-500",
+  cardio:    "bg-red-500",
+};
+
+function MovementPatternSection({ data }: { data: MovementPatternBalance[] }) {
+  if (data.length === 0) return null;
+
+  const total = data.reduce((s, d) => s + d.setCount, 0);
+  const maxSets = Math.max(...data.map((d) => d.setCount), 1);
+  const pushSets = data.find((d) => d.pattern === "push")?.setCount ?? 0;
+  const pullSets = data.find((d) => d.pattern === "pull")?.setCount ?? 0;
+
+  return (
+    <div className="rounded-2xl bg-muted p-4 space-y-3">
+      <SectionLabel>Movement Balance · Last 28 days</SectionLabel>
+      <div className="space-y-2.5">
+        {data.map((d) => {
+          const pct = Math.round((d.setCount / total) * 100);
+          const barPct = (d.setCount / maxSets) * 100;
+          const color = MOVEMENT_COLORS[d.pattern] ?? "bg-primary";
+          return (
+            <div key={d.pattern} className="flex items-center gap-2">
+              <span className="text-xs font-medium w-16 shrink-0">
+                {MOVEMENT_LABELS[d.pattern] ?? d.pattern}
+              </span>
+              <div className="flex-1 h-1.5 bg-border/40 rounded-full overflow-hidden">
+                <div className={`h-full ${color} rounded-full`} style={{ width: `${barPct}%` }} />
+              </div>
+              <span className="text-xs text-muted-foreground w-7 text-right shrink-0">{pct}%</span>
+              <span className="text-[10px] text-muted-foreground w-12 text-right shrink-0">{d.setCount} sets</span>
+            </div>
+          );
+        })}
+      </div>
+      {pushSets > 0 && pullSets > 0 && (
+        <p className="text-[10px] text-muted-foreground">
+          Push:Pull {Math.round((pushSets / pullSets) * 10) / 10}:1
+          {pushSets / pullSets > 1.3
+            ? " · consider adding more pull work"
+            : pushSets / pullSets < 0.7
+            ? " · consider adding more push work"
+            : " · well balanced"}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ── Readiness vs Performance ────────────────────────────────────────────────
+
+const READINESS_LABELS = ["", "Very Low", "Low", "Moderate", "High", "Peak"];
+const READINESS_COLORS = ["", "bg-red-500", "bg-orange-400", "bg-yellow-400", "bg-emerald-400", "bg-emerald-500"];
+
+function ReadinessPerformanceSection({ data }: { data: ReadinessPerformancePoint[] }) {
+  if (data.length === 0) return null;
+
+  const maxVol = Math.max(...data.map((d) => d.avgVolumeKg), 1);
+
+  return (
+    <div className="rounded-2xl bg-muted p-4 space-y-3">
+      <SectionLabel>Readiness vs Output</SectionLabel>
+      <div className="flex items-end gap-2" style={{ height: "80px" }}>
+        {[1, 2, 3, 4, 5].map((level) => {
+          const point = data.find((d) => d.readiness === level);
+          const pct = point ? (point.avgVolumeKg / maxVol) * 100 : 0;
+          const color = READINESS_COLORS[level];
+          return (
+            <div key={level} className="flex-1 flex flex-col items-center justify-end gap-1 h-full">
+              <div className="w-full relative flex-1">
+                {point ? (
+                  <div
+                    className={`absolute bottom-0 w-full ${color} rounded-t-md`}
+                    style={{ height: `${Math.max(pct, 4)}%` }}
+                  />
+                ) : (
+                  <div className="absolute bottom-0 w-full h-px bg-border/30" />
+                )}
+              </div>
+              <span className="text-[10px] text-muted-foreground leading-none shrink-0">{level}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="space-y-1.5">
+        {data.map((d) => (
+          <div key={d.readiness} className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${READINESS_COLORS[d.readiness]} shrink-0`} />
+            <span className="text-xs text-muted-foreground">{READINESS_LABELS[d.readiness]}</span>
+            <span className="text-xs font-medium ml-auto">{formatVolume(d.avgVolumeKg)} avg</span>
+            <span className="text-[10px] text-muted-foreground">{d.sessionCount}× </span>
+          </div>
+        ))}
+      </div>
+      <p className="text-[10px] text-muted-foreground">
+        Avg volume per session by pre-workout readiness (1–5)
+      </p>
+    </div>
+  );
+}
+
 // ── Cycle Tab Components ───────────────────────────────────────────────────
 
 const STATUS_LABELS: Record<string, string> = {
@@ -1177,6 +1375,9 @@ type Props = {
   profileWeightKg: number | null;
   cycles: CyclePickerItem[];
   cardioMetrics: CardioMetrics | null;
+  heatmapData: HeatmapDay[];
+  movementPatternData: MovementPatternBalance[];
+  readinessData: ReadinessPerformancePoint[];
 };
 
 export function MetricsClient({
@@ -1193,6 +1394,9 @@ export function MetricsClient({
   profileWeightKg,
   cycles,
   cardioMetrics,
+  heatmapData,
+  movementPatternData,
+  readinessData,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("alltime");
   const [selectedId, setSelectedId] = useState<number | null>(initialExerciseId);
@@ -1269,6 +1473,9 @@ export function MetricsClient({
             {/* ── Summary Stats ──────────────────────────────────────── */}
             {summaryStats && <SummaryStatsRow stats={summaryStats} />}
 
+            {/* ── Activity Heatmap ───────────────────────────────────── */}
+            <YearHeatmapSection data={heatmapData} />
+
             {/* ── Body Weight ────────────────────────────────────────── */}
             <WeightHistorySection initialEntries={weightHistory} profileWeightKg={profileWeightKg} />
 
@@ -1281,8 +1488,14 @@ export function MetricsClient({
             {/* ── Muscle Balance ─────────────────────────────────────── */}
             <MuscleBalanceSection data={muscleBalance} />
 
+            {/* ── Movement Pattern Balance ───────────────────────────── */}
+            <MovementPatternSection data={movementPatternData} />
+
             {/* ── Session Mood ───────────────────────────────────────── */}
             <MoodDistributionSection data={moodDistribution} />
+
+            {/* ── Readiness vs Performance ───────────────────────────── */}
+            <ReadinessPerformanceSection data={readinessData} />
 
             {/* ── Top Gaining Exercises ──────────────────────────────── */}
             <TopProgressingSection data={topProgressing} />
