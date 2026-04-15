@@ -446,7 +446,7 @@ export async function updateProgramSet(
 
     // Verify ownership via programSet → programExercise → program
     const [check] = await db
-      .select({ userId: programs.userId })
+      .select({ userId: programs.userId, programId: programs.id, programExerciseId: programExercises.id })
       .from(programSets)
       .innerJoin(programExercises, eq(programExercises.id, programSets.programExerciseId))
       .innerJoin(programs, eq(programs.id, programExercises.programId))
@@ -464,6 +464,9 @@ export async function updateProgramSet(
       .set(updates)
       .where(eq(programSets.id, id))
       .returning();
+
+    revalidatePath(`/programs/${check.programId}/exercises/${check.programExerciseId}`);
+    revalidatePath(`/programs/${check.programId}/workout/exercises/${check.programExerciseId}`);
 
     return { success: true, data: ps };
   } catch (err) {
