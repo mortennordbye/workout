@@ -26,6 +26,12 @@ const PILL_ICON: Record<ExerciseInsight["status"], string> = {
 };
 
 export function WorkoutInsightBanner({ insight }: { insight: WorkoutInsight }) {
+  const allExercises = insight.exerciseInsights ?? [];
+  const notable = allExercises.filter((ex) => ex.status !== "held");
+  const heldCount = allExercises.length - notable.length;
+  const visiblePills = notable.slice(0, 5);
+  const overflowCount = notable.length - visiblePills.length;
+
   return (
     <div className={`bg-card rounded-2xl p-4 mb-4 ${BORDER[insight.type]}`}>
       <p className="text-sm font-semibold text-foreground leading-snug">
@@ -36,14 +42,9 @@ export function WorkoutInsightBanner({ insight }: { insight: WorkoutInsight }) {
           {insight.detail}
         </p>
       )}
-      {insight.cycleWeek != null && insight.cycleTotalWeeks != null && (
-        <p className="text-xs text-muted-foreground mt-2">
-          Week {insight.cycleWeek} of {insight.cycleTotalWeeks} in your cycle.
-        </p>
-      )}
-      {insight.exerciseInsights && insight.exerciseInsights.length > 0 && (
+      {visiblePills.length > 0 && (
         <div className="flex gap-1.5 flex-wrap mt-2">
-          {insight.exerciseInsights.map((ex) => (
+          {visiblePills.map((ex) => (
             <span
               key={ex.exerciseName}
               className={`inline-flex items-center gap-1 text-[10px] font-semibold rounded-full px-2 py-0.5 ${PILL_COLORS[ex.status]}`}
@@ -51,7 +52,13 @@ export function WorkoutInsightBanner({ insight }: { insight: WorkoutInsight }) {
               {PILL_ICON[ex.status]} {ex.exerciseName}
             </span>
           ))}
+          {overflowCount > 0 && (
+            <span className="text-[10px] text-muted-foreground self-center">+{overflowCount} more</span>
+          )}
         </div>
+      )}
+      {heldCount > 0 && (
+        <p className="text-[10px] text-muted-foreground mt-1">{heldCount} on track</p>
       )}
     </div>
   );
