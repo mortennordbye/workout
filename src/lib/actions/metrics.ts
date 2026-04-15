@@ -880,7 +880,7 @@ async function fetchReadinessPerformance(userId: string): Promise<ReadinessPerfo
   return Array.from(grouped.entries())
     .map(([readiness, volumes]) => ({
       readiness,
-      avgVolumeKg: volumes.reduce((a, b) => a + b, 0) / volumes.length,
+      avgVolumeKg: volumes.length > 0 ? volumes.reduce((a, b) => a + b, 0) / volumes.length : 0,
       sessionCount: volumes.length,
     }))
     .sort((a, b) => a.readiness - b.readiness);

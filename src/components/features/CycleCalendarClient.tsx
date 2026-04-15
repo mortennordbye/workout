@@ -195,9 +195,10 @@ export function CycleCalendarClient({ cycles, completedDates, programsMap }: Pro
           const colors = info.cycleIndex !== null ? colorMap.get(info.cycleIndex) : null;
           const dayNum = parseInt(dateStr.split("-")[2], 10);
 
-          // Short program label for cell (up to 4 chars of program name or slot label)
-          const cellLabel = info.isScheduled
-            ? (info.slotLabel?.slice(0, 4) ?? info.programName?.slice(0, 4) ?? null)
+          // Short program label for cell — use slot label or first word of program name (max 6 chars)
+          const rawLabel = info.slotLabel ?? info.programName ?? null;
+          const cellLabel = info.isScheduled && rawLabel
+            ? (rawLabel.split(" ")[0].slice(0, 6))
             : null;
 
           return (

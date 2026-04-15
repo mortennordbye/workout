@@ -258,22 +258,30 @@ export function WorkoutSessionClient({
         </div>
       )}
 
-      {/* Exercise insight pills */}
-      {insight?.exerciseInsights && insight.exerciseInsights.length > 0 && (
-        <div className="px-4 pb-3 shrink-0">
-          <div className="flex gap-2 overflow-x-auto pb-0.5">
-            {insight.exerciseInsights.map((ex) => (
-              <span
-                key={ex.exerciseName}
-                className={`flex-shrink-0 inline-flex items-center gap-1 text-xs font-semibold rounded-full px-2.5 py-1 ${EXERCISE_INSIGHT_COLORS[ex.status]}`}
-              >
-                <span>{EXERCISE_INSIGHT_ICON[ex.status]}</span>
-                {ex.exerciseName}
-              </span>
-            ))}
+      {/* Exercise insight pills — only show non-held exercises */}
+      {insight?.exerciseInsights && insight.exerciseInsights.length > 0 && (() => {
+        const notable = insight.exerciseInsights.filter((ex) => ex.status !== "held");
+        const heldCount = insight.exerciseInsights.length - notable.length;
+        if (notable.length === 0 && heldCount === 0) return null;
+        return (
+          <div className="px-4 pb-3 shrink-0">
+            <div className="flex gap-2 overflow-x-auto pb-0.5 items-center">
+              {notable.map((ex) => (
+                <span
+                  key={ex.exerciseName}
+                  className={`flex-shrink-0 inline-flex items-center gap-1 text-xs font-semibold rounded-full px-2.5 py-1 ${EXERCISE_INSIGHT_COLORS[ex.status]}`}
+                >
+                  <span>{EXERCISE_INSIGHT_ICON[ex.status]}</span>
+                  {ex.exerciseName}
+                </span>
+              ))}
+              {heldCount > 0 && (
+                <span className="flex-shrink-0 text-xs text-muted-foreground">{heldCount} on track</span>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Exercises list + History */}
       <div className="flex-1 px-4 overflow-y-auto">
