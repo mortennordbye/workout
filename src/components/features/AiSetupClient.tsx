@@ -1,9 +1,11 @@
 "use client";
 
+import { generateWorkoutPlan } from "@/lib/actions/ai-generate";
 import { importProgram } from "@/lib/actions/programs";
 import { importCycle } from "@/lib/actions/training-cycles";
+import { buildManualClipboardPrompt } from "@/lib/utils/ai-prompt";
 import type { Exercise } from "@/types/workout";
-import { Check, Copy, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Copy, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -16,21 +18,17 @@ type UserProfile = {
   experienceLevel: string | null;
 };
 
-const GOAL_LABELS: Record<string, string> = {
-  strength: "Strength",
-  muscle_gain: "Muscle Gain",
-  weight_loss: "Weight Loss",
-  endurance: "Endurance",
-  general_fitness: "General Fitness",
-};
-
 type Props = {
   exercises: Exercise[];
   userProfile: UserProfile;
+  generationsToday: number;
+  dailyLimit: number;
 };
 
-export function AiSetupClient({ exercises, userProfile }: Props) {
+export function AiSetupClient({ exercises, userProfile, generationsToday, dailyLimit }: Props) {
   const router = useRouter();
+
+  // Manual flow state
   const [copied, setCopied] = useState(false);
   const [pasteJson, setPasteJson] = useState("");
   const [status, setStatus] = useState<"idle" | "importing" | "error" | "success">("idle");
@@ -38,145 +36,20 @@ export function AiSetupClient({ exercises, userProfile }: Props) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [cycleCreated, setCycleCreated] = useState(false);
 
-  // Cap at 120 to keep the prompt a reasonable size
-  const exerciseListText =
-    exercises.length > 0
-      ? `\nAvailable exercises in my library (use these names exactly when possible):\n${exercises
-          .slice(0, 120)
-          .map(
-            (e) =>
-              `- ${e.name} (${[e.muscleGroup, e.equipment, e.movementPattern].filter(Boolean).join(", ")})`,
-          )
-          .join("\n")}\n`
-      : "";
-
-  const profileLines: string[] = [];
-  if (userProfile.goals.length > 0)
-    profileLines.push(`Goals: ${userProfile.goals.map((g) => GOAL_LABELS[g] ?? g).join(", ")}`);
-  if (userProfile.experienceLevel)
-    profileLines.push(`Experience level: ${userProfile.experienceLevel}`);
-  if (userProfile.gender && userProfile.gender !== "prefer_not_to_say")
-    profileLines.push(`Gender: ${userProfile.gender}`);
-  if (userProfile.birthYear)
-    profileLines.push(`Age: ${new Date().getFullYear() - userProfile.birthYear}`);
-  if (userProfile.heightCm) profileLines.push(`Height: ${userProfile.heightCm} cm`);
-  if (userProfile.weightKg) profileLines.push(`Body weight: ${userProfile.weightKg} kg`);
-  const profileBlock =
-    profileLines.length > 0
-      ? `\nAbout me:\n${profileLines.map((l) => `- ${l}`).join("\n")}\n`
-      : "";
-
-  const aiPrompt = `Set up my workout app with the right programs and training schedule.${profileBlock}
-Generate a JSON response that creates everything I need — workout programs and optionally a training cycle that links them together.
-
-If generating programs only (no schedule), use:
-{ "version": 1, "programs": [ { "name": "...", "exercises": [...] } ] }
-
-If generating a full training setup (programs + a cycle schedule), use:
-{
-  "version": 1,
-  "programs": [ { "name": "Push Day", "exercises": [...] }, ... ],
-  "cycle": {
-    "name": "12-Week Strength Block",
-    "durationWeeks": 12,
-    "scheduleType": "day_of_week",
-    "slots": [
-      { "dayOfWeek": 1, "programName": "Push Day" },
-      { "dayOfWeek": 3, "programName": "Pull Day" },
-      { "dayOfWeek": 5, "programName": "Leg Day" }
-    ]
-  }
-}
-
-For rotation-based cycles (programs cycle in order regardless of which day of the week):
-  "cycle": {
-    "name": "ABC Rotation",
-    "durationWeeks": 8,
-    "scheduleType": "rotation",
-    "slots": [
-      { "orderIndex": 1, "programName": "Push Day", "label": "A" },
-      { "orderIndex": 2, "programName": "Pull Day", "label": "B" },
-      { "orderIndex": 3, "programName": "Leg Day", "label": "C" }
-    ]
-  }
-
-Each exercise entry:
-{
-  "orderIndex": 0,
-  "progressionMode": "weight",
-  "overloadIncrementKg": 2.5,
-  "overloadIncrementReps": 0,
-  "exercise": {
-    "name": "Bench Press",
-    "category": "strength",
-    "bodyArea": "upper_body",
-    "muscleGroup": "chest",
-    "equipment": "barbell",
-    "movementPattern": "push"
-  },
-  "sets": [
-    { "setNumber": 1, "targetReps": 8, "weightKg": 60, "restTimeSeconds": 90 }
-  ]
-}
-
-Rules:
-- Do NOT generate rest day programs. Omit rest days from cycle slots entirely.
-- category: "strength", "cardio", or "flexibility"
-- bodyArea: "upper_body", "lower_body", "core", "full_body", or "cardio"
-- muscleGroup: "chest", "back", "shoulders", "biceps", "triceps", "forearms", "quads", "hamstrings", "glutes", "calves", "abs", "lower_back", "full_body", or "cardio"
-- equipment: "barbell", "dumbbell", "machine", "cable", "bodyweight", "kettlebell", "bands", or "other"
-- movementPattern: "push", "pull", "hinge", "squat", "carry", "rotation", "isometric", or "cardio"
-- progressionMode: "manual", "weight", "smart", or "reps"
-- weightKg: use 0 for bodyweight, null if unknown
-- restTimeSeconds: rest between sets in seconds (e.g. 90)
-- orderIndex: 0-based index for exercise order within each program
-- durationWeeks must be one of: 4, 6, 8, 10, 12, 16
-- dayOfWeek: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
-- programName in cycle slots must exactly match a name in the "programs" array
-${exerciseListText}
-IMPORTANT: The list above contains exercises already in my library. Use those exact names whenever possible — only invent a new exercise name if the exercise genuinely does not exist in the list.
-
-First ask me one question: "What kind of training are you looking for? Tell me your goals, how many days a week you can train, and whether you want a structured weekly schedule or just standalone programs." Use my answer to generate everything. Then output only the raw JSON — no explanation, no markdown, no code block.`;
+  // Automatic flow state
+  const [autoDescription, setAutoDescription] = useState("");
+  const [autoStatus, setAutoStatus] = useState<"idle" | "generating" | "error">("idle");
+  const [autoError, setAutoError] = useState<string | null>(null);
+  const [remaining, setRemaining] = useState(dailyLimit - generationsToday);
+  const [showManual, setShowManual] = useState(false);
 
   function handleCopyPrompt() {
-    navigator.clipboard.writeText(aiPrompt);
+    navigator.clipboard.writeText(buildManualClipboardPrompt(userProfile, exercises));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function handleImport() {
-    if (!pasteJson.trim()) return;
-    setStatus("importing");
-    setError(null);
-
-    // Strip markdown code fences — AIs frequently wrap JSON in ```json ... ``` or ``` ... ```
-    let text = pasteJson.trim();
-    text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-
-    // If there's still non-JSON preamble, try to extract the outermost {...} block
-    const firstBrace = text.indexOf("{");
-    const lastBrace = text.lastIndexOf("}");
-    if (firstBrace > 0 && lastBrace > firstBrace) {
-      text = text.slice(firstBrace, lastBrace + 1);
-    }
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      setStatus("error");
-      setError("Couldn't read the JSON — make sure you copied the full response from the AI, with no extra text before or after.");
-      return;
-    }
-
-    // Guard: must be a plain object, not an array or primitive
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      setStatus("error");
-      setError("Unexpected response format — the AI should return a single JSON object, not an array or plain value.");
-      return;
-    }
-
-    const raw = parsed as Record<string, unknown>;
+  async function handleImportParsed(raw: Record<string, unknown>) {
     const hasProgramData = raw.program !== undefined || raw.programs !== undefined;
     const hasCycle = raw.cycle !== undefined;
 
@@ -191,7 +64,7 @@ First ask me one question: "What kind of training are you looking for? Tell me y
     const warnings: string[] = [];
 
     if (hasProgramData) {
-      const result = await importProgram(parsed);
+      const result = await importProgram(raw);
       if (!result.success) {
         setStatus("error");
         setError(result.error ?? "Failed to import programs.");
@@ -203,7 +76,6 @@ First ask me one question: "What kind of training are you looking for? Tell me y
     if (hasCycle) {
       const result = await importCycle(raw.cycle);
       if (!result.success) {
-        // Programs already imported — don't block, surface as a warning
         warnings.push(`Cycle couldn't be created: ${result.error ?? "unknown error"}`);
       } else {
         cycleName = result.data.cycleName;
@@ -238,6 +110,64 @@ First ask me one question: "What kind of training are you looking for? Tell me y
     router.refresh();
   }
 
+  async function handleImport() {
+    if (!pasteJson.trim()) return;
+    setStatus("importing");
+    setError(null);
+
+    let text = pasteJson.trim();
+    text = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+    const firstBrace = text.indexOf("{");
+    const lastBrace = text.lastIndexOf("}");
+    if (firstBrace > 0 && lastBrace > firstBrace) {
+      text = text.slice(firstBrace, lastBrace + 1);
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      setStatus("error");
+      setError("Couldn't read the JSON — make sure you copied the full response from the AI, with no extra text before or after.");
+      return;
+    }
+
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      setStatus("error");
+      setError("Unexpected response format — the AI should return a single JSON object, not an array or plain value.");
+      return;
+    }
+
+    await handleImportParsed(parsed as Record<string, unknown>);
+  }
+
+  async function handleGenerate() {
+    if (!autoDescription.trim() || autoStatus === "generating") return;
+    setAutoStatus("generating");
+    setAutoError(null);
+
+    const result = await generateWorkoutPlan(autoDescription);
+    if (!result.success) {
+      setAutoStatus("error");
+      setAutoError(result.error);
+      return;
+    }
+
+    setRemaining(result.data.dailyLimit - result.data.generationsToday);
+    const parsed = result.data.json;
+
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      setAutoStatus("error");
+      setAutoError("The AI returned an unexpected format. Please try again.");
+      return;
+    }
+
+    setAutoStatus("idle");
+    setAutoDescription("");
+    setStatus("importing");
+    await handleImportParsed(parsed as Record<string, unknown>);
+  }
+
   if (status === "success") {
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-6">
@@ -268,64 +198,113 @@ First ask me one question: "What kind of training are you looking for? Tell me y
 
   return (
     <div className="flex-1 flex flex-col gap-6 px-4 pb-8">
-      {/* Step 1 */}
+      {/* Auto-generate section */}
       <div className="flex flex-col gap-2">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Step 1 — Copy the prompt
+          Auto-generate with AI
         </p>
         <p className="text-sm text-muted-foreground">
-          Tap the button below to copy a ready-made prompt to your clipboard.
-        </p>
-        <button
-          type="button"
-          onClick={handleCopyPrompt}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80"
-        >
-          {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-          {copied ? "Copied!" : "Copy Prompt"}
-        </button>
-      </div>
-
-      {/* Step 2 */}
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Step 2 — Open ChatGPT, Gemini, or Claude
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Paste the prompt and send it. The AI will ask what you&apos;re looking for — describe your
-          goals, how many days a week you can train, and whether you want a weekly schedule or just
-          programs. You can ask for a full training block (e.g. &quot;12-week PPL, 4 days a
-          week&quot;) or just standalone programs. When it&apos;s done, copy the entire response.
-        </p>
-      </div>
-
-      {/* Step 3 */}
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Step 3 — Paste the response here
+          Describe what you&apos;re looking for and the app will build your programs automatically.
         </p>
         <textarea
-          value={pasteJson}
+          value={autoDescription}
           onChange={(e) => {
-            setPasteJson(e.target.value);
-            setStatus("idle");
-            setError(null);
+            setAutoDescription(e.target.value);
+            setAutoError(null);
           }}
-          placeholder="Paste the AI's response here…"
-          rows={5}
-          className="w-full rounded-xl bg-muted px-3 py-3 text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
+          placeholder="e.g. 3-day push/pull/legs, intermediate lifter, progressive overload on the big lifts…"
+          rows={4}
+          className="w-full rounded-xl bg-muted px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
         />
-        {error && <p className="text-xs text-destructive">{error}</p>}
+        {autoError && <p className="text-xs text-destructive">{autoError}</p>}
+        <p className="text-xs text-muted-foreground">
+          {remaining} of {dailyLimit} generations remaining today
+        </p>
         <button
           type="button"
-          onClick={handleImport}
-          disabled={!pasteJson.trim() || status === "importing"}
+          onClick={handleGenerate}
+          disabled={!autoDescription.trim() || autoStatus === "generating" || remaining <= 0}
           className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80 disabled:opacity-50"
         >
           <Sparkles className="w-4 h-4" />
-          {status === "importing" ? "Importing…" : "Import"}
+          {autoStatus === "generating" ? "Generating…" : "Generate"}
         </button>
       </div>
+
+      {/* Manual toggle */}
+      <button
+        type="button"
+        onClick={() => setShowManual((v) => !v)}
+        className="flex items-center justify-center gap-2 text-xs text-muted-foreground active:opacity-70 py-1"
+      >
+        <span>or do it manually</span>
+        <ChevronDown
+          className={`w-3.5 h-3.5 transition-transform duration-200 ${showManual ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {showManual && (
+        <>
+          {/* Step 1 */}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Step 1 — Copy the prompt
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Tap the button below to copy a ready-made prompt to your clipboard.
+            </p>
+            <button
+              type="button"
+              onClick={handleCopyPrompt}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? "Copied!" : "Copy Prompt"}
+            </button>
+          </div>
+
+          {/* Step 2 */}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Step 2 — Open ChatGPT, Gemini, or Claude
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Paste the prompt and send it. The AI will ask what you&apos;re looking for — describe your
+              goals, how many days a week you can train, and whether you want a weekly schedule or just
+              programs. You can ask for a full training block (e.g. &quot;12-week PPL, 4 days a
+              week&quot;) or just standalone programs. When it&apos;s done, copy the entire response.
+            </p>
+          </div>
+
+          {/* Step 3 */}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Step 3 — Paste the response here
+            </p>
+            <textarea
+              value={pasteJson}
+              onChange={(e) => {
+                setPasteJson(e.target.value);
+                setStatus("idle");
+                setError(null);
+              }}
+              placeholder="Paste the AI's response here…"
+              rows={5}
+              className="w-full rounded-xl bg-muted px-3 py-3 text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
+            />
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            <button
+              type="button"
+              onClick={handleImport}
+              disabled={!pasteJson.trim() || status === "importing"}
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80 disabled:opacity-50"
+            >
+              <Sparkles className="w-4 h-4" />
+              {status === "importing" ? "Importing…" : "Import"}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

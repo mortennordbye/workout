@@ -35,6 +35,7 @@
  */
 
 import { relations } from "drizzle-orm";
+import { aiGenerations } from "./ai-generations";
 import { exercisePrs } from "./exercise-prs";
 import { exercises } from "./exercises";
 import { friendships } from "./friendships";
@@ -57,6 +58,14 @@ export const usersRelations = relations(users, ({ many }) => ({
   receivedFriendRequests: many(friendships, { relationName: "addressee" }),
   programSharesSent: many(programShares, { relationName: "sharedBy" }),
   programSharesReceived: many(programShares, { relationName: "sharedWith" }),
+  aiGenerations: many(aiGenerations),
+}));
+
+export const aiGenerationsRelations = relations(aiGenerations, ({ one }) => ({
+  user: one(users, {
+    fields: [aiGenerations.userId],
+    references: [users.id],
+  }),
 }));
 
 // Exercise PR relations

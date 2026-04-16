@@ -11,6 +11,7 @@
  */
 
 // Table schemas
+export * from "./ai-generations";
 export * from "./auth";
 export * from "./exercise-prs";
 export * from "./feedback";

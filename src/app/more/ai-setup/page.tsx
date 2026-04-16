@@ -1,5 +1,6 @@
 import { AiSetupClient } from "@/components/features/AiSetupClient";
 import { getAllExercises } from "@/lib/actions/exercises";
+import { getAiRateLimitStatus } from "@/lib/actions/ai-generate";
 import { parseUserGoals } from "@/lib/utils/goals";
 import { requireSession } from "@/lib/utils/session";
 import { db } from "@/db";
@@ -12,9 +13,10 @@ export const dynamic = "force-dynamic";
 
 export default async function AiSetupPage() {
   const session = await requireSession();
-  const [exerciseResult, user] = await Promise.all([
+  const [exerciseResult, user, rateLimitResult] = await Promise.all([
     getAllExercises(),
     db.query.users.findFirst({ where: eq(users.id, session.user.id) }),
+    getAiRateLimitStatus(),
   ]);
 
   const exercises = exerciseResult.success ? exerciseResult.data : [];
@@ -26,6 +28,10 @@ export default async function AiSetupPage() {
     goals: parseUserGoals(user?.goals, user?.goal),
     experienceLevel: user?.experienceLevel ?? null,
   };
+
+  const { generationsToday, dailyLimit } = rateLimitResult.success
+    ? rateLimitResult.data
+    : { generationsToday: 0, dailyLimit: 5 };
 
   return (
     <div className="h-[100dvh] bg-background overflow-y-auto">
@@ -43,7 +49,12 @@ export default async function AiSetupPage() {
           <h1 className="text-3xl font-bold tracking-tight">AI Setup</h1>
           <p className="text-sm text-muted-foreground mt-1">Generate your programs and training schedule in seconds.</p>
         </div>
-        <AiSetupClient exercises={exercises} userProfile={userProfile} />
+        <AiSetupClient
+          exercises={exercises}
+          userProfile={userProfile}
+          generationsToday={generationsToday}
+          dailyLimit={dailyLimit}
+        />
       </div>
     </div>
   );
