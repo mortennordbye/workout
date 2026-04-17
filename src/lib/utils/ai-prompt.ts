@@ -1,3 +1,9 @@
+export type PrData = {
+  exerciseName: string;
+  estimated1rm?: number;
+  maxWeight?: number;
+};
+
 type UserProfile = {
   gender: string | null;
   birthYear: number | null;
@@ -23,7 +29,7 @@ const GOAL_LABELS: Record<string, string> = {
 };
 
 /** Shared instruction block used by both manual and automatic flows. */
-export function buildAiSystemPrompt(userProfile: UserProfile, exercises: Exercise[]): string {
+export function buildAiSystemPrompt(userProfile: UserProfile, exercises: Exercise[], prs: PrData[] = [], existingProgramNames: string[] = []): string {
   const exerciseListText =
     exercises.length > 0
       ? `\nAvailable exercises in my library (use these names exactly when possible):\n${exercises
@@ -50,7 +56,24 @@ export function buildAiSystemPrompt(userProfile: UserProfile, exercises: Exercis
       ? `\nAbout me:\n${profileLines.map((l) => `- ${l}`).join("\n")}\n`
       : "";
 
-  return `Set up my workout app with the right programs and training schedule.${profileBlock}
+  const prLines = prs
+    .map((pr) => {
+      if (pr.estimated1rm) return `- ${pr.exerciseName}: ~${pr.estimated1rm}kg estimated 1RM`;
+      if (pr.maxWeight) return `- ${pr.exerciseName}: ${pr.maxWeight}kg max weight lifted`;
+      return null;
+    })
+    .filter(Boolean);
+  const prBlock =
+    prLines.length > 0
+      ? `\nMy current performance (use these to set realistic starting weights):\n${prLines.join("\n")}\n`
+      : "";
+
+  const existingProgramsBlock =
+    existingProgramNames.length > 0
+      ? `\nI already have these programs (do NOT duplicate them — create complementary work instead):\n${existingProgramNames.map((n) => `- ${n}`).join("\n")}\n`
+      : "";
+
+  return `Set up my workout app with the right programs and training schedule.${profileBlock}${prBlock}${existingProgramsBlock}
 Generate a JSON response that creates everything I need — workout programs and optionally a training cycle that links them together.
 
 If generating programs only (no schedule), use:
@@ -123,8 +146,8 @@ IMPORTANT: Keep programs focused — max 8 exercises per program, max 4 sets per
 }
 
 /** Full prompt for the manual clipboard flow (adds the interactive "ask one question" tail). */
-export function buildManualClipboardPrompt(userProfile: UserProfile, exercises: Exercise[]): string {
-  return `${buildAiSystemPrompt(userProfile, exercises)}
+export function buildManualClipboardPrompt(userProfile: UserProfile, exercises: Exercise[], prs: PrData[] = [], existingProgramNames: string[] = []): string {
+  return `${buildAiSystemPrompt(userProfile, exercises, prs, existingProgramNames)}
 
 First ask me one question: "What kind of training are you looking for? Tell me your goals, how many days a week you can train, and whether you want a structured weekly schedule or just standalone programs." Use my answer to generate everything. Then output only the raw JSON — no explanation, no markdown, no code block.`;
 }

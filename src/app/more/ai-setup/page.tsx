@@ -4,8 +4,12 @@ import { getAiRateLimitStatus } from "@/lib/actions/ai-generate";
 import { parseUserGoals } from "@/lib/utils/goals";
 import { requireSession } from "@/lib/utils/session";
 import { db } from "@/db";
+import { exercisePrs } from "@/db/schema/exercise-prs";
+import { exercises } from "@/db/schema/exercises";
+import { programs } from "@/db/schema/programs";
 import { users } from "@/db/schema/users";
-import { eq } from "drizzle-orm";
+import { type PrData } from "@/lib/utils/ai-prompt";
+import { and, eq, isNull } from "drizzle-orm";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 
@@ -13,13 +17,21 @@ export const dynamic = "force-dynamic";
 
 export default async function AiSetupPage() {
   const session = await requireSession();
-  const [exerciseResult, user, rateLimitResult] = await Promise.all([
+  const userId = session.user.id;
+
+  const [exerciseResult, user, rateLimitResult, rawPrs, userPrograms] = await Promise.all([
     getAllExercises(),
-    db.query.users.findFirst({ where: eq(users.id, session.user.id) }),
+    db.query.users.findFirst({ where: eq(users.id, userId) }),
     getAiRateLimitStatus(),
+    db
+      .select({ exerciseName: exercises.name, prType: exercisePrs.prType, value: exercisePrs.value })
+      .from(exercisePrs)
+      .innerJoin(exercises, eq(exercisePrs.exerciseId, exercises.id))
+      .where(and(eq(exercisePrs.userId, userId), isNull(exercisePrs.supersededAt))),
+    db.select({ name: programs.name }).from(programs).where(eq(programs.userId, userId)),
   ]);
 
-  const exercises = exerciseResult.success ? exerciseResult.data : [];
+  const exerciseList = exerciseResult.success ? exerciseResult.data : [];
   const userProfile = {
     gender: user?.gender ?? null,
     birthYear: user?.birthYear ?? null,
@@ -32,6 +44,17 @@ export default async function AiSetupPage() {
   const { generationsToday, dailyLimit } = rateLimitResult.success
     ? rateLimitResult.data
     : { generationsToday: 0, dailyLimit: 5 };
+
+  // Deduplicate: one entry per exercise, preferring estimated_1rm over weight
+  const prMap = new Map<string, PrData>();
+  for (const pr of rawPrs) {
+    const entry = prMap.get(pr.exerciseName) ?? { exerciseName: pr.exerciseName };
+    if (pr.prType === "estimated_1rm") entry.estimated1rm = Math.round(Number(pr.value));
+    else if (pr.prType === "weight" && !entry.estimated1rm) entry.maxWeight = Math.round(Number(pr.value));
+    prMap.set(pr.exerciseName, entry);
+  }
+  const prs = Array.from(prMap.values());
+  const existingProgramNames = userPrograms.map((p) => p.name);
 
   return (
     <div className="h-[100dvh] bg-background overflow-y-auto">
@@ -50,10 +73,12 @@ export default async function AiSetupPage() {
           <p className="text-sm text-muted-foreground mt-1">Generate your programs and training schedule in seconds.</p>
         </div>
         <AiSetupClient
-          exercises={exercises}
+          exercises={exerciseList}
           userProfile={userProfile}
           generationsToday={generationsToday}
           dailyLimit={dailyLimit}
+          prs={prs}
+          existingProgramNames={existingProgramNames}
         />
       </div>
     </div>

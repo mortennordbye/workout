@@ -2,12 +2,15 @@
 
 import { db } from "@/db";
 import { aiGenerations } from "@/db/schema/ai-generations";
+import { exercisePrs } from "@/db/schema/exercise-prs";
+import { exercises } from "@/db/schema/exercises";
+import { programs } from "@/db/schema/programs";
 import { users } from "@/db/schema/users";
 import { getAllExercises } from "@/lib/actions/exercises";
-import { buildAiSystemPrompt } from "@/lib/utils/ai-prompt";
+import { buildAiSystemPrompt, type PrData } from "@/lib/utils/ai-prompt";
 import { parseUserGoals } from "@/lib/utils/goals";
 import { requireSession } from "@/lib/utils/session";
-import { and, count, eq, gte } from "drizzle-orm";
+import { and, count, eq, gte, isNull } from "drizzle-orm";
 
 const DAILY_LIMIT = 5;
 const OPENROUTER_MODEL = "google/gemini-2.0-flash-001";
@@ -79,13 +82,29 @@ export async function generateWorkoutPlan(
     };
   }
 
-  // Fetch user profile + exercises in parallel
-  const [exerciseResult, user] = await Promise.all([
+  // Fetch user profile, exercises, and PRs in parallel
+  const [exerciseResult, user, rawPrs, userPrograms] = await Promise.all([
     getAllExercises(),
     db.query.users.findFirst({ where: eq(users.id, userId) }),
+    db
+      .select({ exerciseName: exercises.name, prType: exercisePrs.prType, value: exercisePrs.value })
+      .from(exercisePrs)
+      .innerJoin(exercises, eq(exercisePrs.exerciseId, exercises.id))
+      .where(and(eq(exercisePrs.userId, userId), isNull(exercisePrs.supersededAt))),
+    db.select({ name: programs.name }).from(programs).where(eq(programs.userId, userId)),
   ]);
 
-  const exercises = exerciseResult.success ? exerciseResult.data : [];
+  // Deduplicate: one entry per exercise, preferring estimated_1rm over weight
+  const prMap = new Map<string, PrData>();
+  for (const pr of rawPrs) {
+    const entry = prMap.get(pr.exerciseName) ?? { exerciseName: pr.exerciseName };
+    if (pr.prType === "estimated_1rm") entry.estimated1rm = Math.round(Number(pr.value));
+    else if (pr.prType === "weight" && !entry.estimated1rm) entry.maxWeight = Math.round(Number(pr.value));
+    prMap.set(pr.exerciseName, entry);
+  }
+  const prs = Array.from(prMap.values());
+
+  const exerciseList = exerciseResult.success ? exerciseResult.data : [];
   const userProfile = {
     gender: user?.gender ?? null,
     birthYear: user?.birthYear ?? null,
@@ -95,7 +114,9 @@ export async function generateWorkoutPlan(
     experienceLevel: user?.experienceLevel ?? null,
   };
 
-  const systemPrompt = `${buildAiSystemPrompt(userProfile, exercises)}
+  const existingProgramNames = userPrograms.map((p) => p.name);
+
+  const systemPrompt = `${buildAiSystemPrompt(userProfile, exerciseList, prs, existingProgramNames)}
 
 Generate the full plan based on the training goals the user describes. Output only the raw JSON — no explanation, no markdown, no code block.`;
 

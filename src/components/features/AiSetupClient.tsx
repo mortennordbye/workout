@@ -3,9 +3,9 @@
 import { generateWorkoutPlan } from "@/lib/actions/ai-generate";
 import { importProgram } from "@/lib/actions/programs";
 import { importCycle } from "@/lib/actions/training-cycles";
-import { buildManualClipboardPrompt } from "@/lib/utils/ai-prompt";
+import { buildManualClipboardPrompt, type PrData } from "@/lib/utils/ai-prompt";
 import type { Exercise } from "@/types/workout";
-import { Check, ChevronDown, Copy, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Copy, Dumbbell, RefreshCw, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -18,14 +18,102 @@ type UserProfile = {
   experienceLevel: string | null;
 };
 
+type PreviewProgram = { name: string; exercises: unknown[] };
+type PreviewCycle = { name: string; durationWeeks: number; scheduleType: string };
+
+function PreviewCard({
+  parsed,
+  onConfirm,
+  onDiscard,
+  importing,
+}: {
+  parsed: Record<string, unknown>;
+  onConfirm: () => void;
+  onDiscard: () => void;
+  importing: boolean;
+}) {
+  const programs = (
+    Array.isArray(parsed.programs) ? parsed.programs :
+    parsed.program ? [parsed.program] : []
+  ) as PreviewProgram[];
+
+  const cycle = parsed.cycle as PreviewCycle | undefined;
+  const totalExercises = programs.reduce((sum, p) => sum + (Array.isArray(p.exercises) ? p.exercises.length : 0), 0);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Review before importing
+      </p>
+      <div className="rounded-xl bg-muted p-4 flex flex-col gap-3">
+        {/* Summary line */}
+        <div className="flex flex-wrap gap-3">
+          <span className="flex items-center gap-1.5 text-sm font-medium">
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            {programs.length} program{programs.length !== 1 ? "s" : ""}
+          </span>
+          <span className="flex items-center gap-1.5 text-sm font-medium">
+            <Dumbbell className="w-3.5 h-3.5 text-primary" />
+            {totalExercises} exercise{totalExercises !== 1 ? "s" : ""}
+          </span>
+          {cycle && (
+            <span className="flex items-center gap-1.5 text-sm font-medium">
+              <RefreshCw className="w-3.5 h-3.5 text-primary" />
+              {cycle.durationWeeks}-week cycle
+            </span>
+          )}
+        </div>
+
+        {/* Program list */}
+        <div className="flex flex-col gap-1">
+          {programs.map((p, i) => (
+            <div key={i} className="flex items-center justify-between text-sm">
+              <span className="text-foreground">{p.name}</span>
+              <span className="text-muted-foreground text-xs">
+                {Array.isArray(p.exercises) ? p.exercises.length : 0} exercises
+              </span>
+            </div>
+          ))}
+          {cycle && (
+            <div className="flex items-center justify-between text-sm mt-1 pt-1 border-t border-border">
+              <span className="text-foreground">{cycle.name}</span>
+              <span className="text-muted-foreground text-xs">{cycle.durationWeeks} weeks</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onConfirm}
+        disabled={importing}
+        className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80 disabled:opacity-50"
+      >
+        <Check className="w-4 h-4" />
+        {importing ? "Importing…" : "Import"}
+      </button>
+      <button
+        type="button"
+        onClick={onDiscard}
+        disabled={importing}
+        className="text-sm text-muted-foreground active:opacity-70 text-center py-1"
+      >
+        Discard and start over
+      </button>
+    </div>
+  );
+}
+
 type Props = {
   exercises: Exercise[];
   userProfile: UserProfile;
   generationsToday: number;
   dailyLimit: number;
+  prs: PrData[];
+  existingProgramNames: string[];
 };
 
-export function AiSetupClient({ exercises, userProfile, generationsToday, dailyLimit }: Props) {
+export function AiSetupClient({ exercises, userProfile, generationsToday, dailyLimit, prs, existingProgramNames }: Props) {
   const router = useRouter();
 
   // Manual flow state
@@ -38,13 +126,20 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
 
   // Automatic flow state
   const [autoDescription, setAutoDescription] = useState("");
-  const [autoStatus, setAutoStatus] = useState<"idle" | "generating" | "error">("idle");
+  const [autoStatus, setAutoStatus] = useState<"idle" | "asking" | "preview" | "importing" | "error">("idle");
   const [autoError, setAutoError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(dailyLimit - generationsToday);
+  const [pendingJson, setPendingJson] = useState<Record<string, unknown> | null>(null);
+
+  const AUTO_BUSY = autoStatus === "asking" || autoStatus === "importing";
+  const AUTO_STATUS_LABEL: Record<string, string> = {
+    asking: "Asking the AI…",
+    importing: "Importing programs…",
+  };
   const [showManual, setShowManual] = useState(false);
 
   function handleCopyPrompt() {
-    navigator.clipboard.writeText(buildManualClipboardPrompt(userProfile, exercises));
+    navigator.clipboard.writeText(buildManualClipboardPrompt(userProfile, exercises, prs, existingProgramNames));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -142,8 +237,8 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
   }
 
   async function handleGenerate() {
-    if (!autoDescription.trim() || autoStatus === "generating") return;
-    setAutoStatus("generating");
+    if (!autoDescription.trim() || AUTO_BUSY) return;
+    setAutoStatus("asking");
     setAutoError(null);
 
     const result = await generateWorkoutPlan(autoDescription);
@@ -162,10 +257,22 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
       return;
     }
 
+    setPendingJson(parsed as Record<string, unknown>);
+    setAutoStatus("preview");
+  }
+
+  async function handleConfirmImport() {
+    if (!pendingJson) return;
+    const json = pendingJson;
+    setAutoStatus("importing");
+    await handleImportParsed(json);
+    setPendingJson(null);
     setAutoStatus("idle");
-    setAutoDescription("");
-    setStatus("importing");
-    await handleImportParsed(parsed as Record<string, unknown>);
+  }
+
+  function handleDiscard() {
+    setPendingJson(null);
+    setAutoStatus("idle");
   }
 
   if (status === "success") {
@@ -199,37 +306,61 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
   return (
     <div className="flex-1 flex flex-col gap-6 px-4 pb-8">
       {/* Auto-generate section */}
-      <div className="flex flex-col gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Auto-generate with AI
-        </p>
-        <p className="text-sm text-muted-foreground">
-          Describe what you&apos;re looking for and the app will build your programs automatically.
-        </p>
-        <textarea
-          value={autoDescription}
-          onChange={(e) => {
-            setAutoDescription(e.target.value);
-            setAutoError(null);
-          }}
-          placeholder="e.g. 3-day push/pull/legs, intermediate lifter, progressive overload on the big lifts…"
-          rows={4}
-          className="w-full rounded-xl bg-muted px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
+      {(autoStatus === "preview" || autoStatus === "importing") && pendingJson ? (
+        <PreviewCard
+          parsed={pendingJson}
+          onConfirm={handleConfirmImport}
+          onDiscard={handleDiscard}
+          importing={autoStatus === "importing"}
         />
-        {autoError && <p className="text-xs text-destructive">{autoError}</p>}
-        <p className="text-xs text-muted-foreground">
-          {remaining} of {dailyLimit} generations remaining today
-        </p>
-        <button
-          type="button"
-          onClick={handleGenerate}
-          disabled={!autoDescription.trim() || autoStatus === "generating" || remaining <= 0}
-          className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80 disabled:opacity-50"
-        >
-          <Sparkles className="w-4 h-4" />
-          {autoStatus === "generating" ? "Generating…" : "Generate"}
-        </button>
-      </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Auto-generate with AI
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Describe what you&apos;re looking for and the app will build your programs automatically.
+          </p>
+          <textarea
+            value={autoDescription}
+            onChange={(e) => {
+              setAutoDescription(e.target.value);
+              setAutoError(null);
+            }}
+            placeholder="e.g. 3-day push/pull/legs, intermediate lifter, progressive overload on the big lifts…"
+            rows={4}
+            className="w-full rounded-xl bg-muted px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
+          />
+          {autoError && <p className="text-xs text-destructive">{autoError}</p>}
+          <p className="text-xs text-muted-foreground">
+            {remaining} of {dailyLimit} generations remaining today
+          </p>
+          {AUTO_BUSY && (
+            <div className="flex items-center gap-3 py-0.5">
+              {(["asking", "importing"] as const).map((phase, i) => (
+                <div key={phase} className="flex items-center gap-2">
+                  {i > 0 && <div className="h-px w-4 bg-border" />}
+                  <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${autoStatus === phase ? "text-primary" : autoStatus === "importing" && phase === "asking" ? "text-muted-foreground/50" : "text-muted-foreground/30"}`}>
+                    {autoStatus === phase && (
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    )}
+                    {AUTO_STATUS_LABEL[phase]}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={!autoDescription.trim() || AUTO_BUSY || remaining <= 0}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80 disabled:opacity-50"
+          >
+            <Sparkles className="w-4 h-4" />
+            {AUTO_BUSY ? AUTO_STATUS_LABEL[autoStatus] : "Generate"}
+          </button>
+        </div>
+      )}
 
       {/* Manual toggle */}
       <button
