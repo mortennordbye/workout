@@ -128,6 +128,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
   const [autoDescription, setAutoDescription] = useState("");
   const [daysPerWeek, setDaysPerWeek] = useState<number | undefined>(undefined);
   const [equipment, setEquipment] = useState<PromptOptions["equipment"]>("full_gym");
+  const [cycleDurationWeeks, setCycleDurationWeeks] = useState<PromptOptions["cycleDurationWeeks"]>(undefined);
   const [autoStatus, setAutoStatus] = useState<"idle" | "asking" | "preview" | "importing" | "error">("idle");
   const [autoError, setAutoError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(dailyLimit - generationsToday);
@@ -141,7 +142,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
   const [showManual, setShowManual] = useState(false);
 
   function handleCopyPrompt() {
-    navigator.clipboard.writeText(buildManualClipboardPrompt(userProfile, exercises, prs, existingProgramNames, { daysPerWeek, equipment }));
+    navigator.clipboard.writeText(buildManualClipboardPrompt(userProfile, exercises, prs, existingProgramNames, { daysPerWeek, equipment, cycleDurationWeeks }));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -243,7 +244,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
     setAutoStatus("asking");
     setAutoError(null);
 
-    const result = await generateWorkoutPlan(autoDescription, { daysPerWeek, equipment });
+    const result = await generateWorkoutPlan(autoDescription, { daysPerWeek, equipment, cycleDurationWeeks });
     if (!result.success) {
       setAutoStatus("error");
       setAutoError(result.error);
@@ -340,7 +341,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
               className="flex-1 rounded-xl bg-muted px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="">Days/week (any)</option>
-              {[2, 3, 4, 5, 6].map((d) => (
+              {[2, 3, 4, 5, 6, 7].map((d) => (
                 <option key={d} value={d}>{d} days/week</option>
               ))}
             </select>
@@ -353,6 +354,18 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
               <option value="barbell">Barbell + rack</option>
               <option value="dumbbells">Dumbbells only</option>
               <option value="bodyweight">Bodyweight only</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={cycleDurationWeeks ?? ""}
+              onChange={(e) => setCycleDurationWeeks(e.target.value ? Number(e.target.value) as PromptOptions["cycleDurationWeeks"] : undefined)}
+              className="w-full rounded-xl bg-muted px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Cycle length (AI decides)</option>
+              {([4, 6, 8, 10, 12, 16] as const).map((w) => (
+                <option key={w} value={w}>{w} weeks</option>
+              ))}
             </select>
           </div>
           {autoError && <p className="text-xs text-destructive">{autoError}</p>}

@@ -7,6 +7,7 @@ export type PrData = {
 export type PromptOptions = {
   daysPerWeek?: number;
   equipment?: "full_gym" | "barbell" | "dumbbells" | "bodyweight";
+  cycleDurationWeeks?: 4 | 6 | 8 | 10 | 12 | 16;
 };
 
 type UserProfile = {
@@ -65,6 +66,7 @@ export function buildAiSystemPrompt(userProfile: UserProfile, exercises: Exercis
   if (userProfile.weightKg) profileLines.push(`Body weight: ${userProfile.weightKg} kg`);
   if (options.daysPerWeek) profileLines.push(`Training frequency: ${options.daysPerWeek} days/week`);
   if (options.equipment) profileLines.push(`Available equipment: ${EQUIPMENT_LABELS[options.equipment] ?? options.equipment}`);
+  if (options.cycleDurationWeeks) profileLines.push(`Preferred cycle length: ${options.cycleDurationWeeks} weeks`);
   const profileBlock =
     profileLines.length > 0
       ? `\nAbout me:\n${profileLines.map((l) => `- ${l}`).join("\n")}\n`
@@ -93,6 +95,9 @@ export function buildAiSystemPrompt(userProfile: UserProfile, exercises: Exercis
       : "";
   const frequencyRule = options.daysPerWeek
     ? `\n- Frequency constraint: the cycle must schedule EXACTLY ${options.daysPerWeek} training day${options.daysPerWeek !== 1 ? "s" : ""} per week — no more, no less.`
+    : "";
+  const durationRule = options.cycleDurationWeeks
+    ? `\n- Cycle duration constraint: durationWeeks MUST be ${options.cycleDurationWeeks}.`
     : "";
 
   return `Set up my workout app with the right programs and training schedule.${profileBlock}${prBlock}${existingProgramsBlock}
@@ -165,7 +170,7 @@ Rules:
 - Exercise order: always list compound/multi-joint exercises before isolation exercises within a program
 - Starting weights: use ~75% of 1RM for 3–5 rep sets, ~70% for 6–8 reps, ~65% for 8–12 reps, ~60% for 12–15 reps. Estimate for exercises without PR data using body weight as reference where appropriate.
 - Periodization: for beginner/novice experience levels use linear progression (same weight each session, add weight only when top of rep range is hit consistently). For intermediate/advanced use undulating periodization (vary rep ranges across sessions or programs, e.g. heavy/medium/light days).
-- Weekly volume: aim for 10–20 working sets per muscle group per week across all programs in the cycle combined. Avoid both under-training (< 10 sets) and junk volume (> 20 sets).${equipmentRule}${frequencyRule}
+- Weekly volume: aim for 10–20 working sets per muscle group per week across all programs in the cycle combined. Avoid both under-training (< 10 sets) and junk volume (> 20 sets).${equipmentRule}${frequencyRule}${durationRule}
 ${exerciseListText}
 IMPORTANT: The list above contains exercises already in my library. Use those exact names whenever possible — only invent a new exercise name if the exercise genuinely does not exist in the list.
 IMPORTANT: Keep programs focused — max 8 exercises per program, max 4 sets per exercise. Prioritise quality over quantity.`;
