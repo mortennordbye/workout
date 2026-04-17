@@ -172,6 +172,22 @@ export async function deleteProgram(
   }
 }
 
+export async function deleteManyPrograms(
+  programIds: number[],
+): Promise<ActionResult<void>> {
+  if (programIds.length === 0) return { success: true, data: undefined };
+  const auth = await requireSession();
+  try {
+    await db.delete(programs).where(
+      and(inArray(programs.id, programIds), eq(programs.userId, auth.user.id))
+    );
+    revalidatePath("/programs");
+    return { success: true, data: undefined };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Program Exercises
 // ─────────────────────────────────────────────────────────────────────────────

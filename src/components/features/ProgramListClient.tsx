@@ -1,9 +1,9 @@
 "use client";
 
-import { createProgram, deleteProgram, exportAllPrograms, importProgram, updateProgram } from "@/lib/actions/programs";
+import { createProgram, deleteManyPrograms, exportAllPrograms, importProgram, updateProgram } from "@/lib/actions/programs";
 import type { Program } from "@/types/workout";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { ChevronRightIcon, Download, Minus, PlusIcon, Upload } from "lucide-react";
+import { Check, ChevronRightIcon, Download, PlusIcon, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -16,21 +16,22 @@ export function ProgramListClient({ programs: initial }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [programs, setPrograms] = useState(initial);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     setPrograms(initial);
   }, [initial]);
-  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
-  const [deleting, setDeleting] = useState(false);
+
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renamingValue, setRenamingValue] = useState("");
 
-  // Create form state
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
 
-  // Export state
   const [exporting, setExporting] = useState(false);
 
   async function handleExportAll() {
@@ -49,22 +50,55 @@ export function ProgramListClient({ programs: initial }: Props) {
     URL.revokeObjectURL(url);
   }
 
-  // Import state
   const [importSheetOpen, setImportSheetOpen] = useState(false);
   const [importStatus, setImportStatus] = useState<"idle" | "reading" | "uploading" | "error">("idle");
   const [importError, setImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleDelete(programId: number) {
-    setDeleting(true);
+  function stopEditing() {
+    setIsEditing(false);
+    setSelectedIds(new Set());
+    setRenamingId(null);
+    setShowBulkConfirm(false);
+    setBulkDeleteError(null);
+  }
+
+  function toggleSelect(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setShowBulkConfirm(false);
+  }
+
+  const allSelected = programs.length > 0 && selectedIds.size === programs.length;
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(programs.map((p) => p.id)));
+    }
+    setShowBulkConfirm(false);
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    setBulkDeleting(true);
     const snapshot = programs;
-    setPrograms((prev) => prev.filter((p) => p.id !== programId));
-    const result = await deleteProgram(programId);
+    setPrograms((prev) => prev.filter((p) => !selectedIds.has(p.id)));
+    setSelectedIds(new Set());
+    setShowBulkConfirm(false);
+    const result = await deleteManyPrograms(ids);
     if (!result.success) {
       setPrograms(snapshot);
+      setBulkDeleteError(result.error ?? "Failed to delete programs.");
+    } else {
+      stopEditing();
     }
-    setPendingDeleteId(null);
-    setDeleting(false);
+    setBulkDeleting(false);
     router.refresh();
   }
 
@@ -133,13 +167,22 @@ export function ProgramListClient({ programs: initial }: Props) {
         <h1 className="text-3xl font-bold tracking-tight">Programs</h1>
         <div className="flex items-center gap-3">
           {isEditing ? (
-            <button
-              type="button"
-              onClick={() => { setIsEditing(false); setPendingDeleteId(null); setRenamingId(null); }}
-              className="text-primary text-sm font-medium min-h-[44px] px-1"
-            >
-              Done
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="text-primary text-sm font-medium min-h-[44px] px-1"
+              >
+                {allSelected ? "Deselect All" : "Select All"}
+              </button>
+              <button
+                type="button"
+                onClick={stopEditing}
+                className="text-primary text-sm font-medium min-h-[44px] px-1"
+              >
+                Done
+              </button>
+            </>
           ) : (
             <>
               {programs.length > 0 && (
@@ -181,49 +224,68 @@ export function ProgramListClient({ programs: initial }: Props) {
         </div>
       </div>
 
+      {/* Bulk delete bar */}
+      {isEditing && selectedIds.size > 0 && (
+        <div className="px-4 pb-2">
+          {showBulkConfirm ? (
+            <div className="rounded-2xl bg-destructive/10 px-4 py-3 flex items-center justify-between">
+              <span className="text-sm font-medium text-destructive">
+                Delete {selectedIds.size} program{selectedIds.size !== 1 ? "s" : ""}?
+              </span>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => { setShowBulkConfirm(false); setBulkDeleteError(null); }}
+                  className="text-sm text-muted-foreground font-medium min-h-[44px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                  className="text-sm text-destructive font-semibold min-h-[44px] disabled:opacity-50"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowBulkConfirm(true)}
+              className="w-full rounded-2xl bg-destructive py-4 text-sm font-semibold text-white active:opacity-80 transition-opacity"
+            >
+              Delete {selectedIds.size} selected
+            </button>
+          )}
+        </div>
+      )}
+
+      {isEditing && bulkDeleteError && (
+        <p className="text-sm text-destructive px-4 pb-2">{bulkDeleteError}</p>
+      )}
+
       <div className="px-4 pt-4">
         {programs.length > 0 && (
           <div className="flex flex-col divide-y divide-border rounded-2xl bg-card overflow-hidden mb-4">
             {programs.map((program) => {
-              const isPending = pendingDeleteId === program.id;
-
-              if (isPending) {
-                return (
-                  <div key={program.id} className="flex items-center justify-between px-4 py-4 bg-destructive/10">
-                    <span className="text-sm font-medium text-destructive">
-                      Delete &ldquo;{program.name}&rdquo;?
-                    </span>
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setPendingDeleteId(null)}
-                        className="text-sm text-muted-foreground font-medium min-h-[44px] px-1"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(program.id)}
-                        disabled={deleting}
-                        className="text-sm text-destructive font-semibold min-h-[44px] px-1 disabled:opacity-50"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                );
-              }
+              const isSelected = selectedIds.has(program.id);
 
               return (
                 <div key={program.id} className="flex items-center gap-3 px-4">
                   {isEditing && (
                     <button
                       type="button"
-                      onClick={() => setPendingDeleteId(program.id)}
-                      className="w-7 h-7 rounded-full bg-destructive flex items-center justify-center shrink-0"
-                      aria-label={`Delete ${program.name}`}
+                      onClick={() => toggleSelect(program.id)}
+                      className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${
+                        isSelected
+                          ? "bg-primary border-primary"
+                          : "bg-transparent border-muted-foreground/40"
+                      }`}
+                      aria-label={isSelected ? `Deselect ${program.name}` : `Select ${program.name}`}
                     >
-                      <Minus className="w-4 h-4 text-white" />
+                      {isSelected && <Check className="w-4 h-4 text-white" />}
                     </button>
                   )}
                   {isEditing ? (
@@ -266,7 +328,6 @@ export function ProgramListClient({ programs: initial }: Props) {
           </p>
         )}
 
-        {/* Inline create form */}
         {showCreate && (
           <form onSubmit={handleCreate} className="flex gap-2 mb-4">
             <input
@@ -294,7 +355,6 @@ export function ProgramListClient({ programs: initial }: Props) {
         )}
       </div>
 
-      {/* Import */}
       <input
         ref={fileInputRef}
         type="file"
