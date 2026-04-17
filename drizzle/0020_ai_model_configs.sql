@@ -9,6 +9,8 @@ CREATE TABLE "ai_model_configs" (
 );
 --> statement-breakpoint
 INSERT INTO "ai_model_configs" ("model_id", "label", "enabled", "priority") VALUES
-  ('google/gemini-2.0-flash-exp:free', 'Gemini 2.0 Flash (free)', true, 1),
-  ('deepseek/deepseek-chat-v3-0324:free', 'DeepSeek V3 (free)', true, 2),
-  ('meta-llama/llama-3.3-70b-instruct:free', 'Llama 3.3 70B (free)', true, 3);
+  ('openrouter/free', 'Free Models Router (auto)', true, 1),
+  ('qwen/qwen3-coder:free', 'Qwen3 Coder 480B (free)', true, 2),
+  ('nousresearch/hermes-3-llama-3.1-405b:free', 'Hermes 3 405B (free)', true, 3),
+  ('meta-llama/llama-3.3-70b-instruct:free', 'Llama 3.3 70B (free)', true, 4)
+ON CONFLICT (model_id) DO NOTHING;
