@@ -3,7 +3,7 @@
 import { generateWorkoutPlan } from "@/lib/actions/ai-generate";
 import { importProgram } from "@/lib/actions/programs";
 import { importCycle } from "@/lib/actions/training-cycles";
-import { buildManualClipboardPrompt, type PrData } from "@/lib/utils/ai-prompt";
+import { buildManualClipboardPrompt, type PrData, type PromptOptions } from "@/lib/utils/ai-prompt";
 import type { Exercise } from "@/types/workout";
 import { Check, ChevronDown, Copy, Dumbbell, RefreshCw, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -126,6 +126,8 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
 
   // Automatic flow state
   const [autoDescription, setAutoDescription] = useState("");
+  const [daysPerWeek, setDaysPerWeek] = useState<number | undefined>(undefined);
+  const [equipment, setEquipment] = useState<PromptOptions["equipment"]>("full_gym");
   const [autoStatus, setAutoStatus] = useState<"idle" | "asking" | "preview" | "importing" | "error">("idle");
   const [autoError, setAutoError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(dailyLimit - generationsToday);
@@ -139,7 +141,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
   const [showManual, setShowManual] = useState(false);
 
   function handleCopyPrompt() {
-    navigator.clipboard.writeText(buildManualClipboardPrompt(userProfile, exercises, prs, existingProgramNames));
+    navigator.clipboard.writeText(buildManualClipboardPrompt(userProfile, exercises, prs, existingProgramNames, { daysPerWeek, equipment }));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -241,7 +243,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
     setAutoStatus("asking");
     setAutoError(null);
 
-    const result = await generateWorkoutPlan(autoDescription);
+    const result = await generateWorkoutPlan(autoDescription, { daysPerWeek, equipment });
     if (!result.success) {
       setAutoStatus("error");
       setAutoError(result.error);
@@ -331,6 +333,28 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
             rows={4}
             className="w-full rounded-xl bg-muted px-3 py-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
           />
+          <div className="flex gap-2">
+            <select
+              value={daysPerWeek ?? ""}
+              onChange={(e) => setDaysPerWeek(e.target.value ? Number(e.target.value) : undefined)}
+              className="flex-1 rounded-xl bg-muted px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">Days/week (any)</option>
+              {[2, 3, 4, 5, 6].map((d) => (
+                <option key={d} value={d}>{d} days/week</option>
+              ))}
+            </select>
+            <select
+              value={equipment}
+              onChange={(e) => setEquipment(e.target.value as PromptOptions["equipment"])}
+              className="flex-1 rounded-xl bg-muted px-3 py-2.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="full_gym">Full gym</option>
+              <option value="barbell">Barbell + rack</option>
+              <option value="dumbbells">Dumbbells only</option>
+              <option value="bodyweight">Bodyweight only</option>
+            </select>
+          </div>
           {autoError && <p className="text-xs text-destructive">{autoError}</p>}
           <p className="text-xs text-muted-foreground">
             {remaining} of {dailyLimit} generations remaining today

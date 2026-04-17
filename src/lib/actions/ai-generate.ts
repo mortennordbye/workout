@@ -7,7 +7,7 @@ import { exercises } from "@/db/schema/exercises";
 import { programs } from "@/db/schema/programs";
 import { users } from "@/db/schema/users";
 import { getAllExercises } from "@/lib/actions/exercises";
-import { buildAiSystemPrompt, type PrData } from "@/lib/utils/ai-prompt";
+import { buildAiSystemPrompt, type PrData, type PromptOptions } from "@/lib/utils/ai-prompt";
 import { parseUserGoals } from "@/lib/utils/goals";
 import { requireSession } from "@/lib/utils/session";
 import { and, count, eq, gte, isNull } from "drizzle-orm";
@@ -59,6 +59,7 @@ export async function getAiRateLimitStatus(): Promise<ActionResult<RateLimitInfo
 
 export async function generateWorkoutPlan(
   userDescription: string,
+  options: PromptOptions = {},
 ): Promise<ActionResult<AiGenerateResult>> {
   const auth = await requireSession();
   const userId = auth.user.id;
@@ -116,7 +117,7 @@ export async function generateWorkoutPlan(
 
   const existingProgramNames = userPrograms.map((p) => p.name);
 
-  const systemPrompt = `${buildAiSystemPrompt(userProfile, exerciseList, prs, existingProgramNames)}
+  const systemPrompt = `${buildAiSystemPrompt(userProfile, exerciseList, prs, existingProgramNames, options)}
 
 Generate the full plan based on the training goals the user describes. Output only the raw JSON — no explanation, no markdown, no code block.`;
 
