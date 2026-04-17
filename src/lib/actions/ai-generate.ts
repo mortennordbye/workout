@@ -2,6 +2,7 @@
 
 import { db } from "@/db";
 import { aiGenerations } from "@/db/schema/ai-generations";
+import { aiModelConfigs } from "@/db/schema/ai-model-configs";
 import { exercisePrs } from "@/db/schema/exercise-prs";
 import { exercises } from "@/db/schema/exercises";
 import { programs } from "@/db/schema/programs";
@@ -10,10 +11,15 @@ import { getAllExercises } from "@/lib/actions/exercises";
 import { buildAiSystemPrompt, type PrData, type PromptOptions } from "@/lib/utils/ai-prompt";
 import { parseUserGoals } from "@/lib/utils/goals";
 import { requireSession } from "@/lib/utils/session";
-import { and, count, eq, gte, isNull } from "drizzle-orm";
+import { and, asc, count, eq, gte, isNull } from "drizzle-orm";
 
 const DAILY_LIMIT = 5;
-const OPENROUTER_MODEL = "google/gemini-2.0-flash-001";
+
+const DEFAULT_MODELS = [
+  { modelId: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (free)" },
+  { modelId: "deepseek/deepseek-chat-v3-0324:free", label: "DeepSeek V3 (free)" },
+  { modelId: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B (free)" },
+];
 
 type ActionResult<T = undefined> =
   | { success: true; data: T }
@@ -28,12 +34,26 @@ export type AiGenerateResult = {
   json: unknown;
   generationsToday: number;
   dailyLimit: number;
+  modelUsed: string;
 };
 
 function startOfToday(): Date {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return d;
+}
+
+async function getEnabledModels(): Promise<{ modelId: string; label: string }[]> {
+  try {
+    const rows = await db
+      .select({ modelId: aiModelConfigs.modelId, label: aiModelConfigs.label })
+      .from(aiModelConfigs)
+      .where(eq(aiModelConfigs.enabled, true))
+      .orderBy(asc(aiModelConfigs.priority));
+    return rows.length > 0 ? rows : DEFAULT_MODELS;
+  } catch {
+    return DEFAULT_MODELS;
+  }
 }
 
 export async function getAiRateLimitStatus(): Promise<ActionResult<RateLimitInfo>> {
@@ -83,8 +103,8 @@ export async function generateWorkoutPlan(
     };
   }
 
-  // Fetch user profile, exercises, and PRs in parallel
-  const [exerciseResult, user, rawPrs, userPrograms] = await Promise.all([
+  // Fetch user profile, exercises, PRs, enabled models in parallel
+  const [exerciseResult, user, rawPrs, userPrograms, models] = await Promise.all([
     getAllExercises(),
     db.query.users.findFirst({ where: eq(users.id, userId) }),
     db
@@ -93,7 +113,12 @@ export async function generateWorkoutPlan(
       .innerJoin(exercises, eq(exercisePrs.exerciseId, exercises.id))
       .where(and(eq(exercisePrs.userId, userId), isNull(exercisePrs.supersededAt))),
     db.select({ name: programs.name }).from(programs).where(eq(programs.userId, userId)),
+    getEnabledModels(),
   ]);
+
+  if (models.length === 0) {
+    return { success: false, error: "No AI models are enabled. Ask an admin to enable at least one model." };
+  }
 
   // Deduplicate: one entry per exercise, preferring estimated_1rm over weight
   const prMap = new Map<string, PrData>();
@@ -126,46 +151,57 @@ Generate the full plan based on the training goals the user describes. Output on
     return { success: false, error: "AI generation is not configured on this server." };
   }
 
-  let rawText: string;
-  try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": process.env.BETTER_AUTH_URL ?? "https://logevery.lift",
-        "X-Title": "LogEveryLift AI Setup",
-      },
-      body: JSON.stringify({
-        model: OPENROUTER_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: trimmed },
-        ],
-        temperature: 0.4,
-        max_tokens: 16384,
-      }),
-    });
+  // Try each model in priority order, falling through on failure
+  let rawText: string | null = null;
+  let modelUsed = "";
 
-    if (!response.ok) {
-      const body = await response.text();
-      console.error("OpenRouter error:", response.status, body);
-      return {
-        success: false,
-        error: "The AI service returned an error. Please try again in a moment.",
-      };
-    }
+  for (const model of models) {
+    try {
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": process.env.BETTER_AUTH_URL ?? "https://logevery.lift",
+          "X-Title": "LogEveryLift AI Setup",
+        },
+        body: JSON.stringify({
+          model: model.modelId,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: trimmed },
+          ],
+          temperature: 0.4,
+          max_tokens: 16384,
+        }),
+      });
 
-    const data = await response.json();
-    rawText = (data?.choices?.[0]?.message?.content as string) ?? "";
-    if (!rawText) {
-      return { success: false, error: "The AI returned an empty response. Please try again." };
+      if (!response.ok) {
+        const body = await response.text();
+        console.warn(`[AI] ${model.label} failed (HTTP ${response.status}):`, body.slice(0, 200));
+        continue;
+      }
+
+      const data = await response.json();
+      const text: string = (data?.choices?.[0]?.message?.content as string) ?? "";
+      if (!text) {
+        console.warn(`[AI] ${model.label} returned empty response`);
+        continue;
+      }
+
+      rawText = text;
+      modelUsed = model.modelId;
+      break;
+    } catch (err) {
+      console.warn(`[AI] ${model.label} threw:`, err);
+      continue;
     }
-  } catch (err) {
-    console.error("OpenRouter fetch failed:", err);
+  }
+
+  if (!rawText) {
     return {
       success: false,
-      error: "Could not reach the AI service. Check your connection and try again.",
+      error: "All AI models are currently unavailable. Please try again in a moment.",
     };
   }
 
@@ -189,15 +225,17 @@ Generate the full plan based on the training goals the user describes. Output on
     return { success: false, error: "The AI response wasn't valid JSON. Please try again." };
   }
 
-  // Record usage only after a successful parse (failed/empty responses don't consume quota)
+  // Record usage only after a successful parse
   try {
     await db.insert(aiGenerations).values({ userId });
   } catch (err) {
     console.error("Failed to record AI generation:", err);
   }
 
+  console.log(`[AI] Generation successful via ${modelUsed}`);
+
   return {
     success: true,
-    data: { json: parsed, generationsToday: generationsToday + 1, dailyLimit: DAILY_LIMIT },
+    data: { json: parsed, generationsToday: generationsToday + 1, dailyLimit: DAILY_LIMIT, modelUsed },
   };
 }
