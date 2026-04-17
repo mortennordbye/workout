@@ -257,6 +257,7 @@ export function WorkoutSetsList({
             actualReps: ov?.targetReps ?? item.set.targetReps ?? 0,
             weightKg: ov?.weightKg ?? Number(item.set.weightKg ?? 0),
             durationSeconds: ov?.durationSeconds ?? item.set.durationSeconds ?? undefined,
+            distanceMeters: ov?.distanceMeters ?? item.set.distanceMeters ?? undefined,
             rpe: 7,
             restTimeSeconds: 0,
             isCompleted: true,
@@ -711,6 +712,15 @@ export function WorkoutSetsList({
             </button>
             <button
               onClick={() => {
+                const elapsed = exerciseTimer.total - exerciseTimer.remaining;
+                if (elapsed > 0 && elapsed < exerciseTimer.total && workoutSession) {
+                  const ov = workoutSession.overrides[exerciseTimer.setId];
+                  workoutSession.setOverride(exerciseTimer.setId, {
+                    targetReps: ov?.targetReps ?? 0,
+                    weightKg: ov?.weightKg ?? 0,
+                    durationSeconds: elapsed,
+                  });
+                }
                 void toggleSet(exerciseTimer.setId);
                 setExerciseTimer(null);
               }}
@@ -733,8 +743,8 @@ export function WorkoutSetsList({
             open={true}
             onClose={() => setPendingRunSetId(null)}
             onConfirm={(dist, dur, rpe, incline, hrZone) => confirmRunLog(pendingRunSetId, dist, dur, rpe, incline, hrZone)}
-            targetDistanceMeters={runSet?.distanceMeters}
-            targetDurationSeconds={runSet?.durationSeconds}
+            targetDistanceMeters={workoutSession?.overrides[pendingRunSetId]?.distanceMeters ?? runSet?.distanceMeters}
+            targetDurationSeconds={workoutSession?.overrides[pendingRunSetId]?.durationSeconds ?? runSet?.durationSeconds}
             targetInclinePercent={runSet?.inclinePercent}
             targetHeartRateZone={runSet?.targetHeartRateZone}
             setNumber={setNumber}

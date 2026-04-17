@@ -941,7 +941,7 @@ export async function getWorkoutInsight(
       status = "deloading";
     } else if (sug.sessionsUntilDeload === 1) {
       status = "near_deload";
-    } else if (sug.reason === "progressed" || sug.reason === "progressed-reps" || sug.reason === "progressed-time") {
+    } else if (sug.reason === "progressed" || sug.reason === "progressed-reps" || sug.reason === "progressed-time" || sug.reason === "progressed-distance") {
       status = "progressing";
     } else {
       status = "held";
@@ -1021,7 +1021,8 @@ export async function getWorkoutInsight(
     (s) =>
       s.reason === "progressed" ||
       s.reason === "progressed-reps" ||
-      s.reason === "progressed-time",
+      s.reason === "progressed-time" ||
+      s.reason === "progressed-distance",
   ).length;
   const isProgressing = tracked.length > 0 && progressedCount / tracked.length > 0.5;
 
