@@ -219,14 +219,16 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
     setTimeout(() => setCopied(false), 2000);
   }
 
-  async function handleImportParsed(raw: Record<string, unknown>) {
+  type ImportResult =
+    | { success: true; successMsg: string; cycleCreated: boolean }
+    | { success: false; error: string };
+
+  async function handleImportParsed(raw: Record<string, unknown>): Promise<ImportResult> {
     const hasProgramData = raw.program !== undefined || raw.programs !== undefined;
     const hasCycle = raw.cycle !== undefined;
 
     if (!hasProgramData && !hasCycle) {
-      setStatus("error");
-      setError('The JSON doesn\'t contain any programs or a cycle. Make sure you pasted the full AI response and that it includes a "programs" or "cycle" key.');
-      return;
+      return { success: false, error: 'The JSON doesn\'t contain any programs or a cycle. Make sure you pasted the full AI response and that it includes a "programs" or "cycle" key.' };
     }
 
     let programCount = 0;
@@ -236,9 +238,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
     if (hasProgramData) {
       const result = await importProgram(raw);
       if (!result.success) {
-        setStatus("error");
-        setError(result.error ?? "Failed to import programs.");
-        return;
+        return { success: false, error: result.error ?? "Failed to import programs." };
       }
       programCount = result.data.count;
     }
@@ -271,13 +271,9 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
         ? " You can find your programs in the Programs tab."
         : "";
 
-    setSuccessMsg(
-      warnings.length > 0 ? `${base}${suffix}\n\n⚠️ ${warnings.join(" ")}` : `${base}${suffix}`,
-    );
-    setCycleCreated(!!cycleName);
-    setStatus("success");
-    setPasteJson("");
+    const successMsg = warnings.length > 0 ? `${base}${suffix}\n\n⚠️ ${warnings.join(" ")}` : `${base}${suffix}`;
     router.refresh();
+    return { success: true, successMsg, cycleCreated: !!cycleName };
   }
 
   async function handleImport() {
@@ -308,7 +304,16 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
       return;
     }
 
-    await handleImportParsed(parsed as Record<string, unknown>);
+    const result = await handleImportParsed(parsed as Record<string, unknown>);
+    if (!result.success) {
+      setStatus("error");
+      setError(result.error);
+    } else {
+      setSuccessMsg(result.successMsg);
+      setCycleCreated(result.cycleCreated);
+      setStatus("success");
+      setPasteJson("");
+    }
   }
 
   async function handleGenerate() {
@@ -401,9 +406,18 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
     if (!pendingJson) return;
     const json = pendingJson;
     setAutoStatus("importing");
-    await handleImportParsed(json);
-    setPendingJson(null);
-    setAutoStatus("idle");
+    setAutoError(null);
+    const result = await handleImportParsed(json);
+    if (!result.success) {
+      // Keep the PreviewCard visible so the user can retry or discard
+      setAutoError(result.error);
+      setAutoStatus("preview");
+    } else {
+      setPendingJson(null);
+      setSuccessMsg(result.successMsg);
+      setCycleCreated(result.cycleCreated);
+      setStatus("success");
+    }
   }
 
   function handleDiscard() {
@@ -485,12 +499,20 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
           </button>
         </div>
       ) : (autoStatus === "preview" || autoStatus === "importing") && pendingJson ? (
-        <PreviewCard
-          parsed={pendingJson}
-          onConfirm={handleConfirmImport}
-          onDiscard={handleDiscard}
-          importing={autoStatus === "importing"}
-        />
+        <div className="flex flex-col gap-3">
+          {autoError && (
+            <div className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3">
+              <p className="text-xs font-semibold text-destructive">Import failed</p>
+              <p className="text-xs text-destructive/80 mt-0.5">{autoError}</p>
+            </div>
+          )}
+          <PreviewCard
+            parsed={pendingJson}
+            onConfirm={handleConfirmImport}
+            onDiscard={handleDiscard}
+            importing={autoStatus === "importing"}
+          />
+        </div>
       ) : (
         <div className="flex flex-col gap-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
