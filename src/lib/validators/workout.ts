@@ -232,18 +232,19 @@ const importProgramEntrySchema = z.object({
         z.object({
           idx: z.number().int().min(0),
           notes: z.string().max(500).nullable().optional(),
-          incKg: z.number().min(0).max(100).default(2.5),
-          incReps: z.number().int().min(0).max(100).default(0),
+          incKg: z.number().min(0).max(100).catch(2.5),
+          incReps: z.number().int().min(0).max(100).catch(0),
           mode: z
             .enum(["none", "manual", "weight", "smart", "reps", "time", "distance"])
-            .default("weight"),
+            .catch("weight"),
           exercise: z.object({
             name: z.string().min(1).max(100),
-            category: z.enum(["strength", "cardio", "flexibility"]),
+            category: z.enum(["strength", "cardio", "flexibility"]).catch("strength"),
             area: z
               .enum(["upper_body", "lower_body", "core", "full_body", "cardio"])
               .nullable()
-              .optional(),
+              .optional()
+              .catch(null),
             muscle: z
               .enum([
                 "chest",
@@ -262,7 +263,8 @@ const importProgramEntrySchema = z.object({
                 "cardio",
               ])
               .nullable()
-              .optional(),
+              .optional()
+              .catch(null),
             equipment: z
               .enum([
                 "barbell",
@@ -275,7 +277,8 @@ const importProgramEntrySchema = z.object({
                 "other",
               ])
               .nullable()
-              .optional(),
+              .optional()
+              .catch(null),
             pattern: z
               .enum([
                 "push",
@@ -288,16 +291,17 @@ const importProgramEntrySchema = z.object({
                 "cardio",
               ])
               .nullable()
-              .optional(),
+              .optional()
+              .catch(null),
           }),
           sets: z.array(
             z.object({
-              n: z.number().int().positive(),
-              reps: z.number().int().positive().nullable().optional(),
+              n: z.number().int().min(0),
+              reps: z.number().int().min(0).nullable().optional(),
               kg: z.number().min(0).max(1000).nullable().optional(),
               durSec: z.number().int().min(0).nullable().optional(),
               distM: z.number().int().min(0).nullable().optional(),
-              rest: z.number().int().min(0).max(3600).default(0),
+              rest: z.number().int().min(0).max(3600).catch(0),
             }),
           ),
         }),
@@ -305,9 +309,10 @@ const importProgramEntrySchema = z.object({
       .max(50),
 });
 
-// Accepts either a single program or an array of programs
+// Accepts either a single program or an array of programs.
+// version is optional to accommodate AI-generated JSON that may omit or vary the field.
 export const importProgramSchema = z.object({
-  version: z.literal(1),
+  version: z.union([z.number(), z.string()]).optional(),
   exportedAt: z.string().optional(),
 }).and(
   z.union([

@@ -681,7 +681,16 @@ export async function importProgram(
 
   const parsed = importProgramSchema.safeParse(data);
   if (!parsed.success) {
-    return { success: false, error: "Invalid program data. Make sure you copied the full response from the AI." };
+    const firstIssue = parsed.error.issues[0];
+    const detail = firstIssue
+      ? `${firstIssue.path.join(".") || "root"}: ${firstIssue.message}`
+      : null;
+    return {
+      success: false,
+      error: detail
+        ? `Invalid program data — ${detail}`
+        : "Invalid program data. Make sure you copied the full response from the AI.",
+    };
   }
 
   // Normalise to array regardless of single vs multi format
