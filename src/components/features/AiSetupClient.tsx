@@ -7,7 +7,9 @@ import { buildManualClipboardPrompt, type PrData, type PromptOptions } from "@/l
 import type { Exercise } from "@/types/workout";
 import { Check, ChevronDown, Copy, Dumbbell, RefreshCw, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const AI_PENDING_KEY = "ai_pending_result";
 
 type UserProfile = {
   gender: string | null;
@@ -19,7 +21,7 @@ type UserProfile = {
 };
 
 type PreviewProgram = { name: string; exercises: unknown[] };
-type PreviewCycle = { name: string; durationWeeks: number; scheduleType: string };
+type PreviewCycle = { name: string; weeks: number; sched: string };
 
 function PreviewCard({
   parsed,
@@ -59,7 +61,7 @@ function PreviewCard({
           {cycle && (
             <span className="flex items-center gap-1.5 text-sm font-medium">
               <RefreshCw className="w-3.5 h-3.5 text-primary" />
-              {cycle.durationWeeks}-week cycle
+              {cycle.weeks}-week cycle
             </span>
           )}
         </div>
@@ -77,7 +79,7 @@ function PreviewCard({
           {cycle && (
             <div className="flex items-center justify-between text-sm mt-1 pt-1 border-t border-border">
               <span className="text-foreground">{cycle.name}</span>
-              <span className="text-muted-foreground text-xs">{cycle.durationWeeks} weeks</span>
+              <span className="text-muted-foreground text-xs">{cycle.weeks} weeks</span>
             </div>
           )}
         </div>
@@ -133,6 +135,19 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
   const [autoError, setAutoError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(dailyLimit - generationsToday);
   const [pendingJson, setPendingJson] = useState<Record<string, unknown> | null>(null);
+  const generationPromise = useRef<ReturnType<typeof generateWorkoutPlan> | null>(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(AI_PENDING_KEY);
+    if (stored) {
+      localStorage.removeItem(AI_PENDING_KEY);
+      try {
+        const parsed = JSON.parse(stored) as Record<string, unknown>;
+        setPendingJson(parsed);
+        setAutoStatus("preview");
+      } catch {}
+    }
+  }, []);
 
   const AUTO_BUSY = autoStatus === "asking" || autoStatus === "importing";
   const AUTO_STATUS_LABEL: Record<string, string> = {
@@ -244,7 +259,12 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
     setAutoStatus("asking");
     setAutoError(null);
 
-    const result = await generateWorkoutPlan(autoDescription, { daysPerWeek, equipment, cycleDurationWeeks });
+    const promise = generateWorkoutPlan(autoDescription, { daysPerWeek, equipment, cycleDurationWeeks });
+    generationPromise.current = promise;
+
+    const result = await promise;
+    generationPromise.current = null;
+
     if (!result.success) {
       setAutoStatus("error");
       setAutoError(result.error);
@@ -262,6 +282,32 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
 
     setPendingJson(parsed as Record<string, unknown>);
     setAutoStatus("preview");
+  }
+
+  async function handleLeaveAndNotify() {
+    const promise = generationPromise.current;
+    if (!promise) return;
+
+    if ("Notification" in window && Notification.permission === "default") {
+      await Notification.requestPermission();
+    }
+
+    promise.then((result) => {
+      if (result.success) {
+        const parsed = result.data.json;
+        if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+          localStorage.setItem(AI_PENDING_KEY, JSON.stringify(parsed));
+        }
+      }
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Your workout plan is ready!", {
+          body: "Tap to review and import your AI-generated programs.",
+          icon: "/icon-192x192.png",
+        });
+      }
+    });
+
+    router.push("/programs");
   }
 
   async function handleConfirmImport() {
@@ -372,19 +418,33 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
           <p className="text-xs text-muted-foreground">
             {remaining} of {dailyLimit} generations remaining today
           </p>
+          <p className="text-xs text-muted-foreground">
+            This is free, so it may take a little while — thanks for your patience.
+          </p>
           {AUTO_BUSY && (
-            <div className="flex items-center gap-3 py-0.5">
-              {(["asking", "importing"] as const).map((phase, i) => (
-                <div key={phase} className="flex items-center gap-2">
-                  {i > 0 && <div className="h-px w-4 bg-border" />}
-                  <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${autoStatus === phase ? "text-primary" : autoStatus === "importing" && phase === "asking" ? "text-muted-foreground/50" : "text-muted-foreground/30"}`}>
-                    {autoStatus === phase && (
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                    )}
-                    {AUTO_STATUS_LABEL[phase]}
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3 py-0.5">
+                {(["asking", "importing"] as const).map((phase, i) => (
+                  <div key={phase} className="flex items-center gap-2">
+                    {i > 0 && <div className="h-px w-4 bg-border" />}
+                    <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${autoStatus === phase ? "text-primary" : autoStatus === "importing" && phase === "asking" ? "text-muted-foreground/50" : "text-muted-foreground/30"}`}>
+                      {autoStatus === phase && (
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                      )}
+                      {AUTO_STATUS_LABEL[phase]}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              {autoStatus === "asking" && (
+                <button
+                  type="button"
+                  onClick={handleLeaveAndNotify}
+                  className="text-xs text-muted-foreground active:opacity-70 text-left underline underline-offset-2"
+                >
+                  Continue using the app — notify me when it&apos;s ready
+                </button>
+              )}
             </div>
           )}
           <button
