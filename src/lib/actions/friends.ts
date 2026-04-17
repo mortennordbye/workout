@@ -32,10 +32,10 @@ function calcStreak(dates: string[]): number {
   const dateSet = new Set(dates);
   const today = new Date().toISOString().slice(0, 10);
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  // Streak must include today or yesterday to be "active"
-  let cursor = dateSet.has(today) ? today : dateSet.has(yesterday) ? yesterday : null;
-  if (!cursor) return 0;
+  const start = dateSet.has(today) ? today : dateSet.has(yesterday) ? yesterday : null;
+  if (!start) return 0;
   let streak = 0;
+  let cursor: string = start;
   while (dateSet.has(cursor)) {
     streak++;
     const d = new Date(cursor + "T12:00:00Z");
