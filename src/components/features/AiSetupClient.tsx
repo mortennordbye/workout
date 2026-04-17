@@ -241,6 +241,9 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
         return { success: false, error: result.error ?? "Failed to import programs." };
       }
       programCount = result.data.count;
+      if (result.data.skippedExercises.length > 0) {
+        warnings.push(`Some exercises couldn't be resolved and were skipped: "${result.data.skippedExercises.join('", "')}".`);
+      }
     }
 
     if (hasCycle) {
@@ -417,6 +420,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
       setSuccessMsg(result.successMsg);
       setCycleCreated(result.cycleCreated);
       setStatus("success");
+      setAutoStatus("idle");
     }
   }
 

@@ -51,8 +51,9 @@ export function ProgramListClient({ programs: initial }: Props) {
   }
 
   const [importSheetOpen, setImportSheetOpen] = useState(false);
-  const [importStatus, setImportStatus] = useState<"idle" | "reading" | "uploading" | "error">("idle");
+  const [importStatus, setImportStatus] = useState<"idle" | "reading" | "uploading" | "error" | "success">("idle");
   const [importError, setImportError] = useState<string | null>(null);
+  const [importWarning, setImportWarning] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function stopEditing() {
@@ -149,15 +150,21 @@ export function ProgramListClient({ programs: initial }: Props) {
       setImportError(result.error);
       return;
     }
-    setImportSheetOpen(false);
-    setImportStatus("idle");
     router.refresh();
+    if (result.data.skippedExercises.length > 0) {
+      setImportWarning(`Some exercises couldn't be resolved and were skipped: "${result.data.skippedExercises.join('", "')}".`);
+      setImportStatus("success");
+    } else {
+      setImportSheetOpen(false);
+      setImportStatus("idle");
+    }
   }
 
   function closeImportSheet() {
     setImportSheetOpen(false);
     setImportStatus("idle");
     setImportError(null);
+    setImportWarning(null);
   }
 
   return (
@@ -396,6 +403,22 @@ export function ProgramListClient({ programs: initial }: Props) {
                 className="w-full rounded-2xl bg-muted py-4 text-sm font-medium active:opacity-70"
               >
                 Try Again
+              </button>
+            </>
+          )}
+          {importStatus === "success" && importWarning && (
+            <>
+              <p className="text-sm text-amber-600 dark:text-amber-400 mb-4">⚠️ {importWarning}</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setImportSheetOpen(false);
+                  setImportStatus("idle");
+                  setImportWarning(null);
+                }}
+                className="w-full rounded-2xl bg-primary py-4 text-sm font-semibold text-primary-foreground active:opacity-80"
+              >
+                Done
               </button>
             </>
           )}

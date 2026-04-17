@@ -676,7 +676,7 @@ export async function exportAllPrograms(): Promise<ActionResult<ExportedPrograms
 
 export async function importProgram(
   data: unknown,
-): Promise<ActionResult<{ count: number; programNames: string[] }>> {
+): Promise<ActionResult<{ count: number; programNames: string[]; skippedExercises: string[] }>> {
   const auth = await requireSession();
 
   const parsed = importProgramSchema.safeParse(data);
@@ -743,7 +743,10 @@ export async function importProgram(
       const [existing] = await db
         .select({ id: exercises.id })
         .from(exercises)
-        .where(eq(exercises.name, exName))
+        .where(and(
+          eq(exercises.name, exName),
+          or(isNull(exercises.userId), eq(exercises.userId, auth.user.id)),
+        ))
         .limit(1);
       if (existing) exerciseMap.set(exName, existing.id);
     }
@@ -751,6 +754,7 @@ export async function importProgram(
 
   // Import each program in a transaction
   const programNames: string[] = [];
+  const skippedExercises: string[] = [];
   try {
     for (const programData of programList) {
       await db.transaction(async (tx) => {
@@ -761,7 +765,12 @@ export async function importProgram(
 
         for (const slot of programData.exercises) {
           const exerciseId = exerciseMap.get(slot.exercise.name);
-          if (!exerciseId) continue;
+          if (!exerciseId) {
+            if (!skippedExercises.includes(slot.exercise.name)) {
+              skippedExercises.push(slot.exercise.name);
+            }
+            continue;
+          }
 
           const [pe] = await tx
             .insert(programExercises)
@@ -795,7 +804,7 @@ export async function importProgram(
     }
 
     revalidatePath("/programs");
-    return { success: true, data: { count: programNames.length, programNames } };
+    return { success: true, data: { count: programNames.length, programNames, skippedExercises } };
   } catch (err) {
     return { success: false, error: String(err) };
   }
