@@ -209,6 +209,15 @@ export type LogWorkoutSetResult = {
 // Friend System Types
 // ============================================================================
 
+export type LeaderboardEntry = {
+  userId: string;
+  name: string;
+  image: string | null;
+  totalVolumeKg: number;
+  workoutCount: number;
+  isMe: boolean;
+};
+
 export type UserSearchResult = {
   id: string;
   name: string;

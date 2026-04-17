@@ -2,8 +2,8 @@
 
 import { respondToFriendRequest, removeFriend } from "@/lib/actions/friends";
 import { WorkoutReactions } from "@/components/features/WorkoutReactions";
-import type { FriendActivityItem, FriendWithActivity, PendingRequest } from "@/types/workout";
-import { Dumbbell, UserPlus, Users, ChevronRight, Check, X, UserMinus, Gift } from "lucide-react";
+import type { FriendActivityItem, FriendWithActivity, LeaderboardEntry, PendingRequest } from "@/types/workout";
+import { Dumbbell, UserPlus, Users, ChevronRight, Check, X, UserMinus, Gift, Trophy } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -12,6 +12,7 @@ interface Props {
   friends: FriendWithActivity[];
   pendingRequests: PendingRequest[];
   activityFeed: FriendActivityItem[];
+  leaderboard: LeaderboardEntry[];
   currentUserId: string;
 }
 
@@ -189,7 +190,57 @@ function ActivityFeedCard({ item }: { item: FriendActivityItem }) {
   );
 }
 
-export function FriendsClient({ friends, pendingRequests, activityFeed, currentUserId }: Props) {
+const RANK_MEDAL: Record<number, string> = { 0: "🥇", 1: "🥈", 2: "🥉" };
+
+function LeaderboardSection({ entries }: { entries: LeaderboardEntry[] }) {
+  if (entries.length < 2) return null;
+  const hasAnyVolume = entries.some((e) => e.totalVolumeKg > 0);
+
+  return (
+    <section className="mb-4">
+      <div className="flex items-center gap-2 px-4 py-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex-1">
+          This Week
+        </p>
+        <Trophy className="w-3.5 h-3.5 text-amber-500" />
+      </div>
+      <div className="divide-y divide-border border-y border-border">
+        {entries.map((entry, i) => (
+          <div
+            key={entry.userId}
+            className={`flex items-center gap-3 px-4 py-3 ${entry.isMe ? "bg-primary/5" : ""}`}
+          >
+            <span className="w-6 text-center text-sm font-bold shrink-0">
+              {RANK_MEDAL[i] !== undefined ? (
+                RANK_MEDAL[i]
+              ) : (
+                <span className="text-muted-foreground">{i + 1}</span>
+              )}
+            </span>
+            <Avatar name={entry.name} image={entry.image} size={9} />
+            <div className="flex-1 min-w-0">
+              <p className={`font-medium truncate ${entry.isMe ? "text-primary" : ""}`}>
+                {entry.isMe ? "You" : entry.name}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {entry.workoutCount} workout{entry.workoutCount !== 1 ? "s" : ""}
+              </p>
+            </div>
+            {hasAnyVolume && (
+              <p className={`text-sm font-semibold shrink-0 tabular-nums ${entry.totalVolumeKg > 0 ? "" : "text-muted-foreground"}`}>
+                {entry.totalVolumeKg > 0
+                  ? `${Math.round(entry.totalVolumeKg).toLocaleString()}kg`
+                  : "—"}
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function FriendsClient({ friends, pendingRequests, activityFeed, leaderboard }: Props) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [removingId, setRemovingId] = useState<number | null>(null);
@@ -227,6 +278,9 @@ export function FriendsClient({ friends, pendingRequests, activityFeed, currentU
           Shared Programs
         </Link>
       </div>
+
+      {/* Weekly Leaderboard */}
+      <LeaderboardSection entries={leaderboard} />
 
       {/* Recent Activity */}
       {activityFeed.length > 0 && (

@@ -15,6 +15,7 @@ import type {
   ActionResult,
   FriendActivityItem,
   FriendWithActivity,
+  LeaderboardEntry,
   PendingRequest,
   ReactionSummary,
   UserSearchResult,
@@ -486,6 +487,92 @@ export async function updateActivityPrivacy(data: unknown): Promise<ActionResult
     return { success: true, data: undefined };
   } catch {
     return { success: false, error: "Failed to update privacy setting" };
+  }
+}
+
+// ─── Weekly Leaderboard ────────────────────────────────────────────────────
+
+export async function getFriendsLeaderboard(): Promise<ActionResult<LeaderboardEntry[]>> {
+  const session = await requireSession();
+  const me = session.user.id;
+
+  try {
+    // Monday of current week at midnight
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    weekStart.setHours(0, 0, 0, 0);
+
+    // Friends who have activity visible
+    const friendRows = await db
+      .select({ userId: users.id, name: users.name, image: users.image })
+      .from(friendships)
+      .innerJoin(
+        users,
+        and(
+          or(
+            and(eq(friendships.requesterId, me), eq(users.id, friendships.addresseeId)),
+            and(eq(friendships.addresseeId, me), eq(users.id, friendships.requesterId)),
+          ),
+          eq(users.showActivityToFriends, true),
+        ),
+      )
+      .where(
+        and(
+          eq(friendships.status, "accepted"),
+          or(eq(friendships.requesterId, me), eq(friendships.addresseeId, me)),
+        ),
+      );
+
+    const [selfRow] = await db
+      .select({ name: users.name, image: users.image })
+      .from(users)
+      .where(eq(users.id, me))
+      .limit(1);
+
+    const participantIds = [me, ...friendRows.map((f) => f.userId)];
+
+    // Volume + session count per user this week
+    const volumeRows = await db
+      .select({
+        userId: workoutSessions.userId,
+        workoutCount: sql<number>`count(distinct ${workoutSessions.id})`,
+        totalVolumeKg: sql<number>`coalesce(sum(${workoutSets.weightKg}::numeric * ${workoutSets.actualReps}), 0)`,
+      })
+      .from(workoutSessions)
+      .leftJoin(
+        workoutSets,
+        and(eq(workoutSets.sessionId, workoutSessions.id), eq(workoutSets.isCompleted, true)),
+      )
+      .where(
+        and(
+          inArray(workoutSessions.userId, participantIds),
+          eq(workoutSessions.isCompleted, true),
+          gt(workoutSessions.startTime, weekStart),
+        ),
+      )
+      .groupBy(workoutSessions.userId);
+
+    const volumeMap = new Map(volumeRows.map((r) => [r.userId, r]));
+
+    const participants = [
+      { userId: me, name: selfRow?.name ?? "You", image: selfRow?.image ?? null, isMe: true },
+      ...friendRows.map((f) => ({ userId: f.userId, name: f.name, image: f.image, isMe: false })),
+    ];
+
+    const entries: LeaderboardEntry[] = participants.map((p) => {
+      const v = volumeMap.get(p.userId);
+      return {
+        ...p,
+        totalVolumeKg: Number(v?.totalVolumeKg ?? 0),
+        workoutCount: Number(v?.workoutCount ?? 0),
+      };
+    });
+
+    entries.sort((a, b) => b.totalVolumeKg - a.totalVolumeKg);
+    return { success: true, data: entries };
+  } catch {
+    return { success: false, error: "Failed to load leaderboard" };
   }
 }
 
