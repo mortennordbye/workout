@@ -1,6 +1,17 @@
 import { db } from "../src/db";
 import { exercises } from "../src/db/schema";
+import { aiModelConfigs } from "../src/db/schema/ai-model-configs";
 import { inArray } from "drizzle-orm";
+
+const AI_MODELS = [
+  { modelId: "openai/gpt-oss-120b:free",               label: "OpenAI OSS 120B (free)",        priority: 1 },
+  { modelId: "nvidia/nemotron-3-super-120b-a12b:free", label: "Nemotron 3 Super 120B (free)",  priority: 2 },
+  { modelId: "openrouter/free",                        label: "Free Models Router (auto)",      priority: 3 },
+  { modelId: "google/gemma-4-31b-it:free",             label: "Gemma 4 31B (free)",            priority: 4 },
+  { modelId: "meta-llama/llama-3.3-70b-instruct:free", label: "Llama 3.3 70B (free)",          priority: 5 },
+  { modelId: "nousresearch/hermes-3-llama-3.1-405b:free", label: "Hermes 3 405B (free)",       priority: 6 },
+  { modelId: "qwen/qwen3-coder:free",                  label: "Qwen3 Coder 480B (free)",       priority: 7 },
+] as const;
 
 const EXERCISES = [
   // ── Chest ──────────────────────────────────────────────────────────────────
@@ -261,6 +272,10 @@ async function seed() {
       inArray(exercises.name, timedExerciseNames),
     );
     console.log(`✅ Marked ${timedExerciseNames.length} exercises as timed`);
+
+    // Seed AI model configs — skips any that already exist by modelId
+    await db.insert(aiModelConfigs).values([...AI_MODELS]).onConflictDoNothing();
+    console.log(`✅ Seeded ${AI_MODELS.length} AI model configs (skipped duplicates)`);
 
     console.log("✅ Seeding completed successfully");
     process.exit(0);
