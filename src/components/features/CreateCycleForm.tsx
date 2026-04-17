@@ -174,6 +174,7 @@ export function CreateCycleForm() {
       >
         {loading ? "Creating…" : "Create Cycle"}
       </button>
+      <div aria-hidden="true" style={{ height: "var(--kb-height, 0px)" }} />
     </form>
   );
 }

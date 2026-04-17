@@ -25,7 +25,7 @@ export default function NewCyclePage() {
         <h1 className="text-3xl font-bold tracking-tight">New Cycle</h1>
       </div>
 
-      <div className="px-4">
+      <div className="px-4" style={{ minHeight: "calc(100dvh + var(--kb-height, 0px))" }}>
         <CreateCycleForm />
       </div>
     </div>

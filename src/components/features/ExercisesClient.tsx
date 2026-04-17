@@ -640,6 +640,7 @@ export function ExercisesClient({
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 pb-nav-safe">
         {content}
+        <div aria-hidden="true" style={{ height: "var(--kb-height, 0px)" }} />
       </div>
     </div>
   );

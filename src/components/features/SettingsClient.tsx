@@ -331,6 +331,7 @@ export function SettingsClient() {
           </div>
         </div>
 
+        <div aria-hidden="true" style={{ height: "var(--kb-height, 0px)" }} />
       </div>
     </div>
   );

@@ -125,6 +125,7 @@ export function FeedbackClient() {
                 "Send Feedback"
               )}
             </button>
+            <div aria-hidden="true" style={{ height: "var(--kb-height, 0px)" }} />
           </form>
         )}
       </div>

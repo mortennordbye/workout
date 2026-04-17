@@ -398,6 +398,7 @@ export function AccountClient({ name, email, role, profile: initialProfile, show
           </div>
         </div>
 
+        <div aria-hidden="true" style={{ height: "var(--kb-height, 0px)" }} />
       </div>
 
       {/* Change Password Sheet */}

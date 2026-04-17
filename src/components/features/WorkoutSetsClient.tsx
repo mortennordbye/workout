@@ -482,6 +482,8 @@ export function WorkoutSetsClient({
                     </div>
                   </div>
                 )}
+                {/* Scroll room so custom inputs stay above the keyboard */}
+                <div aria-hidden="true" style={{ height: "var(--kb-height, 0px)" }} />
               </div>
             </div>
             <div className="bg-card rounded-2xl overflow-hidden">

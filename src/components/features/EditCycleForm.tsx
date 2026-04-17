@@ -188,6 +188,7 @@ export function EditCycleForm({ cycle }: Props) {
       >
         {loading ? "Saving…" : "Save Changes"}
       </button>
+      <div aria-hidden="true" style={{ height: "var(--kb-height, 0px)" }} />
     </form>
   );
 }

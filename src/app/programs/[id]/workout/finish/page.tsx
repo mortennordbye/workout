@@ -172,6 +172,7 @@ function FinishContent() {
             Discard Workout
           </button>
         </div>
+        <div aria-hidden="true" style={{ height: "var(--kb-height, 0px)" }} />
       </div>
 
       {/* Save confirmation sheet */}

@@ -19,7 +19,9 @@ export default async function ProgramsPage() {
 
   return (
     <div className="h-[100dvh] bg-background overflow-y-auto pb-nav-safe">
-      <ProgramListClient programs={programList} />
+      <div style={{ minHeight: "calc(100dvh + var(--kb-height, 0px))" }}>
+        <ProgramListClient programs={programList} />
+      </div>
     </div>
   );
 }
