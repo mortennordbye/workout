@@ -1,6 +1,7 @@
 import { PublicProfileClient } from "@/components/features/PublicProfileClient";
 import { db } from "@/db";
 import { friendships, users, workoutSessions } from "@/db/schema";
+import { getFriendProfile } from "@/lib/actions/friends";
 import { requireSession } from "@/lib/utils/session";
 import { and, eq, or } from "drizzle-orm";
 import { ChevronLeft } from "lucide-react";
@@ -18,11 +19,7 @@ export default async function PublicProfilePage({
   const session = await requireSession();
   const me = session.user.id;
 
-  if (userId === me) {
-    // Viewing your own profile — redirect to account page would be better,
-    // but for simplicity just render the account link
-    notFound();
-  }
+  if (userId === me) notFound();
 
   const [targetUser, friendshipRow] = await Promise.all([
     db.query.users.findFirst({ where: eq(users.id, userId) }),
@@ -36,7 +33,6 @@ export default async function PublicProfilePage({
 
   if (!targetUser) notFound();
 
-  // Determine friendship status
   type FriendshipStatus = "none" | "pending_sent" | "pending_received" | "accepted";
   let friendshipStatus: FriendshipStatus = "none";
   if (friendshipRow) {
@@ -47,7 +43,6 @@ export default async function PublicProfilePage({
     }
   }
 
-  // Only show workout activity if accepted friend and privacy allows
   let workedOutToday: boolean | null = null;
   if (friendshipStatus === "accepted" && targetUser.showActivityToFriends) {
     const today = new Date().toISOString().slice(0, 10);
@@ -60,6 +55,9 @@ export default async function PublicProfilePage({
     });
     workedOutToday = !!ws;
   }
+
+  const profileStatsResult =
+    friendshipStatus === "accepted" ? await getFriendProfile(userId) : null;
 
   return (
     <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col overflow-hidden">
@@ -79,6 +77,7 @@ export default async function PublicProfilePage({
         }}
         friendshipStatus={friendshipStatus}
         friendshipId={friendshipRow?.id ?? null}
+        profileStats={profileStatsResult?.success ? profileStatsResult.data : null}
       />
     </div>
   );

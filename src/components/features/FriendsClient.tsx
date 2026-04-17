@@ -91,7 +91,14 @@ function FriendRow({
       <Link href={`/more/friends/${friend.userId}`} className="flex-1 flex items-center gap-3 min-w-0">
         <Avatar name={friend.name} image={friend.image} />
         <div className="flex-1 min-w-0">
-          <p className="font-medium truncate">{friend.name}</p>
+          <div className="flex items-center gap-2">
+            <p className="font-medium truncate">{friend.name}</p>
+            {friend.streak >= 3 && (
+              <span className="text-xs font-semibold text-orange-500 shrink-0">
+                🔥{friend.streak}
+              </span>
+            )}
+          </div>
           {friend.workedOutToday !== null && (
             <p className="text-sm text-muted-foreground flex items-center gap-1">
               {friend.workedOutToday ? (
@@ -163,7 +170,12 @@ function ActivityFeedCard({ item }: { item: FriendActivityItem }) {
           <Avatar name={item.name} image={item.image} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
-              <p className="font-medium truncate">{item.name}</p>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <p className="font-medium truncate">{item.name}</p>
+                {item.streak >= 2 && (
+                  <span className="text-xs font-semibold text-orange-500 shrink-0">🔥{item.streak}</span>
+                )}
+              </div>
               <p className="text-xs text-muted-foreground shrink-0">{timeLabel}</p>
             </div>
             <p className="text-sm text-muted-foreground truncate">

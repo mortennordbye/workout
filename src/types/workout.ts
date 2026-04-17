@@ -233,6 +233,28 @@ export type FriendWithActivity = {
   name: string;
   image: string | null;
   workedOutToday: boolean | null; // null = friend has activity privacy on
+  streak: number; // 0 = no current streak or privacy off
+};
+
+export type FriendProfileStats = {
+  streak: number;
+  thisWeekVolume: number;
+  thisWeekWorkouts: number;
+  totalWorkouts: number;
+  recentSessions: FriendSessionCard[];
+};
+
+export type FriendSessionCard = {
+  sessionId: number;
+  date: string;
+  startTime: Date | null;
+  programName: string | null;
+  durationMinutes: number;
+  setCount: number;
+  exerciseCount: number;
+  totalVolumeKg: number;
+  feeling: string | null;
+  prHighlight: { exerciseName: string; value: number } | null;
 };
 
 export type PendingRequest = {
@@ -263,6 +285,7 @@ export type FriendActivityItem = {
   exerciseCount: number;
   totalVolumeKg: number;
   feeling: string | null;
+  streak: number;
   prHighlight: { exerciseName: string; prType: string; value: number } | null;
   reactions: ReactionSummary[];
 };

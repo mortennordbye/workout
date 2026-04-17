@@ -14,6 +14,8 @@ import { requireSession } from "@/lib/utils/session";
 import type {
   ActionResult,
   FriendActivityItem,
+  FriendProfileStats,
+  FriendSessionCard,
   FriendWithActivity,
   LeaderboardEntry,
   PendingRequest,
@@ -22,6 +24,26 @@ import type {
 } from "@/types/workout";
 import { and, count, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+
+// ─── Streak utility ───────────────────────────────────────────────────────
+
+function calcStreak(dates: string[]): number {
+  if (dates.length === 0) return 0;
+  const dateSet = new Set(dates);
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  // Streak must include today or yesterday to be "active"
+  let cursor = dateSet.has(today) ? today : dateSet.has(yesterday) ? yesterday : null;
+  if (!cursor) return 0;
+  let streak = 0;
+  while (dateSet.has(cursor)) {
+    streak++;
+    const d = new Date(cursor + "T12:00:00Z");
+    d.setUTCDate(d.getUTCDate() - 1);
+    cursor = d.toISOString().slice(0, 10);
+  }
+  return streak;
+}
 
 // ─── Search ────────────────────────────────────────────────────────────────
 
@@ -239,35 +261,59 @@ export async function getFriends(): Promise<ActionResult<FriendWithActivity[]>> 
       },
     });
 
-    // Today's date string in local server time (YYYY-MM-DD)
     const today = new Date().toISOString().slice(0, 10);
+    const friendUsers = rows.map((row) => ({
+      row,
+      friend: row.requesterId === me ? row.addressee : row.requester,
+    }));
 
-    const result: FriendWithActivity[] = await Promise.all(
-      rows.map(async (row) => {
-        const friend = row.requesterId === me ? row.addressee : row.requester;
+    // Batch-fetch last 90 days of session dates for all friends with activity visible
+    const visibleFriendIds = friendUsers
+      .filter((f) => f.friend.showActivityToFriends)
+      .map((f) => f.friend.id);
 
-        let workedOutToday: boolean | null = null;
+    const since90 = new Date(Date.now() - 90 * 86400000);
+    const sessionDateRows =
+      visibleFriendIds.length > 0
+        ? await db
+            .select({ userId: workoutSessions.userId, date: workoutSessions.date })
+            .from(workoutSessions)
+            .where(
+              and(
+                inArray(workoutSessions.userId, visibleFriendIds),
+                eq(workoutSessions.isCompleted, true),
+                gt(workoutSessions.startTime, since90),
+              ),
+            )
+        : [];
 
-        if (friend.showActivityToFriends) {
-          const ws = await db.query.workoutSessions.findFirst({
-            where: and(
-              eq(workoutSessions.userId, friend.id),
-              eq(workoutSessions.isCompleted, true),
-              eq(workoutSessions.date, today),
-            ),
-          });
-          workedOutToday = !!ws;
-        }
+    // Group dates by userId
+    const datesByUser = new Map<string, string[]>();
+    for (const r of sessionDateRows) {
+      const arr = datesByUser.get(r.userId) ?? [];
+      arr.push(r.date);
+      datesByUser.set(r.userId, arr);
+    }
 
-        return {
-          friendshipId: row.id,
-          userId: friend.id,
-          name: friend.name,
-          image: friend.image,
-          workedOutToday,
-        };
-      }),
-    );
+    const result: FriendWithActivity[] = friendUsers.map(({ row, friend }) => {
+      let workedOutToday: boolean | null = null;
+      let streak = 0;
+
+      if (friend.showActivityToFriends) {
+        const dates = datesByUser.get(friend.id) ?? [];
+        workedOutToday = dates.includes(today);
+        streak = calcStreak(dates);
+      }
+
+      return {
+        friendshipId: row.id,
+        userId: friend.id,
+        name: friend.name,
+        image: friend.image,
+        workedOutToday,
+        streak,
+      };
+    });
 
     return { success: true, data: result };
   } catch {
@@ -431,6 +477,30 @@ export async function getFriendsActivityFeed(): Promise<ActionResult<FriendActiv
       });
     }
 
+    // Batch-fetch 90-day session dates for streak calculation
+    const feedUserIds = [...new Set(rows.map((r) => r.userId))];
+    const since90 = new Date(Date.now() - 90 * 86400000);
+    const streakDateRows =
+      feedUserIds.length > 0
+        ? await db
+            .select({ userId: workoutSessions.userId, date: workoutSessions.date })
+            .from(workoutSessions)
+            .where(
+              and(
+                inArray(workoutSessions.userId, feedUserIds),
+                eq(workoutSessions.isCompleted, true),
+                gt(workoutSessions.startTime, since90),
+              ),
+            )
+        : [];
+
+    const streakDatesByUser = new Map<string, string[]>();
+    for (const r of streakDateRows) {
+      const arr = streakDatesByUser.get(r.userId) ?? [];
+      arr.push(r.date);
+      streakDatesByUser.set(r.userId, arr);
+    }
+
     const data: FriendActivityItem[] = rows.map((r) => {
       const durationMinutes =
         r.endTime && r.startTime
@@ -457,6 +527,7 @@ export async function getFriendsActivityFeed(): Promise<ActionResult<FriendActiv
         exerciseCount: Number(r.exerciseCount),
         totalVolumeKg: Number(r.totalVolumeKg),
         feeling: r.feeling ?? null,
+        streak: calcStreak(streakDatesByUser.get(r.userId) ?? []),
         prHighlight: prBySession.get(r.sessionId) ?? null,
         reactions,
       };
@@ -487,6 +558,146 @@ export async function updateActivityPrivacy(data: unknown): Promise<ActionResult
     return { success: true, data: undefined };
   } catch {
     return { success: false, error: "Failed to update privacy setting" };
+  }
+}
+
+// ─── Friend Profile Stats ─────────────────────────────────────────────────
+
+export async function getFriendProfile(
+  userId: string,
+): Promise<ActionResult<FriendProfileStats>> {
+  const session = await requireSession();
+  const me = session.user.id;
+
+  try {
+    // Verify accepted friendship
+    const [friendship] = await db
+      .select({ id: friendships.id })
+      .from(friendships)
+      .where(
+        and(
+          eq(friendships.status, "accepted"),
+          or(
+            and(eq(friendships.requesterId, me), eq(friendships.addresseeId, userId)),
+            and(eq(friendships.addresseeId, me), eq(friendships.requesterId, userId)),
+          ),
+        ),
+      )
+      .limit(1);
+
+    if (!friendship) return { success: false, error: "Not a friend" };
+
+    const [targetUser] = await db
+      .select({ showActivity: users.showActivityToFriends })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!targetUser?.showActivity) {
+      return { success: true, data: { streak: 0, thisWeekVolume: 0, thisWeekWorkouts: 0, totalWorkouts: 0, recentSessions: [] } };
+    }
+
+    // Monday of this week
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    weekStart.setHours(0, 0, 0, 0);
+
+    const since90 = new Date(Date.now() - 90 * 86400000);
+
+    // Run queries in parallel
+    const [sessionDateRows, weekRows, recentRows, totalRow] = await Promise.all([
+      // Streak dates
+      db.select({ date: workoutSessions.date })
+        .from(workoutSessions)
+        .where(and(eq(workoutSessions.userId, userId), eq(workoutSessions.isCompleted, true), gt(workoutSessions.startTime, since90))),
+
+      // This week's volume + count
+      db.select({
+        workoutCount: sql<number>`count(distinct ${workoutSessions.id})`,
+        totalVolumeKg: sql<number>`coalesce(sum(${workoutSets.weightKg}::numeric * ${workoutSets.actualReps}), 0)`,
+      })
+        .from(workoutSessions)
+        .leftJoin(workoutSets, and(eq(workoutSets.sessionId, workoutSessions.id), eq(workoutSets.isCompleted, true)))
+        .where(and(eq(workoutSessions.userId, userId), eq(workoutSessions.isCompleted, true), gt(workoutSessions.startTime, weekStart))),
+
+      // Recent 5 sessions with stats
+      db.select({
+        sessionId: workoutSessions.id,
+        date: workoutSessions.date,
+        startTime: workoutSessions.startTime,
+        endTime: workoutSessions.endTime,
+        programName: programs.name,
+        feeling: workoutSessions.feeling,
+        setCount: count(workoutSets.id),
+        exerciseCount: sql<number>`count(distinct ${workoutSets.exerciseId})`,
+        totalVolumeKg: sql<number>`coalesce(sum(${workoutSets.weightKg}::numeric * ${workoutSets.actualReps}), 0)`,
+      })
+        .from(workoutSessions)
+        .leftJoin(programs, eq(programs.id, workoutSessions.programId))
+        .leftJoin(workoutSets, and(eq(workoutSets.sessionId, workoutSessions.id), eq(workoutSets.isCompleted, true)))
+        .where(and(eq(workoutSessions.userId, userId), eq(workoutSessions.isCompleted, true)))
+        .groupBy(workoutSessions.id, programs.name)
+        .orderBy(sql`${workoutSessions.startTime} desc`)
+        .limit(5),
+
+      // Total workout count
+      db.select({ total: count() })
+        .from(workoutSessions)
+        .where(and(eq(workoutSessions.userId, userId), eq(workoutSessions.isCompleted, true))),
+    ]);
+
+    const streak = calcStreak(sessionDateRows.map((r) => r.date));
+
+    // Fetch PRs for recent sessions
+    const recentSessionIds = recentRows.map((r) => r.sessionId);
+    const prRows = recentSessionIds.length > 0
+      ? await db
+          .select({ sessionId: exercisePrs.sessionId, exerciseName: exercises.name, value: exercisePrs.value, prType: exercisePrs.prType })
+          .from(exercisePrs)
+          .innerJoin(exercises, eq(exercises.id, exercisePrs.exerciseId))
+          .where(and(inArray(exercisePrs.sessionId, recentSessionIds), isNull(exercisePrs.supersededAt)))
+      : [];
+
+    const prPriority: Record<string, number> = { estimated_1rm: 0, weight: 1, reps_at_weight: 2 };
+    const prBySession = new Map<number, { exerciseName: string; value: number }>();
+    for (const pr of prRows) {
+      if (pr.sessionId == null) continue;
+      const existing = prBySession.get(pr.sessionId);
+      const newPri = prPriority[pr.prType] ?? 99;
+      const existPri = existing ? 99 : 99; // always prefer first-seen for profile
+      if (!existing || newPri < existPri) {
+        prBySession.set(pr.sessionId, { exerciseName: pr.exerciseName, value: Number(pr.value) });
+      }
+    }
+
+    const recentSessions: FriendSessionCard[] = recentRows.map((r) => ({
+      sessionId: r.sessionId,
+      date: r.date,
+      startTime: r.startTime,
+      programName: r.programName ?? null,
+      durationMinutes: r.endTime && r.startTime
+        ? Math.max(1, Math.round((r.endTime.getTime() - r.startTime.getTime()) / 60000))
+        : 0,
+      setCount: Number(r.setCount),
+      exerciseCount: Number(r.exerciseCount),
+      totalVolumeKg: Number(r.totalVolumeKg),
+      feeling: r.feeling ?? null,
+      prHighlight: prBySession.get(r.sessionId) ?? null,
+    }));
+
+    return {
+      success: true,
+      data: {
+        streak,
+        thisWeekVolume: Number(weekRows[0]?.totalVolumeKg ?? 0),
+        thisWeekWorkouts: Number(weekRows[0]?.workoutCount ?? 0),
+        totalWorkouts: Number(totalRow[0]?.total ?? 0),
+        recentSessions,
+      },
+    };
+  } catch {
+    return { success: false, error: "Failed to load profile" };
   }
 }
 
