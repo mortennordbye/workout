@@ -59,8 +59,8 @@ export default async function AiSetupPage() {
   return (
     <div className="h-[100dvh] bg-background overflow-y-auto">
       <div
-        className="flex flex-col pb-nav-safe"
-        style={{ minHeight: "calc(100dvh + var(--kb-height, 0px))" }}
+        className="flex flex-col"
+        style={{ minHeight: "calc(100dvh + var(--kb-height, 0px))", paddingBottom: "calc(4rem + env(safe-area-inset-bottom, 0px) + var(--kb-height, 0px))" }}
       >
         <div className="flex items-center px-4 pt-6 pb-2 shrink-0">
           <Link href="/more" className="flex items-center gap-0.5 text-primary active:opacity-70 -ml-1 min-h-[44px]">
