@@ -22,7 +22,7 @@ import type {
   ReactionSummary,
   UserSearchResult,
 } from "@/types/workout";
-import { and, count, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
+import { and, count, eq, gt, gte, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 // ─── Streak utility ───────────────────────────────────────────────────────
@@ -272,7 +272,7 @@ export async function getFriends(): Promise<ActionResult<FriendWithActivity[]>> 
       .filter((f) => f.friend.showActivityToFriends)
       .map((f) => f.friend.id);
 
-    const since90 = new Date(Date.now() - 90 * 86400000);
+    const since90 = new Date(Date.now() - 400 * 86400000);
     const sessionDateRows =
       visibleFriendIds.length > 0
         ? await db
@@ -479,7 +479,7 @@ export async function getFriendsActivityFeed(): Promise<ActionResult<FriendActiv
 
     // Batch-fetch 90-day session dates for streak calculation
     const feedUserIds = [...new Set(rows.map((r) => r.userId))];
-    const since90 = new Date(Date.now() - 90 * 86400000);
+    const since90 = new Date(Date.now() - 400 * 86400000);
     const streakDateRows =
       feedUserIds.length > 0
         ? await db
@@ -509,8 +509,8 @@ export async function getFriendsActivityFeed(): Promise<ActionResult<FriendActiv
 
       const emojiMap = reactionsBySession.get(r.sessionId);
       const reactions: ReactionSummary[] = ["🔥", "💪", "👏"].map((emoji) => {
-        const data = emojiMap?.get(emoji);
-        return { emoji, count: data?.count ?? 0, reactedByMe: data?.reactedByMe ?? false };
+        const r = emojiMap?.get(emoji);
+        return { emoji, count: r?.count ?? 0, reactedByMe: r?.reactedByMe ?? false };
       });
 
       return {
@@ -603,7 +603,7 @@ export async function getFriendProfile(
     weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
     weekStart.setHours(0, 0, 0, 0);
 
-    const since90 = new Date(Date.now() - 90 * 86400000);
+    const since90 = new Date(Date.now() - 400 * 86400000);
 
     // Run queries in parallel
     const [sessionDateRows, weekRows, recentRows, totalRow] = await Promise.all([
@@ -619,7 +619,7 @@ export async function getFriendProfile(
       })
         .from(workoutSessions)
         .leftJoin(workoutSets, and(eq(workoutSets.sessionId, workoutSessions.id), eq(workoutSets.isCompleted, true)))
-        .where(and(eq(workoutSessions.userId, userId), eq(workoutSessions.isCompleted, true), gt(workoutSessions.startTime, weekStart))),
+        .where(and(eq(workoutSessions.userId, userId), eq(workoutSessions.isCompleted, true), gte(workoutSessions.startTime, weekStart))),
 
       // Recent 5 sessions with stats
       db.select({
@@ -660,14 +660,14 @@ export async function getFriendProfile(
       : [];
 
     const prPriority: Record<string, number> = { estimated_1rm: 0, weight: 1, reps_at_weight: 2 };
-    const prBySession = new Map<number, { exerciseName: string; value: number }>();
+    const prBySession = new Map<number, { exerciseName: string; value: number; prType: string }>();
     for (const pr of prRows) {
       if (pr.sessionId == null) continue;
       const existing = prBySession.get(pr.sessionId);
       const newPri = prPriority[pr.prType] ?? 99;
-      const existPri = existing ? 99 : 99; // always prefer first-seen for profile
+      const existPri = existing ? (prPriority[existing.prType] ?? 99) : 99;
       if (!existing || newPri < existPri) {
-        prBySession.set(pr.sessionId, { exerciseName: pr.exerciseName, value: Number(pr.value) });
+        prBySession.set(pr.sessionId, { exerciseName: pr.exerciseName, value: Number(pr.value), prType: pr.prType });
       }
     }
 
@@ -759,7 +759,7 @@ export async function getFriendsLeaderboard(): Promise<ActionResult<LeaderboardE
         and(
           inArray(workoutSessions.userId, participantIds),
           eq(workoutSessions.isCompleted, true),
-          gt(workoutSessions.startTime, weekStart),
+          gte(workoutSessions.startTime, weekStart),
         ),
       )
       .groupBy(workoutSessions.userId);

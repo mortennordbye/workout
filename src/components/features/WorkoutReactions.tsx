@@ -14,7 +14,7 @@ type Props = {
 export function WorkoutReactions({ sessionId, initialReactions }: Props) {
   const [reactions, setReactions] = useState(initialReactions);
 
-  async function handleToggle(emoji: string) {
+  async function handleToggle(emoji: typeof EMOJIS[number]) {
     // Optimistic update
     const prev = reactions;
     setReactions((r) =>
