@@ -11,6 +11,7 @@ import { useEffect, useRef, useState } from "react";
 
 const AI_PENDING_KEY = "ai_pending_result";
 const AI_PENDING_ERROR_KEY = "ai_pending_error";
+const AI_GENERATING_KEY = "ai_generating";
 
 type UserProfile = {
   gender: string | null;
@@ -132,7 +133,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
   const [daysPerWeek, setDaysPerWeek] = useState<number | undefined>(undefined);
   const [equipment, setEquipment] = useState<PromptOptions["equipment"]>("full_gym");
   const [cycleDurationWeeks, setCycleDurationWeeks] = useState<PromptOptions["cycleDurationWeeks"]>(undefined);
-  const [autoStatus, setAutoStatus] = useState<"idle" | "asking" | "preview" | "importing" | "error">("idle");
+  const [autoStatus, setAutoStatus] = useState<"idle" | "asking" | "waiting" | "preview" | "importing" | "error">("idle");
   const [autoError, setAutoError] = useState<string | null>(null);
   const [returnError, setReturnError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(dailyLimit - generationsToday);
@@ -144,6 +145,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
     const storedError = localStorage.getItem(AI_PENDING_ERROR_KEY);
     if (stored) {
       localStorage.removeItem(AI_PENDING_KEY);
+      localStorage.removeItem(AI_GENERATING_KEY);
       try {
         const parsed = JSON.parse(stored) as Record<string, unknown>;
         setPendingJson(parsed);
@@ -151,9 +153,39 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
       } catch {}
     } else if (storedError) {
       localStorage.removeItem(AI_PENDING_ERROR_KEY);
+      localStorage.removeItem(AI_GENERATING_KEY);
       setReturnError(storedError);
+    } else if (localStorage.getItem(AI_GENERATING_KEY)) {
+      setAutoStatus("waiting");
     }
   }, []);
+
+  // Poll while waiting for a background generation to complete
+  useEffect(() => {
+    if (autoStatus !== "waiting") return;
+    const interval = setInterval(() => {
+      const stored = localStorage.getItem(AI_PENDING_KEY);
+      const storedError = localStorage.getItem(AI_PENDING_ERROR_KEY);
+      if (stored) {
+        localStorage.removeItem(AI_PENDING_KEY);
+        localStorage.removeItem(AI_GENERATING_KEY);
+        try {
+          const parsed = JSON.parse(stored) as Record<string, unknown>;
+          setPendingJson(parsed);
+          setAutoStatus("preview");
+        } catch {
+          setAutoError("Could not read the generated plan. Please try again.");
+          setAutoStatus("error");
+        }
+      } else if (storedError) {
+        localStorage.removeItem(AI_PENDING_ERROR_KEY);
+        localStorage.removeItem(AI_GENERATING_KEY);
+        setReturnError(storedError);
+        setAutoStatus("idle");
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [autoStatus]);
 
   const AUTO_BUSY = autoStatus === "asking" || autoStatus === "importing";
   const AUTO_STATUS_LABEL: Record<string, string> = {
@@ -298,6 +330,8 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
       await Notification.requestPermission();
     }
 
+    localStorage.setItem(AI_GENERATING_KEY, Date.now().toString());
+
     promise.then((result) => {
       if (result.success) {
         const parsed = result.data.json;
@@ -319,6 +353,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
           });
         }
       }
+      localStorage.removeItem(AI_GENERATING_KEY);
     });
 
     router.push("/programs");
@@ -388,6 +423,28 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
             Continue using the app
           </button>
           <p className="text-xs text-muted-foreground">We&apos;ll notify you when it&apos;s ready</p>
+        </div>
+      ) : autoStatus === "waiting" ? (
+        <div className="flex flex-col items-center text-center gap-5 py-6">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <Sparkles className="w-8 h-8 text-primary animate-pulse" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <p className="text-base font-semibold">Your plan is still being generated…</p>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+              The AI is still working. This page will update automatically when it&apos;s ready.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.removeItem(AI_GENERATING_KEY);
+              setAutoStatus("idle");
+            }}
+            className="text-sm text-muted-foreground active:opacity-70"
+          >
+            Cancel and start over
+          </button>
         </div>
       ) : (autoStatus === "preview" || autoStatus === "importing") && pendingJson ? (
         <PreviewCard
