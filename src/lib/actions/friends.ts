@@ -1,12 +1,13 @@
 "use server";
 
 import { db } from "@/db";
-import { friendships, programs, users, workoutSessions, workoutSets } from "@/db/schema";
+import { exercisePrs, exercises, friendships, programs, users, workoutReactions, workoutSessions, workoutSets } from "@/db/schema";
 import {
   removeFriendSchema,
   respondToFriendRequestSchema,
   searchUsersSchema,
   sendFriendRequestSchema,
+  toggleReactionSchema,
   updateActivityPrivacySchema,
 } from "@/lib/validators/friends";
 import { requireSession } from "@/lib/utils/session";
@@ -15,9 +16,10 @@ import type {
   FriendActivityItem,
   FriendWithActivity,
   PendingRequest,
+  ReactionSummary,
   UserSearchResult,
 } from "@/types/workout";
-import { and, count, eq, gt, ilike, ne, or, sql } from "drizzle-orm";
+import { and, count, eq, gt, ilike, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 // ─── Search ────────────────────────────────────────────────────────────────
@@ -371,11 +373,74 @@ export async function getFriendsActivityFeed(): Promise<ActionResult<FriendActiv
       .orderBy(sql`${workoutSessions.startTime} desc`)
       .limit(20);
 
+    const sessionIds = rows.map((r) => r.sessionId);
+
+    // Batch-fetch PRs for these sessions (prefer estimated_1rm > weight > reps_at_weight)
+    const prRows = sessionIds.length > 0
+      ? await db
+          .select({
+            sessionId: exercisePrs.sessionId,
+            exerciseName: exercises.name,
+            prType: exercisePrs.prType,
+            value: exercisePrs.value,
+          })
+          .from(exercisePrs)
+          .innerJoin(exercises, eq(exercises.id, exercisePrs.exerciseId))
+          .where(and(inArray(exercisePrs.sessionId, sessionIds), isNull(exercisePrs.supersededAt)))
+      : [];
+
+    // Pick one PR per session: estimated_1rm > weight > reps_at_weight
+    const prPriority: Record<string, number> = { estimated_1rm: 0, weight: 1, reps_at_weight: 2 };
+    const prBySession = new Map<number, { exerciseName: string; prType: string; value: number }>();
+    for (const pr of prRows) {
+      if (pr.sessionId == null) continue;
+      const existing = prBySession.get(pr.sessionId);
+      const newPriority = prPriority[pr.prType] ?? 99;
+      const existingPriority = existing ? (prPriority[existing.prType] ?? 99) : 99;
+      if (!existing || newPriority < existingPriority) {
+        prBySession.set(pr.sessionId, {
+          exerciseName: pr.exerciseName,
+          prType: pr.prType,
+          value: Number(pr.value),
+        });
+      }
+    }
+
+    // Batch-fetch reactions for these sessions
+    const reactionRows = sessionIds.length > 0
+      ? await db
+          .select({
+            sessionId: workoutReactions.sessionId,
+            emoji: workoutReactions.emoji,
+            reactorId: workoutReactions.userId,
+          })
+          .from(workoutReactions)
+          .where(inArray(workoutReactions.sessionId, sessionIds))
+      : [];
+
+    // Aggregate reactions per session
+    const reactionsBySession = new Map<number, Map<string, { count: number; reactedByMe: boolean }>>();
+    for (const r of reactionRows) {
+      if (!reactionsBySession.has(r.sessionId)) reactionsBySession.set(r.sessionId, new Map());
+      const emojiMap = reactionsBySession.get(r.sessionId)!;
+      const existing = emojiMap.get(r.emoji) ?? { count: 0, reactedByMe: false };
+      emojiMap.set(r.emoji, {
+        count: existing.count + 1,
+        reactedByMe: existing.reactedByMe || r.reactorId === me,
+      });
+    }
+
     const data: FriendActivityItem[] = rows.map((r) => {
       const durationMinutes =
         r.endTime && r.startTime
           ? Math.max(1, Math.round((r.endTime.getTime() - r.startTime.getTime()) / 60000))
           : 0;
+
+      const emojiMap = reactionsBySession.get(r.sessionId);
+      const reactions: ReactionSummary[] = ["🔥", "💪", "👏"].map((emoji) => {
+        const data = emojiMap?.get(emoji);
+        return { emoji, count: data?.count ?? 0, reactedByMe: data?.reactedByMe ?? false };
+      });
 
       return {
         friendshipId: r.friendshipId,
@@ -391,6 +456,8 @@ export async function getFriendsActivityFeed(): Promise<ActionResult<FriendActiv
         exerciseCount: Number(r.exerciseCount),
         totalVolumeKg: Number(r.totalVolumeKg),
         feeling: r.feeling ?? null,
+        prHighlight: prBySession.get(r.sessionId) ?? null,
+        reactions,
       };
     });
 
@@ -419,5 +486,70 @@ export async function updateActivityPrivacy(data: unknown): Promise<ActionResult
     return { success: true, data: undefined };
   } catch {
     return { success: false, error: "Failed to update privacy setting" };
+  }
+}
+
+// ─── Reactions ─────────────────────────────────────────────────────────────
+
+export async function toggleReaction(
+  data: unknown,
+): Promise<ActionResult<{ reacted: boolean }>> {
+  const session = await requireSession();
+  const parsed = toggleReactionSchema.safeParse(data);
+  if (!parsed.success) return { success: false, error: "Invalid reaction data" };
+
+  const { sessionId, emoji } = parsed.data;
+  const me = session.user.id;
+
+  try {
+    // Verify the session belongs to an accepted friend (privacy guard)
+    const [ws] = await db
+      .select({ ownerId: workoutSessions.userId })
+      .from(workoutSessions)
+      .where(and(eq(workoutSessions.id, sessionId), eq(workoutSessions.isCompleted, true)))
+      .limit(1);
+
+    if (!ws) return { success: false, error: "Workout not found" };
+
+    const [friendship] = await db
+      .select({ id: friendships.id })
+      .from(friendships)
+      .where(
+        and(
+          eq(friendships.status, "accepted"),
+          or(
+            and(eq(friendships.requesterId, me), eq(friendships.addresseeId, ws.ownerId)),
+            and(eq(friendships.addresseeId, me), eq(friendships.requesterId, ws.ownerId)),
+          ),
+        ),
+      )
+      .limit(1);
+
+    if (!friendship) return { success: false, error: "Not a friend" };
+
+    // Toggle: delete if exists, insert if not
+    const [existing] = await db
+      .select({ id: workoutReactions.id })
+      .from(workoutReactions)
+      .where(
+        and(
+          eq(workoutReactions.sessionId, sessionId),
+          eq(workoutReactions.userId, me),
+          eq(workoutReactions.emoji, emoji),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      await db.delete(workoutReactions).where(eq(workoutReactions.id, existing.id));
+      revalidatePath("/more/friends");
+      return { success: true, data: { reacted: false } };
+    }
+
+    await db.insert(workoutReactions).values({ sessionId, userId: me, emoji });
+    revalidatePath("/more/friends");
+    return { success: true, data: { reacted: true } };
+  } catch {
+    return { success: false, error: "Failed to toggle reaction" };
   }
 }

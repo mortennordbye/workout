@@ -1,6 +1,7 @@
 "use client";
 
 import { respondToFriendRequest, removeFriend } from "@/lib/actions/friends";
+import { WorkoutReactions } from "@/components/features/WorkoutReactions";
 import type { FriendActivityItem, FriendWithActivity, PendingRequest } from "@/types/workout";
 import { Dumbbell, UserPlus, Users, ChevronRight, Check, X, UserMinus, Gift } from "lucide-react";
 import Link from "next/link";
@@ -152,29 +153,39 @@ function ActivityFeedCard({ item }: { item: FriendActivityItem }) {
     : relativeDay(new Date(item.date));
 
   return (
-    <Link
-      href={`/more/friends/${item.userId}`}
-      className="block px-4 py-3 active:bg-muted/50 transition-colors"
-    >
-      <div className="flex items-start gap-3">
-        <Avatar name={item.name} image={item.image} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-medium truncate">{item.name}</p>
-            <p className="text-xs text-muted-foreground shrink-0">{timeLabel}</p>
+    <div className="px-4 py-3">
+      <Link
+        href={`/more/friends/${item.userId}`}
+        className="block active:opacity-70 transition-opacity"
+      >
+        <div className="flex items-start gap-3">
+          <Avatar name={item.name} image={item.image} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <p className="font-medium truncate">{item.name}</p>
+              <p className="text-xs text-muted-foreground shrink-0">{timeLabel}</p>
+            </div>
+            <p className="text-sm text-muted-foreground truncate">
+              {item.programName ?? "Workout"}
+              {item.durationMinutes > 0 && ` · ${item.durationMinutes}min`}
+              {item.feeling && ` ${FEELING_EMOJI[item.feeling] ?? ""}`}
+            </p>
+            {item.prHighlight && (
+              <p className="text-xs font-medium text-amber-500 mt-0.5">
+                🏆 PR: {item.prHighlight.exerciseName} · {item.prHighlight.value}kg
+              </p>
+            )}
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {item.exerciseCount} exercise{item.exerciseCount !== 1 ? "s" : ""} · {item.setCount} sets
+              {item.totalVolumeKg > 0 && ` · ${Math.round(item.totalVolumeKg).toLocaleString()}kg`}
+            </p>
           </div>
-          <p className="text-sm text-muted-foreground truncate">
-            {item.programName ?? "Workout"}
-            {item.durationMinutes > 0 && ` · ${item.durationMinutes}min`}
-            {item.feeling && ` ${FEELING_EMOJI[item.feeling] ?? ""}`}
-          </p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {item.exerciseCount} exercise{item.exerciseCount !== 1 ? "s" : ""} · {item.setCount} sets
-            {item.totalVolumeKg > 0 && ` · ${Math.round(item.totalVolumeKg).toLocaleString()}kg`}
-          </p>
         </div>
+      </Link>
+      <div className="pl-13">
+        <WorkoutReactions sessionId={item.sessionId} initialReactions={item.reactions} />
       </div>
-    </Link>
+    </div>
   );
 }
 

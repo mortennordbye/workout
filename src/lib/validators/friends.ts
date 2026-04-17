@@ -29,3 +29,8 @@ export const copySharedProgramSchema = z.object({
 export const updateActivityPrivacySchema = z.object({
   showActivityToFriends: z.boolean(),
 });
+
+export const toggleReactionSchema = z.object({
+  sessionId: z.number().int().positive(),
+  emoji: z.enum(["🔥", "💪", "👏"]),
+});

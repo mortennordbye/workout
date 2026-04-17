@@ -24,6 +24,7 @@ export * from "./programs";
 export * from "./training-cycles";
 export * from "./users";
 export * from "./weight-history";
+export * from "./workout-reactions";
 export * from "./workout-sessions";
 export * from "./workout-sets";
 

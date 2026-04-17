@@ -234,6 +234,12 @@ export type PendingRequest = {
   createdAt: Date;
 };
 
+export type ReactionSummary = {
+  emoji: string;
+  count: number;
+  reactedByMe: boolean;
+};
+
 export type FriendActivityItem = {
   friendshipId: number;
   userId: string;
@@ -248,6 +254,8 @@ export type FriendActivityItem = {
   exerciseCount: number;
   totalVolumeKg: number;
   feeling: string | null;
+  prHighlight: { exerciseName: string; prType: string; value: number } | null;
+  reactions: ReactionSummary[];
 };
 
 export type IncomingShare = {
