@@ -84,11 +84,10 @@ export function BottomNav() {
           const Icon = item.icon;
           // Only use saved workout paths while there's actually an active workout.
           // After discard/finish, workoutPath is null and the tab should go home.
-          const originalHref = item.label === "Workout"
+          const href = item.label === "Workout"
             ? (workoutPath !== null ? (lastWorkoutPath ?? workoutPath) : "/")
             : (item.href ?? "/");
-          const href = isGenerating ? "/more/ai-setup" : originalHref;
-          const active = isActive(item.label, originalHref);
+          const active = isActive(item.label, href);
           const showDot = item.label === "Workout" && workoutPath !== null;
           const showGeneratingDot = item.label === "More" && isGenerating;
 

@@ -162,13 +162,19 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
       localStorage.removeItem(AI_GENERATING_KEY);
       setReturnError(storedError);
     } else if (localStorage.getItem(AI_GENERATING_KEY)) {
-      setAutoStatus("waiting");
+      const startedAt = parseInt(localStorage.getItem(AI_GENERATING_KEY) ?? "0");
+      if (Date.now() - startedAt < 10 * 60 * 1000) {
+        setAutoStatus("waiting");
+      } else {
+        localStorage.removeItem(AI_GENERATING_KEY);
+      }
     }
   }, []);
 
   // Poll while waiting for a background generation to complete
   useEffect(() => {
     if (autoStatus !== "waiting") return;
+    const TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
     const interval = setInterval(() => {
       const stored = localStorage.getItem(AI_PENDING_KEY);
       const storedError = localStorage.getItem(AI_PENDING_ERROR_KEY);
@@ -188,6 +194,13 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
         localStorage.removeItem(AI_GENERATING_KEY);
         setReturnError(storedError);
         setAutoStatus("idle");
+      } else {
+        // Auto-clear stale key (e.g. if the server was restarted mid-generation)
+        const startedAt = parseInt(localStorage.getItem(AI_GENERATING_KEY) ?? "0");
+        if (Date.now() - startedAt > TIMEOUT_MS) {
+          localStorage.removeItem(AI_GENERATING_KEY);
+          setAutoStatus("idle");
+        }
       }
     }, 1000);
     return () => clearInterval(interval);
@@ -334,33 +347,46 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
         }
       }
       localStorage.removeItem(AI_GENERATING_KEY);
+    }).catch(() => {
+      // Network error while away (e.g. server restarted) — clear the key so user isn't stuck
+      if (!isMounted.current) {
+        localStorage.removeItem(AI_GENERATING_KEY);
+      }
     });
 
-    const result = await promise;
-    generationPromise.current = null;
+    try {
+      const result = await promise;
+      generationPromise.current = null;
 
-    // If the component unmounted while waiting, the .then() above already handled everything
-    if (!isMounted.current) return;
+      // If the component unmounted while waiting, the .then() above already handled everything
+      if (!isMounted.current) return;
 
-    localStorage.removeItem(AI_GENERATING_KEY);
+      localStorage.removeItem(AI_GENERATING_KEY);
 
-    if (!result.success) {
+      if (!result.success) {
+        setAutoStatus("error");
+        setAutoError(result.error);
+        return;
+      }
+
+      setRemaining(result.data.dailyLimit - result.data.generationsToday);
+      const parsed = result.data.json;
+
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+        setAutoStatus("error");
+        setAutoError("The AI returned an unexpected format. Please try again.");
+        return;
+      }
+
+      setPendingJson(parsed as Record<string, unknown>);
+      setAutoStatus("preview");
+    } catch {
+      generationPromise.current = null;
+      if (!isMounted.current) return;
+      localStorage.removeItem(AI_GENERATING_KEY);
       setAutoStatus("error");
-      setAutoError(result.error);
-      return;
+      setAutoError("Connection lost. Please try again.");
     }
-
-    setRemaining(result.data.dailyLimit - result.data.generationsToday);
-    const parsed = result.data.json;
-
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      setAutoStatus("error");
-      setAutoError("The AI returned an unexpected format. Please try again.");
-      return;
-    }
-
-    setPendingJson(parsed as Record<string, unknown>);
-    setAutoStatus("preview");
   }
 
   async function handleLeaveAndNotify() {
