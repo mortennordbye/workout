@@ -1,7 +1,7 @@
 "use client";
 
 import { respondToFriendRequest, removeFriend } from "@/lib/actions/friends";
-import type { FriendWithActivity, PendingRequest } from "@/types/workout";
+import type { FriendActivityItem, FriendWithActivity, PendingRequest } from "@/types/workout";
 import { Dumbbell, UserPlus, Users, ChevronRight, Check, X, UserMinus, Gift } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,7 @@ import { useState } from "react";
 interface Props {
   friends: FriendWithActivity[];
   pendingRequests: PendingRequest[];
+  activityFeed: FriendActivityItem[];
   currentUserId: string;
 }
 
@@ -124,7 +125,60 @@ function FriendRow({
   );
 }
 
-export function FriendsClient({ friends, pendingRequests, currentUserId }: Props) {
+const FEELING_EMOJI: Record<string, string> = {
+  Tired: "😓",
+  OK: "😐",
+  Good: "💪",
+  Awesome: "🔥",
+};
+
+function relativeDay(date: Date | null): string {
+  if (!date) return "";
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  return `${diffDays} days ago`;
+}
+
+function formatTime(date: Date | null): string {
+  if (!date) return "";
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function ActivityFeedCard({ item }: { item: FriendActivityItem }) {
+  const timeLabel = item.startTime
+    ? `${relativeDay(item.startTime)}, ${formatTime(item.startTime)}`
+    : relativeDay(new Date(item.date));
+
+  return (
+    <Link
+      href={`/more/friends/${item.userId}`}
+      className="block px-4 py-3 active:bg-muted/50 transition-colors"
+    >
+      <div className="flex items-start gap-3">
+        <Avatar name={item.name} image={item.image} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="font-medium truncate">{item.name}</p>
+            <p className="text-xs text-muted-foreground shrink-0">{timeLabel}</p>
+          </div>
+          <p className="text-sm text-muted-foreground truncate">
+            {item.programName ?? "Workout"}
+            {item.durationMinutes > 0 && ` · ${item.durationMinutes}min`}
+            {item.feeling && ` ${FEELING_EMOJI[item.feeling] ?? ""}`}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {item.exerciseCount} exercise{item.exerciseCount !== 1 ? "s" : ""} · {item.setCount} sets
+            {item.totalVolumeKg > 0 && ` · ${Math.round(item.totalVolumeKg).toLocaleString()}kg`}
+          </p>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+export function FriendsClient({ friends, pendingRequests, activityFeed, currentUserId }: Props) {
   const router = useRouter();
   const [loadingId, setLoadingId] = useState<number | null>(null);
   const [removingId, setRemovingId] = useState<number | null>(null);
@@ -162,6 +216,20 @@ export function FriendsClient({ friends, pendingRequests, currentUserId }: Props
           Shared Programs
         </Link>
       </div>
+
+      {/* Recent Activity */}
+      {activityFeed.length > 0 && (
+        <section className="mb-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground px-4 py-2">
+            Recent Activity
+          </p>
+          <div className="divide-y divide-border border-y border-border">
+            {activityFeed.map((item) => (
+              <ActivityFeedCard key={item.sessionId} item={item} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Pending requests */}
       {pendingRequests.length > 0 && (

@@ -234,6 +234,22 @@ export type PendingRequest = {
   createdAt: Date;
 };
 
+export type FriendActivityItem = {
+  friendshipId: number;
+  userId: string;
+  name: string;
+  image: string | null;
+  sessionId: number;
+  date: string;
+  startTime: Date | null;
+  programName: string | null;
+  durationMinutes: number;
+  setCount: number;
+  exerciseCount: number;
+  totalVolumeKg: number;
+  feeling: string | null;
+};
+
 export type IncomingShare = {
   shareId: number;
   programId: number;

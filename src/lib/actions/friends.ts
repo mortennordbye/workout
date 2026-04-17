@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { friendships, users, workoutSessions } from "@/db/schema";
+import { friendships, programs, users, workoutSessions, workoutSets } from "@/db/schema";
 import {
   removeFriendSchema,
   respondToFriendRequestSchema,
@@ -12,11 +12,12 @@ import {
 import { requireSession } from "@/lib/utils/session";
 import type {
   ActionResult,
+  FriendActivityItem,
   FriendWithActivity,
   PendingRequest,
   UserSearchResult,
 } from "@/types/workout";
-import { and, eq, ilike, ne, or } from "drizzle-orm";
+import { and, count, eq, gt, ilike, ne, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 // ─── Search ────────────────────────────────────────────────────────────────
@@ -296,6 +297,106 @@ export async function getPendingRequests(): Promise<ActionResult<PendingRequest[
     };
   } catch {
     return { success: false, error: "Failed to load requests" };
+  }
+}
+
+// ─── Friends Activity Feed ─────────────────────────────────────────────────
+
+export async function getFriendsActivityFeed(): Promise<ActionResult<FriendActivityItem[]>> {
+  const session = await requireSession();
+  const me = session.user.id;
+
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - 14);
+
+    const rows = await db
+      .select({
+        friendshipId: friendships.id,
+        userId: users.id,
+        name: users.name,
+        image: users.image,
+        sessionId: workoutSessions.id,
+        date: workoutSessions.date,
+        startTime: workoutSessions.startTime,
+        endTime: workoutSessions.endTime,
+        programName: programs.name,
+        feeling: workoutSessions.feeling,
+        setCount: count(workoutSets.id),
+        exerciseCount: sql<number>`count(distinct ${workoutSets.exerciseId})`,
+        totalVolumeKg: sql<number>`coalesce(sum(${workoutSets.weightKg} * ${workoutSets.actualReps}), 0)`,
+      })
+      .from(friendships)
+      .innerJoin(
+        users,
+        and(
+          or(
+            and(eq(friendships.requesterId, me), eq(users.id, friendships.addresseeId)),
+            and(eq(friendships.addresseeId, me), eq(users.id, friendships.requesterId)),
+          ),
+          eq(users.showActivityToFriends, true),
+        ),
+      )
+      .innerJoin(
+        workoutSessions,
+        and(
+          eq(workoutSessions.userId, users.id),
+          eq(workoutSessions.isCompleted, true),
+          gt(workoutSessions.startTime, since),
+        ),
+      )
+      .leftJoin(programs, eq(programs.id, workoutSessions.programId))
+      .leftJoin(
+        workoutSets,
+        and(eq(workoutSets.sessionId, workoutSessions.id), eq(workoutSets.isCompleted, true)),
+      )
+      .where(
+        and(
+          eq(friendships.status, "accepted"),
+          or(eq(friendships.requesterId, me), eq(friendships.addresseeId, me)),
+        ),
+      )
+      .groupBy(
+        friendships.id,
+        users.id,
+        users.name,
+        users.image,
+        workoutSessions.id,
+        workoutSessions.date,
+        workoutSessions.startTime,
+        workoutSessions.endTime,
+        programs.name,
+        workoutSessions.feeling,
+      )
+      .orderBy(sql`${workoutSessions.startTime} desc`)
+      .limit(20);
+
+    const data: FriendActivityItem[] = rows.map((r) => {
+      const durationMinutes =
+        r.endTime && r.startTime
+          ? Math.max(1, Math.round((r.endTime.getTime() - r.startTime.getTime()) / 60000))
+          : 0;
+
+      return {
+        friendshipId: r.friendshipId,
+        userId: r.userId,
+        name: r.name,
+        image: r.image,
+        sessionId: r.sessionId,
+        date: r.date,
+        startTime: r.startTime,
+        programName: r.programName ?? null,
+        durationMinutes,
+        setCount: Number(r.setCount),
+        exerciseCount: Number(r.exerciseCount),
+        totalVolumeKg: Number(r.totalVolumeKg),
+        feeling: r.feeling ?? null,
+      };
+    });
+
+    return { success: true, data };
+  } catch {
+    return { success: false, error: "Failed to load activity feed" };
   }
 }
 
