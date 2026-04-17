@@ -90,21 +90,28 @@ export function ViewportFix() {
       document.documentElement.style.setProperty("--kb-height", `${kbHeight}px`);
 
       if (kbHeight < 50) {
-        // Keyboard closed — reset any residual offset
+        // Keyboard closed — cancel any pending scroll correction and reset offsets.
+        if (scrollTimer) { clearTimeout(scrollTimer); scrollTimer = null; }
         resetZoom();
         resetScroll();
         setTimeout(resetScroll, 300);
         return;
       }
 
-      // Keyboard opened — wait for iOS to finish its own auto-scroll, then
-      // correct the scroll position so the focused input sits above the keyboard.
-      setTimeout(() => {
+      // Keyboard opened — debounce: only the last resize event during the
+      // keyboard animation fires the scroll correction. Without this, every
+      // intermediate vv.resize fires a separate setTimeout, they all execute
+      // ~150 ms later, and each calls scrollBy() independently — the scroll
+      // amounts add up and overshoot the target (intermittent "jump" bug).
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        scrollTimer = null;
         const el = document.activeElement as HTMLElement | null;
         if (!el || !["INPUT", "TEXTAREA"].includes(el.tagName)) return;
 
         const rect = el.getBoundingClientRect();
-        const safeBottom = window.innerHeight - kbHeight - 16;
+        const finalKbHeight = Math.max(0, window.innerHeight - (vv?.height ?? window.innerHeight));
+        const safeBottom = window.innerHeight - finalKbHeight - 16;
         if (rect.bottom <= safeBottom) return; // already visible above keyboard
 
         const scrollable = findScrollableParent(el);
@@ -112,11 +119,14 @@ export function ViewportFix() {
       }, 150);
     }
 
+    let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+
     vv.addEventListener("scroll", onVVScroll);
     vv.addEventListener("resize", onViewportResize);
     document.addEventListener("focusout", onFocusOut);
 
     return () => {
+      if (scrollTimer) clearTimeout(scrollTimer);
       vv.removeEventListener("scroll", onVVScroll);
       vv.removeEventListener("resize", onViewportResize);
       document.removeEventListener("focusout", onFocusOut);
