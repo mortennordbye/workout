@@ -50,31 +50,55 @@ export async function moveAiModel(id: number, direction: "up" | "down"): Promise
 
 export async function testAiModel(modelId: string): Promise<ActionResult<{ latencyMs: number }>> {
   await requireSession();
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) return { success: false, error: "OPENROUTER_API_KEY is not configured." };
+
+  const row = await db
+    .select({ provider: aiModelConfigs.provider })
+    .from(aiModelConfigs)
+    .where(eq(aiModelConfigs.modelId, modelId))
+    .then((rows) => rows[0]);
+  const provider = row?.provider ?? "openrouter";
+
+  const isGoogle = provider === "google";
+  const apiKey = isGoogle ? process.env.GOOGLE_API_KEY : process.env.OPENROUTER_API_KEY;
+  if (!apiKey)
+    return {
+      success: false,
+      error: isGoogle ? "GOOGLE_API_KEY is not configured." : "OPENROUTER_API_KEY is not configured.",
+    };
 
   const start = Date.now();
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": process.env.BETTER_AUTH_URL ?? "https://logevery.lift",
-        "X-Title": "LogEveryLift AI Setup",
-      },
-      body: JSON.stringify({
-        model: modelId,
-        messages: [
-          {
-            role: "user",
-            content: 'Reply with only this exact JSON and nothing else: {"ok":true}',
-          },
-        ],
-        temperature: 0,
-        max_tokens: 32,
-      }),
-    });
+    let response: Response;
+    if (isGoogle) {
+      // Native Gemini API — AQ. key format requires ?key= param
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: 'Reply with only this exact JSON and nothing else: {"ok":true}' }] }],
+            generationConfig: { temperature: 0, maxOutputTokens: 32 },
+          }),
+        },
+      );
+    } else {
+      response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": process.env.BETTER_AUTH_URL ?? "https://logevery.lift",
+          "X-Title": "LogEveryLift AI Setup",
+        },
+        body: JSON.stringify({
+          model: modelId,
+          messages: [{ role: "user", content: 'Reply with only this exact JSON and nothing else: {"ok":true}' }],
+          temperature: 0,
+          max_tokens: 32,
+        }),
+      });
+    }
 
     const latencyMs = Date.now() - start;
 
@@ -84,7 +108,9 @@ export async function testAiModel(modelId: string): Promise<ActionResult<{ laten
     }
 
     const data = await response.json();
-    const text: string = data?.choices?.[0]?.message?.content ?? "";
+    const text: string = isGoogle
+      ? (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "")
+      : (data?.choices?.[0]?.message?.content ?? "");
     if (!text) return { success: false, error: "Empty response from model." };
 
     return { success: true, data: { latencyMs } };
@@ -93,13 +119,13 @@ export async function testAiModel(modelId: string): Promise<ActionResult<{ laten
   }
 }
 
-export async function addAiModel(modelId: string, label: string): Promise<ActionResult> {
+export async function addAiModel(modelId: string, label: string, provider = "openrouter"): Promise<ActionResult> {
   await requireSession();
   if (!modelId.trim() || !label.trim()) return { success: false, error: "Model ID and label are required." };
   try {
     const rows = await db.select({ priority: aiModelConfigs.priority }).from(aiModelConfigs).orderBy(asc(aiModelConfigs.priority));
     const maxPriority = rows.length > 0 ? Math.max(...rows.map((r) => r.priority)) : 0;
-    await db.insert(aiModelConfigs).values({ modelId: modelId.trim(), label: label.trim(), priority: maxPriority + 1 });
+    await db.insert(aiModelConfigs).values({ modelId: modelId.trim(), label: label.trim(), provider, priority: maxPriority + 1 });
     return { success: true, data: undefined };
   } catch (err) {
     return { success: false, error: String(err) };

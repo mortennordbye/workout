@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const AI_PENDING_KEY = "ai_pending_result";
+const AI_PENDING_ERROR_KEY = "ai_pending_error";
 
 type UserProfile = {
   gender: string | null;
@@ -133,12 +134,14 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
   const [cycleDurationWeeks, setCycleDurationWeeks] = useState<PromptOptions["cycleDurationWeeks"]>(undefined);
   const [autoStatus, setAutoStatus] = useState<"idle" | "asking" | "preview" | "importing" | "error">("idle");
   const [autoError, setAutoError] = useState<string | null>(null);
+  const [returnError, setReturnError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(dailyLimit - generationsToday);
   const [pendingJson, setPendingJson] = useState<Record<string, unknown> | null>(null);
   const generationPromise = useRef<ReturnType<typeof generateWorkoutPlan> | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(AI_PENDING_KEY);
+    const storedError = localStorage.getItem(AI_PENDING_ERROR_KEY);
     if (stored) {
       localStorage.removeItem(AI_PENDING_KEY);
       try {
@@ -146,6 +149,9 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
         setPendingJson(parsed);
         setAutoStatus("preview");
       } catch {}
+    } else if (storedError) {
+      localStorage.removeItem(AI_PENDING_ERROR_KEY);
+      setReturnError(storedError);
     }
   }, []);
 
@@ -298,12 +304,20 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
         if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
           localStorage.setItem(AI_PENDING_KEY, JSON.stringify(parsed));
         }
-      }
-      if ("Notification" in window && Notification.permission === "granted") {
-        new Notification("Your workout plan is ready!", {
-          body: "Tap to review and import your AI-generated programs.",
-          icon: "/icon-192x192.png",
-        });
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("Your workout plan is ready!", {
+            body: "Tap to review and import your AI-generated programs.",
+            icon: "/icon-192x192.png",
+          });
+        }
+      } else {
+        localStorage.setItem(AI_PENDING_ERROR_KEY, result.error ?? "Generation failed.");
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("AI generation failed", {
+            body: "Come back to AI Setup to try again.",
+            icon: "/icon-192x192.png",
+          });
+        }
       }
     });
 
@@ -355,7 +369,27 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
   return (
     <div className="flex-1 flex flex-col gap-6 px-4 pb-8">
       {/* Auto-generate section */}
-      {(autoStatus === "preview" || autoStatus === "importing") && pendingJson ? (
+      {autoStatus === "asking" ? (
+        <div className="flex flex-col items-center text-center gap-5 py-6">
+          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <Sparkles className="w-8 h-8 text-primary animate-pulse" />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <p className="text-base font-semibold">Building your plan…</p>
+            <p className="text-sm text-muted-foreground leading-relaxed max-w-xs">
+              This is free and uses AI models that can take <strong>1–3 minutes</strong>. You don&apos;t need to stay on this page.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleLeaveAndNotify}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-muted text-foreground py-3.5 text-sm font-semibold active:opacity-80"
+          >
+            Continue using the app
+          </button>
+          <p className="text-xs text-muted-foreground">We&apos;ll notify you when it&apos;s ready</p>
+        </div>
+      ) : (autoStatus === "preview" || autoStatus === "importing") && pendingJson ? (
         <PreviewCard
           parsed={pendingJson}
           onConfirm={handleConfirmImport}
@@ -414,39 +448,26 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
               ))}
             </select>
           </div>
-          {autoError && <p className="text-xs text-destructive">{autoError}</p>}
-          <p className="text-xs text-muted-foreground">
-            {remaining} of {dailyLimit} generations remaining today
-          </p>
-          <p className="text-xs text-muted-foreground">
-            This is free, so it may take a little while — thanks for your patience.
-          </p>
-          {AUTO_BUSY && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-3 py-0.5">
-                {(["asking", "importing"] as const).map((phase, i) => (
-                  <div key={phase} className="flex items-center gap-2">
-                    {i > 0 && <div className="h-px w-4 bg-border" />}
-                    <div className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${autoStatus === phase ? "text-primary" : autoStatus === "importing" && phase === "asking" ? "text-muted-foreground/50" : "text-muted-foreground/30"}`}>
-                      {autoStatus === phase && (
-                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                      )}
-                      {AUTO_STATUS_LABEL[phase]}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {autoStatus === "asking" && (
-                <button
-                  type="button"
-                  onClick={handleLeaveAndNotify}
-                  className="text-xs text-muted-foreground active:opacity-70 text-left underline underline-offset-2"
-                >
-                  Continue using the app — notify me when it&apos;s ready
-                </button>
-              )}
+          {returnError && (
+            <div className="rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 flex flex-col gap-1">
+              <p className="text-xs font-semibold text-destructive">Last generation failed</p>
+              <p className="text-xs text-destructive/80">{returnError}</p>
+              <button
+                type="button"
+                onClick={() => setReturnError(null)}
+                className="text-xs text-destructive underline underline-offset-2 text-left mt-0.5 active:opacity-70"
+              >
+                Dismiss
+              </button>
             </div>
           )}
+          {autoError && <p className="text-xs text-destructive">{autoError}</p>}
+          <p className="text-xs text-muted-foreground">
+            {dailyLimit === Infinity ? "Unlimited generations (admin)" : `${remaining} of ${dailyLimit} generations remaining today`}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            This is 100% free. AI models can take <strong>1–3 minutes</strong> — you don&apos;t need to wait on this page.
+          </p>
           <button
             type="button"
             onClick={handleGenerate}
@@ -454,7 +475,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
             className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80 disabled:opacity-50"
           >
             <Sparkles className="w-4 h-4" />
-            {AUTO_BUSY ? AUTO_STATUS_LABEL[autoStatus] : "Generate"}
+            Generate
           </button>
         </div>
       )}
