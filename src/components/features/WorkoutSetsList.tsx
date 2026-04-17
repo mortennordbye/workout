@@ -45,7 +45,7 @@ type WorkoutSetsListProps = {
   sessionId?: number;
   onDeleteSet?: (setId: number) => void;
   suggestions?: Record<number, SetSuggestionDisplay>;
-  onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number, durationSeconds?: number) => void;
+  onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number, durationSeconds?: number, distanceMeters?: number) => void;
   onApplyRepSuggestion?: (setId: number, reps: number) => void;
 };
 
@@ -277,6 +277,7 @@ export function WorkoutSetsList({
             actualReps: ov?.targetReps ?? setData.targetReps ?? 0,
             weightKg: ov?.weightKg ?? Number(setData.weightKg ?? 0),
             durationSeconds: ov?.durationSeconds ?? setData.durationSeconds ?? undefined,
+            distanceMeters: ov?.distanceMeters ?? setData.distanceMeters ?? undefined,
             rpe: 7,
             restTimeSeconds: restSeconds,
             isCompleted: true,
@@ -897,7 +898,7 @@ function SortableSetRow({
   onStartTimer?: (setId: number, duration: number) => void;
   onOpenLogRun?: (setId: number) => void;
   suggestion?: SetSuggestionDisplay;
-  onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number, durationSeconds?: number) => void;
+  onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number, durationSeconds?: number, distanceMeters?: number) => void;
   onApplyRepSuggestion?: (setId: number, reps: number) => void;
   overrideDurationSeconds?: number;
   hasPR?: boolean;
@@ -1150,9 +1151,15 @@ function SortableSetRow({
                   </button>
                 )}
                 {distancePending && (
-                  <span className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold">
-                    ↑ {formatDistanceKm(suggestion.suggestedDistanceMeters!)} next time
-                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onApplySuggestion?.(set.id, suggestion.suggestedWeightKg, undefined, undefined, suggestion.suggestedDistanceMeters);
+                    }}
+                    className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
+                  >
+                    ↑ {formatDistanceKm(suggestion.suggestedDistanceMeters!)}
+                  </button>
                 )}
                 {suggestion.readinessModulated && (
                   <span className="text-[10px] text-muted-foreground/60">

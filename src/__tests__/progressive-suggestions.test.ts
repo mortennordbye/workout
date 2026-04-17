@@ -460,3 +460,134 @@ describe("buildSuggestion — readiness modulation", () => {
     expect(result?.readinessModulated).toBe(false);
   });
 });
+
+// ─── Bug fix: deload → retry false positive ───────────────────────────────────
+
+describe("buildSuggestion — deload→retry guard", () => {
+  it("does NOT suggest retry when weight drop follows DELOAD_THRESHOLD-1 consecutive failures", () => {
+    // User had 2+ consecutive misses at 80kg, then trained at 72kg (intentional deload)
+    const rows = [
+      makeRow({ weightKg: "72.00", actualReps: 8, targetReps: 8, rpe: 7, date: "2024-01-04" }), // post-deload success
+      makeRow({ weightKg: "80.00", actualReps: 4, targetReps: 8, rpe: 9, date: "2024-01-03" }), // miss #2
+      makeRow({ weightKg: "80.00", actualReps: 4, targetReps: 8, rpe: 9, date: "2024-01-02" }), // miss #1
+    ];
+    const result = buildSuggestion(rows, makePs(), null);
+    expect(result?.reason).not.toBe("retry");
+    // Should hold at current weight until consensus is rebuilt
+    expect(result?.suggestedWeightKg).toBeCloseTo(72);
+  });
+
+  it("DOES suggest retry when weight drop is a one-off bad session (single miss)", () => {
+    // Only 1 miss before the drop — accidental, not a systematic deload
+    const rows = [
+      makeRow({ weightKg: "77.50", actualReps: 8, targetReps: 8, rpe: 7, date: "2024-01-02" }), // dropped weight
+      makeRow({ weightKg: "80.00", actualReps: 4, targetReps: 8, rpe: 9, date: "2024-01-01" }), // single miss
+    ];
+    const result = buildSuggestion(rows, makePs(), null);
+    expect(result?.reason).toBe("retry");
+    expect(result?.suggestedWeightKg).toBeCloseTo(80);
+  });
+
+  it("does NOT suggest retry when preceding streak is exactly DELOAD_THRESHOLD-1 misses", () => {
+    const rows = [
+      makeRow({ weightKg: "72.00", actualReps: 8, targetReps: 8, rpe: 7, date: "2024-01-03" }),
+      // DELOAD_THRESHOLD-1 = 2 consecutive failures precede the drop
+      makeRow({ weightKg: "80.00", actualReps: 3, targetReps: 8, rpe: 9, date: "2024-01-02" }),
+      makeRow({ weightKg: "80.00", actualReps: 3, targetReps: 8, rpe: 9, date: "2024-01-01" }),
+    ];
+    const result = buildSuggestion(rows, makePs(), null);
+    expect(result?.reason).not.toBe("retry");
+  });
+});
+
+// ─── Bug fix: bodyweight (weight=0) in weight/smart mode ─────────────────────
+
+describe("buildSuggestion — bodyweight fallback", () => {
+  it("suggests more reps (not kg) for weight mode when baseWeight is 0", () => {
+    const rows = makeRows(REQUIRED_HITS, { weightKg: "0.00", actualReps: 10, targetReps: 10, rpe: 6 });
+    const ps = makePs({ progressionMode: "weight", targetReps: 10, overloadIncrementReps: 2 });
+    const result = buildSuggestion(rows, ps, null);
+    expect(result?.reason).toBe("progressed-reps");
+    expect(result?.suggestedReps).toBe(12);
+    expect(result?.suggestedWeightKg).toBe(0);
+  });
+
+  it("holds for weight mode at weight=0 when no incrementReps configured", () => {
+    const rows = makeRows(REQUIRED_HITS, { weightKg: "0.00", actualReps: 10, targetReps: 10, rpe: 6 });
+    const ps = makePs({ progressionMode: "weight", targetReps: 10, overloadIncrementReps: 0 });
+    const result = buildSuggestion(rows, ps, null);
+    expect(result?.reason).toBe("held");
+  });
+
+  it("suggests more reps (not kg) for smart mode when baseWeight is 0", () => {
+    const rows = makeRows(REQUIRED_HITS, { weightKg: "0.00", actualReps: 8, targetReps: 8, rpe: 6 });
+    const ps = makePs({ progressionMode: "smart", targetReps: 8, overloadIncrementReps: 1 });
+    const result = buildSuggestion(rows, ps, null);
+    expect(result?.reason).toBe("progressed-reps");
+    expect(result?.suggestedReps).toBe(9);
+  });
+
+  it("progresses by weight as normal when baseWeight > 0 in weight mode", () => {
+    const rows = makeRows(REQUIRED_HITS, { weightKg: "60.00", actualReps: 10, targetReps: 10, rpe: 6 });
+    const result = buildSuggestion(rows, makePs({ progressionMode: "weight" }), null);
+    expect(result?.reason).toBe("progressed");
+    expect(result?.suggestedWeightKg).toBeGreaterThan(60);
+  });
+});
+
+// ─── Bug fix: time/distance mode RPE confidence gate ─────────────────────────
+
+describe("buildSuggestion — time mode RPE confidence", () => {
+  it("does NOT count a timed set as confident when RPE is 9 or 10", () => {
+    const rows = makeRows(REQUIRED_HITS, { durationSeconds: 60, actualReps: 1, targetReps: null, rpe: 9 });
+    const ps = makePs({ progressionMode: "time", durationSeconds: 60, overloadIncrementReps: 10 });
+    const result = buildSuggestion(rows, ps, null);
+    expect(result?.reason).toBe("held"); // not progressed-time despite hitting duration
+  });
+
+  it("counts a timed set as confident when RPE is 8 and duration met", () => {
+    const rows = makeRows(REQUIRED_HITS, { durationSeconds: 60, actualReps: 1, targetReps: null, rpe: 8 });
+    const ps = makePs({ progressionMode: "time", durationSeconds: 60, overloadIncrementReps: 10 });
+    const result = buildSuggestion(rows, ps, null);
+    expect(result?.reason).toBe("progressed-time");
+    expect(result?.suggestedDurationSeconds).toBe(70);
+  });
+
+  it("treats null RPE as 7 (confident) for timed sets", () => {
+    const rows = makeRows(REQUIRED_HITS, { durationSeconds: 60, actualReps: 1, targetReps: null, rpe: 0 });
+    const ps = makePs({ progressionMode: "time", durationSeconds: 60, overloadIncrementReps: 10 });
+    const result = buildSuggestion(rows, ps, null);
+    expect(result?.reason).toBe("progressed-time");
+  });
+});
+
+describe("buildSuggestion — distance mode RPE confidence", () => {
+  it("does NOT count a distance set as confident when RPE is 9 or 10", () => {
+    const rows = makeRows(REQUIRED_HITS, {
+      distanceMeters: 5000,
+      actualReps: 1, targetReps: null, rpe: 9,
+    });
+    const ps = makePs({
+      progressionMode: "distance",
+      distanceMeters: 5000,
+      overloadIncrementReps: 500,
+    });
+    const result = buildSuggestion(rows, ps, null);
+    expect(result?.reason).toBe("held");
+  });
+
+  it("counts a distance set as confident when RPE ≤ 8 and distance met", () => {
+    const rows = makeRows(REQUIRED_HITS, {
+      distanceMeters: 5000,
+      actualReps: 1, targetReps: null, rpe: 7,
+    });
+    const ps = makePs({
+      progressionMode: "distance",
+      distanceMeters: 5000,
+      overloadIncrementReps: 500,
+    });
+    const result = buildSuggestion(rows, ps, null);
+    expect(result?.reason).toBe("progressed-distance");
+    expect(result?.suggestedDistanceMeters).toBe(5500);
+  });
+});

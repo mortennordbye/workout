@@ -266,12 +266,16 @@ export function buildSuggestion(
   const hitsWithConfidence = mode === "time"
     ? rows.filter((r) => {
         const target = ps.durationSeconds ?? r.durationSeconds;
-        return target != null && (r.durationSeconds ?? 0) >= target;
+        if (target == null || (r.durationSeconds ?? 0) < target) return false;
+        const rpe = r.rpe ?? 7;
+        return rpe <= 8; // RPE 9–10 = not confident (near-max effort)
       })
     : mode === "distance"
     ? rows.filter((r) => {
         const target = ps.distanceMeters ?? r.distanceMeters;
-        return target != null && (r.distanceMeters ?? 0) >= target;
+        if (target == null || (r.distanceMeters ?? 0) < target) return false;
+        const rpe = r.rpe ?? 7;
+        return rpe <= 8;
       })
     : rows.filter((r) => isConfidentHit(r, ps.targetReps));
 
@@ -332,17 +336,23 @@ export function buildSuggestion(
   // ── Recovery: last session was lower weight or fewer reps than the one before ─
   // Suggest returning to the previous value before progressing further.
   // Only applies to weight-bearing modes; deload already handled above.
+  // Guard: if the weight drop was preceded by consecutive failures (an intentional
+  // deload), do NOT suggest going back up immediately.
   if (rows.length >= 2 && (mode === "weight" || mode === "smart" || mode === "reps")) {
     const prev = rows[1];
     const prevWeight = Number(prev.weightKg);
 
     if (prevWeight > baseWeight) {
-      // Weight decreased — suggest returning to previous weight
-      return {
-        suggestedWeightKg: prevWeight,
-        ...basedOn,
-        reason: "retry",
-      };
+      // Weight decreased — only retry if the drop was a one-off, not a deload
+      const prevFailStreak = countConsecutiveFails(rows.slice(1), ps.targetReps);
+      const wasIntentionalDeload = prevFailStreak >= DELOAD_THRESHOLD - 1;
+      if (!wasIntentionalDeload) {
+        return {
+          suggestedWeightKg: prevWeight,
+          ...basedOn,
+          reason: "retry",
+        };
+      }
     }
 
     if (prevWeight === baseWeight && prev.actualReps > latest.actualReps && prev.actualReps > 0) {
@@ -368,6 +378,21 @@ export function buildSuggestion(
       break;
 
     case "weight":
+      // Bodyweight exercises (weight=0) can't progress by adding kg — fall back to reps.
+      if (baseWeight === 0) {
+        const bwTarget = ps.targetReps ?? latest.targetReps;
+        if (shouldProgress && incrementReps > 0 && bwTarget != null) {
+          suggestion = {
+            suggestedWeightKg: 0,
+            suggestedReps: bwTarget + incrementReps,
+            ...basedOn,
+            reason: "progressed-reps",
+          };
+        } else {
+          suggestion = { suggestedWeightKg: 0, ...basedOn, reason: "held" };
+        }
+        break;
+      }
       if (shouldProgress && incrementKg > 0) {
         suggestion = {
           suggestedWeightKg: roundToInc(baseWeight + incrementKg),
@@ -380,6 +405,21 @@ export function buildSuggestion(
       break;
 
     case "smart": {
+      // Bodyweight exercises (weight=0) can't use 1RM logic — fall back to reps.
+      if (baseWeight === 0) {
+        const bwTarget = ps.targetReps ?? latest.targetReps;
+        if (shouldProgress && incrementReps > 0 && bwTarget != null) {
+          suggestion = {
+            suggestedWeightKg: 0,
+            suggestedReps: bwTarget + incrementReps,
+            ...basedOn,
+            reason: "progressed-reps",
+          };
+        } else {
+          suggestion = { suggestedWeightKg: 0, ...basedOn, reason: "held" };
+        }
+        break;
+      }
       if (shouldProgress && incrementKg > 0) {
         const newWeight = roundToInc(baseWeight + incrementKg);
         let adjustedRepsForWeight: number | undefined;
