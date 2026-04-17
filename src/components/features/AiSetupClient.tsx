@@ -139,6 +139,12 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
   const [remaining, setRemaining] = useState(dailyLimit - generationsToday);
   const [pendingJson, setPendingJson] = useState<Record<string, unknown> | null>(null);
   const generationPromise = useRef<ReturnType<typeof generateWorkoutPlan> | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem(AI_PENDING_KEY);
@@ -300,39 +306,13 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
     const promise = generateWorkoutPlan(autoDescription, { daysPerWeek, equipment, cycleDurationWeeks });
     generationPromise.current = promise;
 
-    const result = await promise;
-    generationPromise.current = null;
-
-    if (!result.success) {
-      setAutoStatus("error");
-      setAutoError(result.error);
-      return;
-    }
-
-    setRemaining(result.data.dailyLimit - result.data.generationsToday);
-    const parsed = result.data.json;
-
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-      setAutoStatus("error");
-      setAutoError("The AI returned an unexpected format. Please try again.");
-      return;
-    }
-
-    setPendingJson(parsed as Record<string, unknown>);
-    setAutoStatus("preview");
-  }
-
-  async function handleLeaveAndNotify() {
-    const promise = generationPromise.current;
-    if (!promise) return;
-
-    if ("Notification" in window && Notification.permission === "default") {
-      await Notification.requestPermission();
-    }
-
+    // Set key immediately so bottom nav knows generation is active
     localStorage.setItem(AI_GENERATING_KEY, Date.now().toString());
 
+    // Attach background completion handler before awaiting
+    // isMounted.current will be false if the user navigated away before this resolves
     promise.then((result) => {
+      if (isMounted.current) return; // user stayed on page — the await below handles it
       if (result.success) {
         const parsed = result.data.json;
         if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
@@ -356,6 +336,38 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
       localStorage.removeItem(AI_GENERATING_KEY);
     });
 
+    const result = await promise;
+    generationPromise.current = null;
+
+    // If the component unmounted while waiting, the .then() above already handled everything
+    if (!isMounted.current) return;
+
+    localStorage.removeItem(AI_GENERATING_KEY);
+
+    if (!result.success) {
+      setAutoStatus("error");
+      setAutoError(result.error);
+      return;
+    }
+
+    setRemaining(result.data.dailyLimit - result.data.generationsToday);
+    const parsed = result.data.json;
+
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      setAutoStatus("error");
+      setAutoError("The AI returned an unexpected format. Please try again.");
+      return;
+    }
+
+    setPendingJson(parsed as Record<string, unknown>);
+    setAutoStatus("preview");
+  }
+
+  async function handleLeaveAndNotify() {
+    if (!generationPromise.current) return;
+    if ("Notification" in window && Notification.permission === "default") {
+      await Notification.requestPermission();
+    }
     router.push("/programs");
   }
 
