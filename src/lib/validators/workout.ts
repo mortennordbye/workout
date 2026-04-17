@@ -230,21 +230,21 @@ const importProgramEntrySchema = z.object({
   exercises: z
       .array(
         z.object({
-          orderIndex: z.number().int().min(0),
+          idx: z.number().int().min(0),
           notes: z.string().max(500).nullable().optional(),
-          overloadIncrementKg: z.number().min(0).max(100).default(2.5),
-          overloadIncrementReps: z.number().int().min(0).max(100).default(0),
-          progressionMode: z
+          incKg: z.number().min(0).max(100).default(2.5),
+          incReps: z.number().int().min(0).max(100).default(0),
+          mode: z
             .enum(["none", "manual", "weight", "smart", "reps", "time", "distance"])
             .default("weight"),
           exercise: z.object({
             name: z.string().min(1).max(100),
             category: z.enum(["strength", "cardio", "flexibility"]),
-            bodyArea: z
+            area: z
               .enum(["upper_body", "lower_body", "core", "full_body", "cardio"])
               .nullable()
               .optional(),
-            muscleGroup: z
+            muscle: z
               .enum([
                 "chest",
                 "back",
@@ -276,7 +276,7 @@ const importProgramEntrySchema = z.object({
               ])
               .nullable()
               .optional(),
-            movementPattern: z
+            pattern: z
               .enum([
                 "push",
                 "pull",
@@ -292,12 +292,12 @@ const importProgramEntrySchema = z.object({
           }),
           sets: z.array(
             z.object({
-              setNumber: z.number().int().positive(),
-              targetReps: z.number().int().positive().nullable().optional(),
-              weightKg: z.number().min(0).max(1000).nullable().optional(),
-              durationSeconds: z.number().int().min(0).nullable().optional(),
-              distanceMeters: z.number().int().min(0).nullable().optional(),
-              restTimeSeconds: z.number().int().min(0).max(3600).default(0),
+              n: z.number().int().positive(),
+              reps: z.number().int().positive().nullable().optional(),
+              kg: z.number().min(0).max(1000).nullable().optional(),
+              durSec: z.number().int().min(0).nullable().optional(),
+              distM: z.number().int().min(0).nullable().optional(),
+              rest: z.number().int().min(0).max(3600).default(0),
             }),
           ),
         }),

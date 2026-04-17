@@ -270,26 +270,26 @@ export type ExportedProgram = {
   program: {
     name: string;
     exercises: Array<{
-      orderIndex: number;
+      idx: number;
       notes: string | null;
-      overloadIncrementKg: number;
-      overloadIncrementReps: number;
-      progressionMode: string;
+      incKg: number;
+      incReps: number;
+      mode: string;
       exercise: {
         name: string;
         category: string;
-        bodyArea: string | null;
-        muscleGroup: string | null;
+        area: string | null;
+        muscle: string | null;
         equipment: string | null;
-        movementPattern: string | null;
+        pattern: string | null;
       };
       sets: Array<{
-        setNumber: number;
-        targetReps: number | null;
-        weightKg: number | null;
-        durationSeconds: number | null;
-        distanceMeters: number | null;
-        restTimeSeconds: number;
+        n: number;
+        reps: number | null;
+        kg: number | null;
+        durSec: number | null;
+        distM: number | null;
+        rest: number;
       }>;
     }>;
   };

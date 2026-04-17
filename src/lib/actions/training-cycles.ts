@@ -504,10 +504,11 @@ export async function importCycle(
     };
   }
 
-  const { slots, ...cycleFields } = parsed.data;
+  const { slots, weeks, sched, ...restCycleFields } = parsed.data;
+  const cycleFields = { ...restCycleFields, durationWeeks: weeks, scheduleType: sched };
 
   // Resolve program names → IDs from the user's programs (includes just-imported ones)
-  const programNames = [...new Set(slots.map((s) => s.programName))];
+  const programNames = [...new Set(slots.map((s) => s.prog))];
   const matched = programNames.length > 0
     ? await db
         .select({ id: programs.id, name: programs.name })
@@ -519,7 +520,7 @@ export async function importCycle(
 
   // Detect slots whose program couldn't be resolved
   const unresolvedPrograms = [...new Set(
-    slots.filter((s) => !nameToId.has(s.programName)).map((s) => s.programName),
+    slots.filter((s) => !nameToId.has(s.prog)).map((s) => s.prog),
   )];
 
   try {
@@ -532,9 +533,9 @@ export async function importCycle(
       for (const slot of slots) {
         await tx.insert(trainingCycleSlots).values({
           trainingCycleId: cycle.id,
-          programId: nameToId.get(slot.programName) ?? null,
-          dayOfWeek: slot.dayOfWeek,
-          orderIndex: slot.orderIndex,
+          programId: nameToId.get(slot.prog) ?? null,
+          dayOfWeek: slot.day,
+          orderIndex: slot.idx,
           label: slot.label,
           notes: slot.notes,
         });

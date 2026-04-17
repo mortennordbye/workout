@@ -97,7 +97,7 @@ export function buildAiSystemPrompt(userProfile: UserProfile, exercises: Exercis
     ? `\n- Frequency constraint: the cycle must schedule EXACTLY ${options.daysPerWeek} training day${options.daysPerWeek !== 1 ? "s" : ""} per week — no more, no less.`
     : "";
   const durationRule = options.cycleDurationWeeks
-    ? `\n- Cycle duration constraint: durationWeeks MUST be ${options.cycleDurationWeeks}.`
+    ? `\n- Cycle duration constraint: weeks MUST be ${options.cycleDurationWeeks}.`
     : "";
 
   return `Set up my workout app with the right programs and training schedule.${profileBlock}${prBlock}${existingProgramsBlock}
@@ -112,12 +112,12 @@ If generating a full training setup (programs + a cycle schedule), use:
   "programs": [ { "name": "Push Day", "exercises": [...] }, ... ],
   "cycle": {
     "name": "12-Week Strength Block",
-    "durationWeeks": 12,
-    "scheduleType": "day_of_week",
+    "weeks": 12,
+    "sched": "day_of_week",
     "slots": [
-      { "dayOfWeek": 1, "programName": "Push Day" },
-      { "dayOfWeek": 3, "programName": "Pull Day" },
-      { "dayOfWeek": 5, "programName": "Leg Day" }
+      { "day": 1, "prog": "Push Day" },
+      { "day": 3, "prog": "Pull Day" },
+      { "day": 5, "prog": "Leg Day" }
     ]
   }
 }
@@ -125,48 +125,48 @@ If generating a full training setup (programs + a cycle schedule), use:
 For rotation-based cycles (programs cycle in order regardless of which day of the week):
   "cycle": {
     "name": "ABC Rotation",
-    "durationWeeks": 8,
-    "scheduleType": "rotation",
+    "weeks": 8,
+    "sched": "rotation",
     "slots": [
-      { "orderIndex": 1, "programName": "Push Day", "label": "A" },
-      { "orderIndex": 2, "programName": "Pull Day", "label": "B" },
-      { "orderIndex": 3, "programName": "Leg Day", "label": "C" }
+      { "idx": 1, "prog": "Push Day", "label": "A" },
+      { "idx": 2, "prog": "Pull Day", "label": "B" },
+      { "idx": 3, "prog": "Leg Day", "label": "C" }
     ]
   }
 
 Each exercise entry:
 {
-  "orderIndex": 0,
-  "progressionMode": "weight",
-  "overloadIncrementKg": 2.5,
-  "overloadIncrementReps": 0,
+  "idx": 0,
+  "mode": "weight",
+  "incKg": 2.5,
+  "incReps": 0,
   "exercise": {
     "name": "Bench Press",
     "category": "strength",
-    "bodyArea": "upper_body",
-    "muscleGroup": "chest",
+    "area": "upper_body",
+    "muscle": "chest",
     "equipment": "barbell",
-    "movementPattern": "push"
+    "pattern": "push"
   },
   "sets": [
-    { "setNumber": 1, "targetReps": 8, "weightKg": 60, "restTimeSeconds": 90 }
+    { "n": 1, "reps": 8, "kg": 60, "rest": 90 }
   ]
 }
 
 Rules:
 - Do NOT generate rest day programs. Omit rest days from cycle slots entirely.
 - category: "strength", "cardio", or "flexibility"
-- bodyArea: "upper_body", "lower_body", "core", "full_body", or "cardio"
-- muscleGroup: "chest", "back", "shoulders", "biceps", "triceps", "forearms", "quads", "hamstrings", "glutes", "calves", "abs", "lower_back", "full_body", or "cardio"
+- area: "upper_body", "lower_body", "core", "full_body", or "cardio"
+- muscle: "chest", "back", "shoulders", "biceps", "triceps", "forearms", "quads", "hamstrings", "glutes", "calves", "abs", "lower_back", "full_body", or "cardio"
 - equipment: "barbell", "dumbbell", "machine", "cable", "bodyweight", "kettlebell", "bands", or "other"
-- movementPattern: "push", "pull", "hinge", "squat", "carry", "rotation", "isometric", or "cardio"
-- progressionMode: "manual", "weight", "smart", or "reps"
-- weightKg: use 0 for bodyweight, null if unknown
-- restTimeSeconds: rest between sets in seconds (e.g. 90)
-- orderIndex: 0-based index for exercise order within each program
-- durationWeeks must be one of: 4, 6, 8, 10, 12, 16
-- dayOfWeek: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
-- programName in cycle slots must exactly match a name in the "programs" array
+- pattern: "push", "pull", "hinge", "squat", "carry", "rotation", "isometric", or "cardio"
+- mode: "manual", "weight", "smart", or "reps"
+- kg: use 0 for bodyweight, null if unknown
+- rest: rest between sets in seconds (e.g. 90)
+- idx: 0-based index for exercise order within each program
+- weeks must be one of: 4, 6, 8, 10, 12, 16
+- day: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
+- prog in cycle slots must exactly match a name in the "programs" array
 - Exercise order: always list compound/multi-joint exercises before isolation exercises within a program
 - Starting weights: use ~75% of 1RM for 3–5 rep sets, ~70% for 6–8 reps, ~65% for 8–12 reps, ~60% for 12–15 reps. Estimate for exercises without PR data using body weight as reference where appropriate.
 - Periodization: for beginner/novice experience levels use linear progression (same weight each session, add weight only when top of rep range is hit consistently). For intermediate/advanced use undulating periodization (vary rep ranges across sessions or programs, e.g. heavy/medium/light days).
