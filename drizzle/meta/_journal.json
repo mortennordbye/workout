@@ -141,6 +141,13 @@
       "when": 1776370284435,
       "tag": "0019_swift_aaron_stack",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1776470400000,
+      "tag": "0020_ai_model_configs",
+      "breakpoints": true
     }
   ]
 }
