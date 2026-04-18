@@ -1,9 +1,9 @@
 "use client";
 
-import { createProgram, deleteManyPrograms, exportAllPrograms, importProgram, updateProgram } from "@/lib/actions/programs";
+import { createProgram, deleteManyPrograms, exportAllPrograms, exportProgram, importProgram, updateProgram } from "@/lib/actions/programs";
 import type { Program } from "@/types/workout";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { Check, ChevronRightIcon, Download, PlusIcon, Upload } from "lucide-react";
+import { ArrowDownUp, Check, ChevronRightIcon, Download, PlusIcon, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -32,7 +32,25 @@ export function ProgramListClient({ programs: initial }: Props) {
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
 
+  const [showTransferSheet, setShowTransferSheet] = useState(false);
+  const [showProgramPickerSheet, setShowProgramPickerSheet] = useState(false);
+  const [importMode, setImportMode] = useState<"single" | "all">("single");
   const [exporting, setExporting] = useState(false);
+  const [exportingSingleId, setExportingSingleId] = useState<number | null>(null);
+
+  async function handleExportSingle(id: number, name: string) {
+    setExportingSingleId(id);
+    const result = await exportProgram(id);
+    setExportingSingleId(null);
+    if (!result.success) return;
+    const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${name.replace(/\s+/g, "-").toLowerCase()}-program.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   async function handleExportAll() {
     setExporting(true);
@@ -192,24 +210,13 @@ export function ProgramListClient({ programs: initial }: Props) {
             </>
           ) : (
             <>
-              {programs.length > 0 && (
-                <button
-                  type="button"
-                  onClick={handleExportAll}
-                  disabled={exporting}
-                  className="flex items-center justify-center w-10 h-10 text-muted-foreground active:opacity-60 disabled:opacity-40"
-                  aria-label="Export all programs"
-                >
-                  <Download className="w-5 h-5" />
-                </button>
-              )}
               <button
                 type="button"
-                onClick={() => setImportSheetOpen(true)}
+                onClick={() => setShowTransferSheet(true)}
                 className="flex items-center justify-center w-10 h-10 text-muted-foreground active:opacity-60"
-                aria-label="Import program"
+                aria-label="Import / Export programs"
               >
-                <Upload className="w-5 h-5" />
+                <ArrowDownUp className="w-5 h-5" />
               </button>
               <button
                 type="button"
@@ -369,12 +376,117 @@ export function ProgramListClient({ programs: initial }: Props) {
         className="sr-only"
         onChange={handleFileChange}
       />
+      {showTransferSheet && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowTransferSheet(false)} />
+          <div className="relative bg-background rounded-t-2xl pb-safe">
+            <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 mb-4" />
+            <div className="divide-y divide-border">
+              <button
+                type="button"
+                onClick={() => { setShowTransferSheet(false); setImportMode("single"); setImportSheetOpen(true); }}
+                className="flex items-center gap-3 w-full px-4 py-4 active:bg-muted/50 transition-colors"
+              >
+                <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <Upload className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="text-left">
+                  <p className="font-medium">Import single program</p>
+                  <p className="text-xs text-muted-foreground">From a single-program JSON file</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowTransferSheet(false); setImportMode("all"); setImportSheetOpen(true); }}
+                className="flex items-center gap-3 w-full px-4 py-4 active:bg-muted/50 transition-colors"
+              >
+                <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <Upload className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="text-left">
+                  <p className="font-medium">Import all programs</p>
+                  <p className="text-xs text-muted-foreground">From an all-programs JSON file</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowTransferSheet(false); setShowProgramPickerSheet(true); }}
+                disabled={programs.length === 0}
+                className="flex items-center gap-3 w-full px-4 py-4 active:bg-muted/50 transition-colors disabled:opacity-40"
+              >
+                <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <Download className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="text-left">
+                  <p className="font-medium">Export single program</p>
+                  <p className="text-xs text-muted-foreground">Choose which program to export</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setShowTransferSheet(false); handleExportAll(); }}
+                disabled={exporting || programs.length === 0}
+                className="flex items-center gap-3 w-full px-4 py-4 active:bg-muted/50 transition-colors disabled:opacity-40"
+              >
+                <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <Download className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="text-left">
+                  <p className="font-medium">Export all programs</p>
+                  <p className="text-xs text-muted-foreground">All programs to a single JSON file</p>
+                </div>
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowTransferSheet(false)}
+              className="w-full py-4 text-primary font-semibold text-sm active:opacity-70 mt-2 border-t border-border"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showProgramPickerSheet && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowProgramPickerSheet(false)} />
+          <div className="relative bg-background rounded-t-2xl pb-safe max-h-[70dvh] flex flex-col">
+            <div className="w-10 h-1 bg-muted rounded-full mx-auto mt-3 shrink-0" />
+            <div className="flex items-center justify-between px-4 pt-3 pb-3 border-b border-border shrink-0">
+              <h2 className="font-semibold">Export which program?</h2>
+              <button onClick={() => setShowProgramPickerSheet(false)} className="text-sm text-muted-foreground active:opacity-70">
+                Cancel
+              </button>
+            </div>
+            <div className="overflow-y-auto divide-y divide-border">
+              {programs.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => { setShowProgramPickerSheet(false); handleExportSingle(p.id, p.name); }}
+                  disabled={exportingSingleId === p.id}
+                  className="flex items-center justify-between w-full px-4 py-3.5 active:bg-muted/50 transition-colors disabled:opacity-50"
+                >
+                  <span className="font-medium text-left">{p.name}</span>
+                  <Download className="w-4 h-4 text-muted-foreground shrink-0" />
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <BottomSheet open={importSheetOpen} onClose={closeImportSheet}>
         <div className="bg-background rounded-t-2xl px-4 pt-5 pb-10">
           <div className="w-10 h-1 bg-muted rounded-full mx-auto mb-5" />
-          <h2 className="text-xl font-bold mb-1">Import Program</h2>
+          <h2 className="text-xl font-bold mb-1">
+            {importMode === "all" ? "Import All Programs" : "Import Program"}
+          </h2>
           <p className="text-sm text-muted-foreground mb-6">
-            Select a .json file exported from this app.
+            {importMode === "all"
+              ? "Select a JSON file exported using Export all programs."
+              : "Select a JSON file exported from a single program."}
           </p>
           {importStatus === "idle" && (
             <button
