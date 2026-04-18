@@ -901,7 +901,7 @@ export async function sendNudge(input: unknown): Promise<ActionResult<void>> {
     if (recent) return { success: false, error: "Already nudged recently" };
 
     await db.insert(nudges).values({ fromUserId: me, toUserId });
-    return { success: true };
+    return { success: true, data: undefined };
   } catch {
     return { success: false, error: "Failed to send nudge" };
   }

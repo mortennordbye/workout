@@ -142,6 +142,14 @@ const FEELING_EMOJI: Record<string, string> = {
   Awesome: "🔥",
 };
 
+function relativeTimeLabel(isoString: string): string {
+  const ago = Math.round((Date.now() - new Date(isoString).getTime()) / 60000);
+  if (ago < 1) return "just now";
+  if (ago < 60) return `${ago}m ago`;
+  if (ago < 1440) return `${Math.floor(ago / 60)}h ago`;
+  return `${Math.floor(ago / 1440)}d ago`;
+}
+
 function relativeDay(date: Date | null): string {
   if (!date) return "";
   const now = new Date();
@@ -302,20 +310,16 @@ export function FriendsClient({ friends, pendingRequests, activityFeed, leaderbo
             Cheering you on
           </p>
           <div className="divide-y divide-border border-y border-border">
-            {nudges.map((nudge) => {
-              const ago = Math.round((Date.now() - new Date(nudge.createdAt).getTime()) / 60000);
-              const timeLabel = ago < 1 ? "just now" : ago < 60 ? `${ago}m ago` : ago < 1440 ? `${Math.floor(ago / 60)}h ago` : `${Math.floor(ago / 1440)}d ago`;
-              return (
-                <div key={nudge.id} className="flex items-center gap-3 px-4 py-3">
-                  <Avatar name={nudge.fromName} image={nudge.fromImage} />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{nudge.fromName} 👊</p>
-                    <p className="text-sm text-muted-foreground">is waiting for you to log a workout</p>
-                  </div>
-                  <p className="text-xs text-muted-foreground shrink-0">{timeLabel}</p>
+            {nudges.map((nudge) => (
+              <div key={nudge.id} className="flex items-center gap-3 px-4 py-3">
+                <Avatar name={nudge.fromName} image={nudge.fromImage} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{nudge.fromName} 👊</p>
+                  <p className="text-sm text-muted-foreground">is waiting for you to log a workout</p>
                 </div>
-              );
-            })}
+                <p className="text-xs text-muted-foreground shrink-0">{relativeTimeLabel(nudge.createdAt)}</p>
+              </div>
+            ))}
           </div>
         </section>
       )}
