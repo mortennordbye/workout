@@ -264,14 +264,14 @@ export function AccountClient({ name, email, role, profile: initialProfile, show
           <SectionLabel>Profile</SectionLabel>
           <div className="rounded-2xl bg-card overflow-hidden divide-y divide-border/50">
             <div className="px-4 py-3.5 flex items-center gap-3">
-              <div className="flex-1 min-w-0">
+              <div className="shrink-0">
                 <p className="text-xs text-muted-foreground mb-0.5">Name</p>
               </div>
               <input
                 type="text"
                 value={profile.name}
                 onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
-                className="w-40 rounded-lg bg-muted px-3 py-2 text-sm text-right outline-none focus:ring-2 ring-primary"
+                className="flex-1 min-w-0 rounded-lg bg-muted px-3 py-2 text-sm text-right outline-none focus:ring-2 ring-primary"
               />
             </div>
             <div className="px-4 py-3.5">

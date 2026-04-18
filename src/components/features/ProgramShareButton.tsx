@@ -2,15 +2,17 @@
 
 import { shareProgram } from "@/lib/actions/program-shares";
 import type { FriendWithActivity } from "@/types/workout";
-import { Check, Loader2, Share2, Users } from "lucide-react";
+import { Check, Download, Loader2, Share2, Users } from "lucide-react";
 import { useState } from "react";
 
 interface Props {
   programId: number;
   friends: FriendWithActivity[];
+  onExport: () => void;
+  exporting: boolean;
 }
 
-export function ProgramShareButton({ programId, friends }: Props) {
+export function ProgramShareButton({ programId, friends, onExport, exporting }: Props) {
   const [open, setOpen] = useState(false);
   const [sharingTo, setSharingTo] = useState<string | null>(null);
   const [sharedTo, setSharedTo] = useState<Set<string>>(new Set());
@@ -23,8 +25,6 @@ export function ProgramShareButton({ programId, friends }: Props) {
     }
     setSharingTo(null);
   }
-
-  if (friends.length === 0) return null;
 
   return (
     <>
@@ -60,7 +60,7 @@ export function ProgramShareButton({ programId, friends }: Props) {
             </div>
 
             <div className="overflow-y-auto divide-y divide-border">
-              {friends.map((friend) => {
+              {friends.length > 0 && friends.map((friend) => {
                 const alreadyShared = sharedTo.has(friend.userId);
                 const loading = sharingTo === friend.userId;
                 const initials = friend.name
@@ -98,6 +98,20 @@ export function ProgramShareButton({ programId, friends }: Props) {
                   </div>
                 );
               })}
+              <div className="px-4 py-3 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0">
+                  <Download className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <p className="flex-1 font-medium">Export as JSON</p>
+                <button
+                  onClick={() => { onExport(); setOpen(false); }}
+                  disabled={exporting}
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-primary text-primary-foreground text-sm font-medium active:opacity-80 disabled:opacity-50 shrink-0"
+                >
+                  {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                  Export
+                </button>
+              </div>
             </div>
           </div>
         </div>

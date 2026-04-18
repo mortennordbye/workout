@@ -27,7 +27,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { ProgramShareButton } from "@/components/features/ProgramShareButton";
 import type { FriendWithActivity } from "@/types/workout";
-import { ChevronLeft, ChevronRight, GripVertical, Minus, Plus, Share2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, GripVertical, Minus, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -276,18 +276,12 @@ export function ProgramDetailClient({
         <div className="flex-1" />
         <div className="shrink-0 flex items-center gap-3">
           {!isEditing && (
-            <>
-              <ProgramShareButton programId={programId} friends={friends} />
-              <button
-                type="button"
-                onClick={handleExport}
-                disabled={exporting}
-                className="text-muted-foreground disabled:opacity-40"
-                aria-label="Export program"
-              >
-                <Share2 className="w-5 h-5" />
-              </button>
-            </>
+            <ProgramShareButton
+              programId={programId}
+              friends={friends}
+              onExport={handleExport}
+              exporting={exporting}
+            />
           )}
           {isEditing ? (
             <button
