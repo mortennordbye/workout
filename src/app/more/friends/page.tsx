@@ -1,5 +1,5 @@
 import { FriendsClient } from "@/components/features/FriendsClient";
-import { getFriends, getFriendsActivityFeed, getFriendsLeaderboard, getPendingRequests } from "@/lib/actions/friends";
+import { getFriends, getFriendsActivityFeed, getFriendsLeaderboard, getPendingRequests, getReceivedNudges } from "@/lib/actions/friends";
 import { requireSession } from "@/lib/utils/session";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
@@ -9,11 +9,12 @@ export const dynamic = "force-dynamic";
 export default async function FriendsPage() {
   const session = await requireSession();
 
-  const [friendsResult, pendingResult, feedResult, leaderboardResult] = await Promise.all([
+  const [friendsResult, pendingResult, feedResult, leaderboardResult, nudgesResult] = await Promise.all([
     getFriends(),
     getPendingRequests(),
     getFriendsActivityFeed(),
     getFriendsLeaderboard(),
+    getReceivedNudges(),
   ]);
 
   return (
@@ -34,6 +35,7 @@ export default async function FriendsPage() {
         pendingRequests={pendingResult.success ? pendingResult.data : []}
         activityFeed={feedResult.success ? feedResult.data : []}
         leaderboard={leaderboardResult.success ? leaderboardResult.data : []}
+        nudges={nudgesResult.success ? nudgesResult.data : []}
         currentUserId={session.user.id}
       />
     </div>

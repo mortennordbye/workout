@@ -34,3 +34,7 @@ export const toggleReactionSchema = z.object({
   sessionId: z.number().int().positive(),
   emoji: z.enum(["🔥", "💪", "👏"]),
 });
+
+export const sendNudgeSchema = z.object({
+  toUserId: z.string().min(1),
+});

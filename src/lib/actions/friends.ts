@@ -1,12 +1,13 @@
 "use server";
 
 import { db } from "@/db";
-import { exercisePrs, exercises, friendships, programs, users, workoutReactions, workoutSessions, workoutSets } from "@/db/schema";
+import { exercisePrs, exercises, friendships, nudges, programs, users, workoutReactions, workoutSessions, workoutSets } from "@/db/schema";
 import {
   removeFriendSchema,
   respondToFriendRequestSchema,
   searchUsersSchema,
   sendFriendRequestSchema,
+  sendNudgeSchema,
   toggleReactionSchema,
   updateActivityPrivacySchema,
 } from "@/lib/validators/friends";
@@ -19,6 +20,7 @@ import type {
   FriendWithActivity,
   LeaderboardEntry,
   PendingRequest,
+  ReceivedNudge,
   ReactionSummary,
   UserSearchResult,
 } from "@/types/workout";
@@ -849,5 +851,92 @@ export async function toggleReaction(
     return { success: true, data: { reacted: true } };
   } catch {
     return { success: false, error: "Failed to toggle reaction" };
+  }
+}
+
+// ─── Nudge ────────────────────────────────────────────────────────────────────
+
+export async function sendNudge(input: unknown): Promise<ActionResult<void>> {
+  const session = await requireSession();
+  const me = session.user.id;
+
+  const parsed = sendNudgeSchema.safeParse(input);
+  if (!parsed.success) return { success: false, error: "Invalid input" };
+  const { toUserId } = parsed.data;
+
+  if (toUserId === me) return { success: false, error: "Cannot nudge yourself" };
+
+  try {
+    // Verify accepted friendship
+    const [friendship] = await db
+      .select({ id: friendships.id })
+      .from(friendships)
+      .where(
+        and(
+          eq(friendships.status, "accepted"),
+          or(
+            and(eq(friendships.requesterId, me), eq(friendships.addresseeId, toUserId)),
+            and(eq(friendships.addresseeId, me), eq(friendships.requesterId, toUserId)),
+          ),
+        ),
+      )
+      .limit(1);
+
+    if (!friendship) return { success: false, error: "Not a friend" };
+
+    // Cooldown: one nudge per 24 h per direction
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [recent] = await db
+      .select({ id: nudges.id })
+      .from(nudges)
+      .where(
+        and(
+          eq(nudges.fromUserId, me),
+          eq(nudges.toUserId, toUserId),
+          gt(nudges.createdAt, cutoff),
+        ),
+      )
+      .limit(1);
+
+    if (recent) return { success: false, error: "Already nudged recently" };
+
+    await db.insert(nudges).values({ fromUserId: me, toUserId });
+    return { success: true };
+  } catch {
+    return { success: false, error: "Failed to send nudge" };
+  }
+}
+
+export async function getReceivedNudges(): Promise<ActionResult<ReceivedNudge[]>> {
+  const session = await requireSession();
+  const me = session.user.id;
+
+  try {
+    const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);
+    const rows = await db
+      .select({
+        id: nudges.id,
+        fromUserId: nudges.fromUserId,
+        fromName: users.name,
+        fromImage: users.image,
+        createdAt: nudges.createdAt,
+      })
+      .from(nudges)
+      .innerJoin(users, eq(users.id, nudges.fromUserId))
+      .where(and(eq(nudges.toUserId, me), gt(nudges.createdAt, cutoff)))
+      .orderBy(sql`${nudges.createdAt} desc`);
+
+    return {
+      success: true,
+      data: rows.map((r) => ({
+        id: r.id,
+        fromUserId: r.fromUserId,
+        fromName: r.fromName,
+        fromImage: r.fromImage,
+        createdAt: r.createdAt.toISOString(),
+      })),
+    };
+  } catch {
+    return { success: false, error: "Failed to fetch nudges" };
   }
 }

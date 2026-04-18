@@ -1,9 +1,9 @@
 import { PublicProfileClient } from "@/components/features/PublicProfileClient";
 import { db } from "@/db";
-import { friendships, users, workoutSessions } from "@/db/schema";
+import { friendships, nudges, users, workoutSessions } from "@/db/schema";
 import { getFriendProfile } from "@/lib/actions/friends";
 import { requireSession } from "@/lib/utils/session";
-import { and, eq, or } from "drizzle-orm";
+import { and, eq, gt, or } from "drizzle-orm";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -59,6 +59,17 @@ export default async function PublicProfilePage({
   const profileStatsResult =
     friendshipStatus === "accepted" ? await getFriendProfile(userId) : null;
 
+  let alreadyNudged = false;
+  if (friendshipStatus === "accepted") {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [recentNudge] = await db
+      .select({ id: nudges.id })
+      .from(nudges)
+      .where(and(eq(nudges.fromUserId, me), eq(nudges.toUserId, userId), gt(nudges.createdAt, cutoff)))
+      .limit(1);
+    alreadyNudged = !!recentNudge;
+  }
+
   return (
     <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col overflow-hidden">
       <div className="flex items-center px-4 pt-6 pb-2 shrink-0">
@@ -78,6 +89,7 @@ export default async function PublicProfilePage({
         friendshipStatus={friendshipStatus}
         friendshipId={friendshipRow?.id ?? null}
         profileStats={profileStatsResult?.success ? profileStatsResult.data : null}
+        alreadyNudged={alreadyNudged}
       />
     </div>
   );

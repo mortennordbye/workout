@@ -17,6 +17,7 @@ export * from "./auth";
 export * from "./exercise-prs";
 export * from "./feedback";
 export * from "./friendships";
+export * from "./nudges";
 export * from "./program-shares";
 export * from "./invite-tokens";
 export * from "./exercises";

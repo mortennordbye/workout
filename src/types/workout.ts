@@ -257,6 +257,14 @@ export type FriendSessionCard = {
   prHighlight: { exerciseName: string; value: number } | null;
 };
 
+export type ReceivedNudge = {
+  id: number;
+  fromUserId: string;
+  fromName: string;
+  fromImage: string | null;
+  createdAt: string; // ISO string
+};
+
 export type PendingRequest = {
   friendshipId: number;
   requesterId: string;

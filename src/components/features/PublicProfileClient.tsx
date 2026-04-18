@@ -1,6 +1,6 @@
 "use client";
 
-import { removeFriend, respondToFriendRequest, sendFriendRequest } from "@/lib/actions/friends";
+import { removeFriend, respondToFriendRequest, sendFriendRequest, sendNudge } from "@/lib/actions/friends";
 import type { FriendProfileStats, FriendSessionCard } from "@/types/workout";
 import { Check, Dumbbell, Loader2, UserCheck, UserMinus, UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -20,6 +20,7 @@ interface Props {
   friendshipStatus: FriendshipStatus;
   friendshipId: number | null;
   profileStats: FriendProfileStats | null;
+  alreadyNudged?: boolean;
 }
 
 const FEELING_EMOJI: Record<string, string> = {
@@ -85,11 +86,14 @@ export function PublicProfileClient({
   friendshipStatus: initialStatus,
   friendshipId: initialFriendshipId,
   profileStats,
+  alreadyNudged: initialAlreadyNudged = false,
 }: Props) {
   const router = useRouter();
   const [status, setStatus] = useState(initialStatus);
   const [friendshipId, setFriendshipId] = useState(initialFriendshipId);
   const [loading, setLoading] = useState(false);
+  const [nudged, setNudged] = useState(initialAlreadyNudged);
+  const [nudging, setNudging] = useState(false);
 
   const initials = profile.name
     .split(" ")
@@ -117,6 +121,13 @@ export function PublicProfileClient({
 
     setLoading(false);
     router.refresh();
+  }
+
+  async function handleNudge() {
+    setNudging(true);
+    const result = await sendNudge({ toUserId: profile.id });
+    if (result.success) setNudged(true);
+    setNudging(false);
   }
 
   return (
@@ -191,6 +202,17 @@ export function PublicProfileClient({
             </>
           )}
         </button>
+
+        {/* Nudge button — only for accepted friends who haven't worked out today */}
+        {status === "accepted" && profile.workedOutToday === false && (
+          <button
+            onClick={handleNudge}
+            disabled={nudged || nudging}
+            className="flex items-center gap-1.5 h-9 px-4 rounded-xl border border-border text-sm font-medium text-muted-foreground active:opacity-70 disabled:opacity-50"
+          >
+            {nudged ? "Nudged 👊" : nudging ? "Sending…" : "Nudge 👊"}
+          </button>
+        )}
       </div>
 
       {/* Stats row */}
