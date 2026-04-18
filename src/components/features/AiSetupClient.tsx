@@ -675,6 +675,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
           </div>
         </>
       )}
+      <div aria-hidden="true" style={{ height: "var(--kb-height, 0px)" }} />
     </div>
   );
 }

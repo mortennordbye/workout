@@ -115,7 +115,18 @@ export function ViewportFix() {
         if (rect.bottom <= safeBottom) return; // already visible above keyboard
 
         const scrollable = findScrollableParent(el);
-        scrollable?.scrollBy({ top: rect.bottom - safeBottom, behavior: "smooth" });
+
+        // For textareas: scroll the element's TOP to 20px from the screen top.
+        // iOS overlays a ~44px input toolbar at rect.top, so placing the element
+        // near the top maximises the visible/usable rows below the toolbar.
+        // For regular inputs: scrolling rect.bottom above the keyboard is enough.
+        let scrollAmount = rect.bottom - safeBottom;
+        if (el.tagName === "TEXTAREA") {
+          const toTop = rect.top - 20;
+          if (toTop > scrollAmount) scrollAmount = toTop;
+        }
+
+        scrollable?.scrollBy({ top: scrollAmount, behavior: "smooth" });
       }, 150);
     }
 
