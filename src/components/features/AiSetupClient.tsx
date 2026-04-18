@@ -5,7 +5,7 @@ import { importProgram } from "@/lib/actions/programs";
 import { importCycle } from "@/lib/actions/training-cycles";
 import { buildManualClipboardPrompt, type PrData, type PromptOptions } from "@/lib/utils/ai-prompt";
 import type { Exercise } from "@/types/workout";
-import { Check, ChevronDown, Copy, Dumbbell, RefreshCw, Sparkles } from "lucide-react";
+import { Check, ChevronDown, Clipboard, Copy, Dumbbell, RefreshCw, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -651,27 +651,49 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Step 3 — Paste the response here
             </p>
-            <textarea
-              value={pasteJson}
-              onChange={(e) => {
-                setPasteJson(e.target.value);
-                setStatus("idle");
-                setError(null);
-              }}
-              placeholder="Paste the AI's response here…"
-              rows={5}
-              className="w-full rounded-xl bg-muted px-3 py-3 text-xs font-mono text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
-            />
-            {error && <p className="text-xs text-destructive">{error}</p>}
-            <button
-              type="button"
-              onClick={handleImport}
-              disabled={!pasteJson.trim() || status === "importing"}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80 disabled:opacity-50"
-            >
-              <Sparkles className="w-4 h-4" />
-              {status === "importing" ? "Importing…" : "Import"}
-            </button>
+            {pasteJson ? (
+              <>
+                <div className="rounded-xl bg-muted px-3 py-3 flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground truncate">{pasteJson.slice(0, 60)}…</p>
+                  <button
+                    type="button"
+                    onClick={() => { setPasteJson(""); setStatus("idle"); setError(null); }}
+                    className="text-xs text-muted-foreground underline underline-offset-2 shrink-0 active:opacity-70"
+                  >
+                    Clear
+                  </button>
+                </div>
+                {error && <p className="text-xs text-destructive">{error}</p>}
+                <button
+                  type="button"
+                  onClick={handleImport}
+                  disabled={status === "importing"}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80 disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  {status === "importing" ? "Importing…" : "Import"}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const text = await navigator.clipboard.readText();
+                      if (text) { setPasteJson(text); setStatus("idle"); setError(null); }
+                    } catch {
+                      // Clipboard permission denied — fall through to textarea
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground py-3.5 text-sm font-semibold active:opacity-80"
+                >
+                  <Clipboard className="w-4 h-4" />
+                  Paste from Clipboard
+                </button>
+                {error && <p className="text-xs text-destructive">{error}</p>}
+              </>
+            )}
           </div>
         </>
       )}
