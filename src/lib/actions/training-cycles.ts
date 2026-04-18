@@ -288,6 +288,22 @@ export async function deleteTrainingCycle(
   }
 }
 
+export async function deleteManyTrainingCycles(
+  cycleIds: number[],
+): Promise<ActionResult<void>> {
+  if (cycleIds.length === 0) return { success: true, data: undefined };
+  const auth = await requireSession();
+  try {
+    await db.delete(trainingCycles).where(
+      and(inArray(trainingCycles.id, cycleIds), eq(trainingCycles.userId, auth.user.id))
+    );
+    revalidatePath("/cycles");
+    return { success: true, data: undefined };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
 export async function startTrainingCycle(
   cycleId: number,
 ): Promise<ActionResult<TrainingCycle>> {

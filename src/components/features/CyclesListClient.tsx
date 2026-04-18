@@ -1,8 +1,8 @@
 "use client";
 
-import { deleteTrainingCycle } from "@/lib/actions/training-cycles";
+import { deleteTrainingCycle, deleteManyTrainingCycles } from "@/lib/actions/training-cycles";
 import type { TrainingCycle } from "@/types/workout";
-import { Minus, PlusIcon } from "lucide-react";
+import { Check, Minus, PlusIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -91,12 +91,63 @@ type Props = { cycles: TrainingCycle[] };
 
 export function CyclesListClient({ cycles: initial }: Props) {
   const router = useRouter();
-  const [isEditing, setIsEditing] = useState(false);
   const [cycles, setCycles] = useState(initial);
+  const [isEditing, setIsEditing] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { setCycles(initial); }, [initial]);
+
+  function stopEditing() {
+    setIsEditing(false);
+    setSelectedIds(new Set());
+    setPendingDeleteId(null);
+    setShowBulkConfirm(false);
+    setBulkDeleteError(null);
+  }
+
+  function toggleSelect(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setShowBulkConfirm(false);
+  }
+
+  const allSelected = cycles.length > 0 && selectedIds.size === cycles.length;
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(cycles.map((c) => c.id)));
+    }
+    setShowBulkConfirm(false);
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds);
+    setBulkDeleting(true);
+    const snapshot = cycles;
+    setCycles((prev) => prev.filter((c) => !selectedIds.has(c.id)));
+    setSelectedIds(new Set());
+    setShowBulkConfirm(false);
+    const result = await deleteManyTrainingCycles(ids);
+    if (!result.success) {
+      setCycles(snapshot);
+      setBulkDeleteError(result.error ?? "Failed to delete cycles.");
+    } else {
+      stopEditing();
+    }
+    setBulkDeleting(false);
+    router.refresh();
+  }
 
   async function handleDelete(cycleId: number) {
     setDeleting(true);
@@ -107,17 +158,11 @@ export function CyclesListClient({ cycles: initial }: Props) {
     router.refresh();
   }
 
-  function stopEditing() {
-    setIsEditing(false);
-    setPendingDeleteId(null);
-  }
-
   const active = cycles.filter((c) => c.status === "active");
   const drafts = cycles.filter((c) => c.status === "draft");
   const past = cycles.filter((c) => c.status === "completed");
 
-  // Wraps each cycle with optional delete controls
-  function EditableItem({
+  function SelectableItem({
     cycle,
     children,
     alignTop = false,
@@ -126,6 +171,12 @@ export function CyclesListClient({ cycles: initial }: Props) {
     children: React.ReactNode;
     alignTop?: boolean;
   }) {
+    const isSelected = selectedIds.has(cycle.id);
+
+    if (!isEditing) {
+      return <>{children}</>;
+    }
+
     if (pendingDeleteId === cycle.id) {
       return (
         <div className="flex items-center justify-between px-4 py-4 rounded-xl bg-destructive/10">
@@ -155,16 +206,16 @@ export function CyclesListClient({ cycles: initial }: Props) {
 
     return (
       <div className={`flex gap-3 ${alignTop ? "items-start" : "items-center"}`}>
-        {isEditing && (
-          <button
-            type="button"
-            onClick={() => setPendingDeleteId(cycle.id)}
-            className={`w-7 h-7 rounded-full bg-destructive flex items-center justify-center shrink-0 ${alignTop ? "mt-3" : ""}`}
-            aria-label={`Delete ${cycle.name}`}
-          >
-            <Minus className="w-4 h-4 text-white" />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => toggleSelect(cycle.id)}
+          className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${alignTop ? "mt-3" : ""} ${
+            isSelected ? "bg-primary border-primary" : "bg-transparent border-muted-foreground/40"
+          }`}
+          aria-label={isSelected ? `Deselect ${cycle.name}` : `Select ${cycle.name}`}
+        >
+          {isSelected && <Check className="w-4 h-4 text-white" />}
+        </button>
         <div className="flex-1 min-w-0">{children}</div>
       </div>
     );
@@ -176,23 +227,84 @@ export function CyclesListClient({ cycles: initial }: Props) {
       <div className="flex items-center justify-between px-4 pt-6 pb-2 shrink-0">
         <h1 className="text-3xl font-bold tracking-tight">Cycles</h1>
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={isEditing ? stopEditing : () => setIsEditing(true)}
-            className="text-primary text-sm font-medium min-h-[44px] px-1"
-          >
-            {isEditing ? "Done" : "Edit"}
-          </button>
-          {!isEditing && (
-            <Link
-              href="/cycles/new"
-              className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground active:opacity-80 transition-opacity"
-            >
-              <PlusIcon className="w-5 h-5" />
-            </Link>
+          {isEditing ? (
+            <>
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="text-primary text-sm font-medium min-h-[44px] px-1"
+              >
+                {allSelected ? "Deselect All" : "Select All"}
+              </button>
+              <button
+                type="button"
+                onClick={stopEditing}
+                className="text-primary text-sm font-medium min-h-[44px] px-1"
+              >
+                Done
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="text-primary text-sm font-medium min-h-[44px] px-1"
+              >
+                Edit
+              </button>
+              <Link
+                href="/cycles/new"
+                className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground active:opacity-80 transition-opacity"
+              >
+                <PlusIcon className="w-5 h-5" />
+              </Link>
+            </>
           )}
         </div>
       </div>
+
+      {/* Bulk delete bar */}
+      {isEditing && selectedIds.size > 0 && (
+        <div className="px-4 pb-2 shrink-0">
+          {showBulkConfirm ? (
+            <div className="rounded-2xl bg-destructive/10 px-4 py-3 flex items-center justify-between">
+              <span className="text-sm font-medium text-destructive">
+                Delete {selectedIds.size} cycle{selectedIds.size !== 1 ? "s" : ""}?
+              </span>
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => { setShowBulkConfirm(false); setBulkDeleteError(null); }}
+                  className="text-sm text-muted-foreground font-medium min-h-[44px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={bulkDeleting}
+                  className="text-sm text-destructive font-semibold min-h-[44px] disabled:opacity-50"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowBulkConfirm(true)}
+              className="w-full rounded-2xl bg-destructive py-4 text-sm font-semibold text-white active:opacity-80 transition-opacity"
+            >
+              Delete {selectedIds.size} selected
+            </button>
+          )}
+        </div>
+      )}
+
+      {isEditing && bulkDeleteError && (
+        <p className="text-sm text-destructive px-4 pb-2 shrink-0">{bulkDeleteError}</p>
+      )}
 
       <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-4 pt-4 pb-nav-safe">
         {/* Active */}
@@ -203,9 +315,9 @@ export function CyclesListClient({ cycles: initial }: Props) {
             </p>
             <div className="flex flex-col gap-2">
               {active.map((c) => (
-                <EditableItem key={c.id} cycle={c} alignTop>
+                <SelectableItem key={c.id} cycle={c} alignTop>
                   <ActiveCycleCard cycle={c} />
-                </EditableItem>
+                </SelectableItem>
               ))}
             </div>
           </div>
@@ -219,9 +331,9 @@ export function CyclesListClient({ cycles: initial }: Props) {
             </p>
             <div className="flex flex-col divide-y divide-border rounded-2xl bg-card overflow-hidden">
               {drafts.map((c) => (
-                <EditableItem key={c.id} cycle={c}>
+                <SelectableItem key={c.id} cycle={c}>
                   <DraftCycleRow cycle={c} />
-                </EditableItem>
+                </SelectableItem>
               ))}
             </div>
           </div>
@@ -235,9 +347,9 @@ export function CyclesListClient({ cycles: initial }: Props) {
             </p>
             <div className="flex flex-col divide-y divide-border rounded-2xl bg-card overflow-hidden">
               {past.map((c) => (
-                <EditableItem key={c.id} cycle={c}>
+                <SelectableItem key={c.id} cycle={c}>
                   <PastCycleRow cycle={c} />
-                </EditableItem>
+                </SelectableItem>
               ))}
             </div>
           </div>
