@@ -2,7 +2,7 @@
 
 import { deleteTrainingCycle, deleteManyTrainingCycles } from "@/lib/actions/training-cycles";
 import type { TrainingCycle } from "@/types/workout";
-import { Check, Minus, PlusIcon } from "lucide-react";
+import { Check, PlusIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";

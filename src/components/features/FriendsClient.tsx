@@ -30,6 +30,7 @@ function Avatar({ name, image, size = 10 }: { name: string; image: string | null
       className={`w-${size} h-${size} rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0`}
     >
       {image ? (
+        // eslint-disable-next-line @next/next/no-img-element -- avatar URL from auth provider; not worth wiring next/image loader
         <img src={image} alt={name} className="w-full h-full object-cover" />
       ) : (
         <span className="text-sm font-semibold text-muted-foreground">{initials}</span>

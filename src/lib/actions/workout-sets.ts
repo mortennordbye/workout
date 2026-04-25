@@ -664,30 +664,6 @@ export async function getSessionDetail(
 }
 
 /**
- * Get the number of completed sessions in which a given exercise was logged.
- */
-export async function getExerciseLoggedCount(
-  exerciseId: number,
-): Promise<number> {
-  try {
-    const [row] = await db
-      .select({ count: sql<number>`COUNT(DISTINCT ${workoutSets.sessionId})` })
-      .from(workoutSets)
-      .innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id))
-      .where(
-        and(
-          eq(workoutSets.exerciseId, exerciseId),
-          eq(workoutSessions.isCompleted, true),
-        ),
-      );
-    return Number(row?.count ?? 0);
-  } catch {
-    return 0;
-  }
-}
-
-
-/**
  * Calculate progressive overload suggestions for every set in a program.
  *
  * For each program_set, we examine recent completed sessions (excluding "Tired"

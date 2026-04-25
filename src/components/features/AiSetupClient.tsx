@@ -154,6 +154,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
       localStorage.removeItem(AI_GENERATING_KEY);
       try {
         const parsed = JSON.parse(stored) as Record<string, unknown>;
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from localStorage on mount
         setPendingJson(parsed);
         setAutoStatus("preview");
       } catch {}
@@ -207,10 +208,6 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
   }, [autoStatus]);
 
   const AUTO_BUSY = autoStatus === "asking" || autoStatus === "importing";
-  const AUTO_STATUS_LABEL: Record<string, string> = {
-    asking: "Asking the AI…",
-    importing: "Importing programs…",
-  };
   const [showManual, setShowManual] = useState(false);
 
   function handleCopyPrompt() {

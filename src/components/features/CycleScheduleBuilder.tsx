@@ -252,13 +252,17 @@ function RotationBuilder({
   );
   const [localSlots, setLocalSlots] = useState(sortedSlots);
 
-  // Sync local state when server returns updated props (add/remove/refresh)
+  // Sync local state when server returns updated props (add/remove/refresh).
+  // Render-time ref + setState is the React-recommended pattern for "reset
+  // local state when an external prop changes": https://react.dev/reference/react/useState#storing-information-from-previous-renders
+  /* eslint-disable react-hooks/refs */
   const prevSlotIds = useRef(cycle.slots.map((s) => s.id).join(","));
   const incomingIds = cycle.slots.map((s) => s.id).join(",");
   if (prevSlotIds.current !== incomingIds) {
     prevSlotIds.current = incomingIds;
     setLocalSlots(sortedSlots);
   }
+  /* eslint-enable react-hooks/refs */
 
   const sensors = useSensors(
     useSensor(PointerSensor),

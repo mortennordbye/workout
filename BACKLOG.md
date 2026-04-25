@@ -30,12 +30,6 @@ When you finish an item, delete it. When you add an item, write enough that some
 
 ## Codebase hygiene
 
-### ESLint debt blocking `pnpm verify`
-- **What:** Codebase has ~47 lint errors/warnings (mostly `react-hooks/set-state-in-effect`, unused vars, optional-chain bangs). `pnpm verify` runs only `tsc --noEmit + vitest` — no ESLint.
-- **Why deferred:** Per `CLAUDE.md`: "ESLint is intentionally not in `verify` yet because the codebase has pre-existing lint errors that need a deliberate cleanup pass; once those are fixed it should be added."
-- **Unblocked by:** A focused cleanup session that fixes (not silences) the existing errors. Then add `pnpm lint` to the `verify` script in `package.json`.
-- **Touchpoints:** Top offenders by file: `src/contexts/workout-session-context.tsx`, `src/components/features/PageTransition.tsx`, `src/components/features/CycleScheduleBuilder.tsx`, `src/__tests__/progressive-suggestions.test.ts:245`. Run `docker-compose exec app pnpm lint` for the full list.
-
 ### Out-of-app push notifications via Service Worker
 - **What:** `src/lib/notifications.ts:33` has a `TODO`. Today the app uses the browser Notification API (in-app only). Real out-of-app push needs a Service Worker registration + `pushManager.subscribe()` + server-side delivery.
 - **Why deferred:** Not blocking any current flow.

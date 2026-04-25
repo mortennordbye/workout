@@ -61,6 +61,7 @@ export default async function PublicProfilePage({
 
   let alreadyNudged = false;
   if (friendshipStatus === "accepted") {
+    // eslint-disable-next-line react-hooks/purity -- async server component; Date.now() is the request-time cutoff
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const [recentNudge] = await db
       .select({ id: nudges.id })

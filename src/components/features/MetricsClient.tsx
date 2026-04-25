@@ -3,9 +3,7 @@
 import {
   getCycleMetrics,
   getExerciseProgress,
-  type CardioHrZone,
   type CardioMetrics,
-  type CardioPaceRecord,
   type CycleMetrics,
   type CyclePickerItem,
   type ExerciseProgress,
@@ -18,7 +16,6 @@ import {
   type RpeTrendPoint,
   type SummaryStats,
   type TopProgressingExercise,
-  type WeeklyCardioMetric,
   type WeeklyMetric,
 } from "@/lib/actions/metrics";
 import {
@@ -312,13 +309,7 @@ function TopProgressingSection({ data }: { data: TopProgressingExercise[] }) {
 
 type ChartMode = "weight" | "oneRM" | "volume";
 
-function ProgressChart({
-  data,
-  exerciseName,
-}: {
-  data: ExerciseProgress[];
-  exerciseName: string;
-}) {
+function ProgressChart({ data }: { data: ExerciseProgress[] }) {
   const [mode, setMode] = useState<ChartMode>("weight");
 
   if (data.length === 0) {
@@ -837,7 +828,7 @@ function CardioSection({ data }: { data: CardioMetrics }) {
 
           {/* Segmented bar */}
           <div className="flex h-3 rounded-full overflow-hidden gap-px">
-            {data.hrZones.map((z, i) => {
+            {data.hrZones.map((z) => {
               const pct = totalHrDist > 0 ? (z.distanceM / totalHrDist) * 100 : 0;
               return (
                 <div
@@ -1556,10 +1547,7 @@ export function MetricsClient({
                 </div>
                 {!isPending && (
                   <div key={selectedId}>
-                    <ProgressChart
-                      data={progressData}
-                      exerciseName={selectedRecord.exerciseName}
-                    />
+                    <ProgressChart data={progressData} />
                   </div>
                 )}
               </div>

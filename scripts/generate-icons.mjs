@@ -6,7 +6,6 @@
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const sharp = require("../node_modules/.pnpm/sharp@0.34.5/node_modules/sharp/lib/index.js");
-import { writeFileSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 

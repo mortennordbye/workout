@@ -64,6 +64,7 @@ export function LogRunModal({
     if (!open) return;
     const dist = targetDistanceMeters ?? 5000;
     const dur = targetDurationSeconds ?? 0;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting form state when the modal reopens with new target values
     setDistanceMeters(dist);
     setDurationSeconds(dur);
     setDistanceStr(String(dist / 1000));

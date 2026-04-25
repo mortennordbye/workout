@@ -36,7 +36,6 @@ export default async function ProgramExerciseDetailPage({ params, searchParams }
     <WorkoutSetsClient
       programId={programId}
       programExerciseId={peId}
-      programName={program.name}
       exerciseName={pe.exercise.name}
       exerciseCategory={pe.exercise.category ?? ""}
       exerciseIsTimed={pe.exercise.isTimed}

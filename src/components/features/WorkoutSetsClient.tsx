@@ -37,12 +37,10 @@ const MODE_OPTIONS: { mode: ProgressionMode; label: string; description: string 
 type Props = {
   programId: number;
   programExerciseId: number;
-  programName: string;
   exerciseName: string;
   exerciseId?: number;
   sets: ProgramSet[];
   isWorkout?: boolean;
-  loggedCount?: number;
   exerciseCategory?: string;
   exerciseIsTimed?: boolean;
   suggestions?: Record<number, SetSuggestion>;
@@ -55,12 +53,10 @@ type Props = {
 export function WorkoutSetsClient({
   programId,
   programExerciseId,
-  programName,
   exerciseName,
   exerciseId,
   sets: initial,
   isWorkout = false,
-  loggedCount = 0,
   exerciseCategory,
   exerciseIsTimed = false,
   suggestions,
@@ -113,22 +109,6 @@ export function WorkoutSetsClient({
   });
 
   const isRunning = exerciseCategory === "cardio" && !exerciseIsTimed;
-
-  const pendingCount = isWorkout
-    ? sets.filter((s) => {
-        const sug = suggestions?.[s.id];
-        if (!sug || sug.reason === "manual" || sug.reason === "held") return false;
-        const currentWeight = workoutSession?.overrides[s.id]?.weightKg ?? Number(s.weightKg ?? 0);
-        const currentReps = workoutSession?.overrides[s.id]?.targetReps ?? s.targetReps ?? 0;
-        const weightPending =
-          (sug.reason === "progressed" || sug.reason === "deload" || sug.reason === "retry") &&
-          currentWeight !== sug.suggestedWeightKg;
-        const repsPending = (sug.reason === "progressed-reps" || (sug.reason === "retry" && sug.suggestedReps !== undefined)) && sug.suggestedReps !== undefined && sug.suggestedReps > currentReps;
-        const timePending = sug.reason === "progressed-time" && sug.suggestedDurationSeconds !== undefined;
-        const distancePending = sug.reason === "progressed-distance" && sug.suggestedDistanceMeters !== undefined;
-        return weightPending || repsPending || timePending || distancePending;
-      }).length
-    : 0;
 
   function applySuggestion(setId: number, suggestedWeightKg: number, adjustedReps?: number, durationSeconds?: number, distanceMeters?: number) {
     if (!workoutSession) return;
@@ -326,7 +306,7 @@ export function WorkoutSetsClient({
                   if (exerciseIsTimed) return opt.mode === "manual" || opt.mode === "time";
                   if (opt.mode === "distance" || opt.mode === "time") return false;
                   return true;
-                }).map((opt, i) => (
+                }).map((opt) => (
                   <button
                     key={opt.mode}
                     onClick={() => handleModeChange(opt.mode)}

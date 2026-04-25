@@ -136,6 +136,7 @@ export function PublicProfileClient({
       <div className="flex flex-col items-center gap-4 py-8 px-4">
         <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center overflow-hidden">
           {profile.image ? (
+            // eslint-disable-next-line @next/next/no-img-element -- avatar URL from auth provider; not worth wiring next/image loader
             <img src={profile.image} alt={profile.name} className="w-full h-full object-cover" />
           ) : (
             <span className="text-3xl font-bold text-muted-foreground">{initials}</span>

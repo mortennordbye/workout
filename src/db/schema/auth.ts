@@ -5,7 +5,7 @@
  * that the Better Auth Drizzle adapter expects.
  */
 
-import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const sessions = pgTable("session", {

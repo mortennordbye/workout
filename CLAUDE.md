@@ -104,9 +104,9 @@ pnpm test src/__tests__/format.test.ts -t "name" # Single test by name
 
 ## Before reporting a task complete
 
-Run `pnpm verify` from the host. It runs `tsc --noEmit` and the Vitest suite in ~3s. If anything fails, fix it and re-run before declaring the task done.
+Run `pnpm verify` from the host. It runs `tsc --noEmit`, `eslint`, and the Vitest suite. If anything fails, fix it and re-run before declaring the task done.
 
-Do not skip this even when the change "looks obviously correct" — the bugs that slip through are the unexpected ones. ESLint is intentionally not in `verify` yet because the codebase has pre-existing lint errors that need a deliberate cleanup pass; once those are fixed it should be added.
+Do not skip this even when the change "looks obviously correct" — the bugs that slip through are the unexpected ones.
 
 A pre-push git hook (lefthook) runs `pnpm verify` automatically — install it once with `pnpm install` (the `prepare` script wires it up). Pre-commit is intentionally empty so commits stay fast for AI loops.
 

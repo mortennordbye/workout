@@ -4,7 +4,7 @@
 
 import { WorkoutSetsClient } from "@/components/features/WorkoutSetsClient";
 import { getProgramWithExercises } from "@/lib/actions/programs";
-import { getExerciseLoggedCount, getProgressiveSuggestions } from "@/lib/actions/workout-sets";
+import { getProgressiveSuggestions } from "@/lib/actions/workout-sets";
 import { requireSession } from "@/lib/utils/session";
 import { notFound } from "next/navigation";
 
@@ -31,7 +31,6 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
   const pe = program.programExercises.find((e) => e.id === peId);
   if (!pe) notFound();
 
-  const loggedCount = await getExerciseLoggedCount(pe.exercise.id);
   const suggestions = suggestionsResult.success ? suggestionsResult.data : {};
   const progressionMode = (pe.progressionMode ?? "manual") as "manual" | "weight" | "smart" | "reps" | "time" | "distance";
 
@@ -39,12 +38,10 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
     <WorkoutSetsClient
       programId={programId}
       programExerciseId={peId}
-      programName={program.name}
       exerciseName={pe.exercise.name}
       exerciseId={pe.exercise.id}
       sets={pe.programSets}
       isWorkout={true}
-      loggedCount={loggedCount}
       exerciseCategory={pe.exercise.category ?? undefined}
       exerciseIsTimed={pe.exercise.isTimed}
       suggestions={suggestions}

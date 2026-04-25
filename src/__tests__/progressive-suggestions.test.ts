@@ -241,7 +241,7 @@ describe("buildSuggestion — smart mode", () => {
     expect(result?.suggestedWeightKg).toBeCloseTo(82.5);
     // adjustedRepsForWeight should be < 8 at 82.5kg
     expect(result?.adjustedRepsForWeight).toBeDefined();
-    expect(result?.adjustedRepsForWeight!).toBeLessThan(8);
+    expect(result?.adjustedRepsForWeight ?? 99).toBeLessThan(8);
   });
 
   it("skips adjustedRepsForWeight on sub-max sets (RPE < 7) — Epley invalid", () => {

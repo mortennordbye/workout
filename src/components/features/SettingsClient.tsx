@@ -52,11 +52,14 @@ function NotificationsRow() {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
 
   useEffect(() => {
+    // Sync from window.Notification (unavailable at SSR render).
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (typeof window === "undefined" || !("Notification" in window)) {
       setPermission("unsupported");
     } else {
       setPermission(Notification.permission);
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   async function handleEnable() {

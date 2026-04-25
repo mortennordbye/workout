@@ -21,7 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "verify": "pnpm typecheck && pnpm test",
+    "verify": "pnpm typecheck && pnpm lint && pnpm test",
     "test:e2e": "playwright test",
     "verify:full": "pnpm verify && pnpm test:e2e",
     "test:coverage": "vitest run --coverage",

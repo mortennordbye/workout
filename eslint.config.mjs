@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated artifacts:
+    "drizzle/**", // drizzle-kit regenerates these from src/db/schema/
+    "coverage/**", // vitest coverage output
   ]),
 ]);
 

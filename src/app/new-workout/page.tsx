@@ -15,7 +15,7 @@ import Link from "next/link";
 export const dynamic = "force-dynamic";
 
 export default async function NewWorkoutPage() {
-  const session = await requireSession();
+  await requireSession();
   const [cycleResult, programsResult] = await Promise.all([
     getActiveCycleForUser(),
     getPrograms(),

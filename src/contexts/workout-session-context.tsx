@@ -65,6 +65,7 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
           localStorage.removeItem(OVERRIDES_KEY);
           localStorage.removeItem(READINESS_KEY);
         } else {
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring active session from localStorage on mount
           setProgramId(pid);
           setStartTime(st);
           setWorkoutPath(`/programs/${pid}/workout`);

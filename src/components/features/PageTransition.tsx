@@ -29,13 +29,17 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const nodeRef = useRef<HTMLDivElement>(null);
 
   // Compute direction synchronously during render so the animation is
-  // correct when the motion.div mounts with the new key.
+  // correct when the motion.div mounts with the new key. Using refs (not
+  // state) here is intentional — state would force an extra render before
+  // the new direction can be picked up.
+  /* eslint-disable react-hooks/refs */
   if (prevPathRef.current !== pathname) {
     dirRef.current = getDirection(prevPathRef.current, pathname);
     prevPathRef.current = pathname;
   }
 
   const dir = dirRef.current;
+  /* eslint-enable react-hooks/refs */
 
   return (
     // overflow-hidden clips the incoming page while it slides into view

@@ -17,6 +17,7 @@ function Avatar({ name, image }: { name: string; image: string | null }) {
   return (
     <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0">
       {image ? (
+        // eslint-disable-next-line @next/next/no-img-element -- avatar URL from auth provider; not worth wiring next/image loader
         <img src={image} alt={name} className="w-full h-full object-cover" />
       ) : (
         <span className="text-sm font-semibold text-muted-foreground">{initials}</span>
@@ -98,6 +99,7 @@ export function FriendSearchClient() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (query.trim().length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing debounced search results when query is empty
       setResults([]);
       return;
     }

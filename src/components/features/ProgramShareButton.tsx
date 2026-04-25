@@ -74,6 +74,7 @@ export function ProgramShareButton({ programId, friends, onExport, exporting }: 
                   <div key={friend.userId} className="flex items-center gap-3 px-4 py-3">
                     <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0">
                       {friend.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- avatar URL from auth provider; not worth wiring next/image loader
                         <img src={friend.image} alt={friend.name} className="w-full h-full object-cover" />
                       ) : (
                         <span className="text-xs font-semibold text-muted-foreground">{initials}</span>

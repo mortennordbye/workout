@@ -33,6 +33,7 @@ export function InstallGuideClient() {
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (navigator as { standalone?: boolean }).standalone === true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from window.matchMedia (unavailable at SSR render)
     setIsStandalone(standalone);
   }, []);
 

@@ -27,8 +27,7 @@ function getThisWeekDates(): string[] {
 }
 
 export default async function Home() {
-  const session = await requireSession();
-  const userId = session.user.id;
+  await requireSession();
 
   const monday = new Date();
   monday.setHours(0, 0, 0, 0);
@@ -131,7 +130,7 @@ export default async function Home() {
                     prefetch={true}
                     className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground active:opacity-80"
                   >
-                    Start Today's Workout
+                    Start Today&apos;s Workout
                   </Link>
                 )}
                 <Link
