@@ -112,6 +112,32 @@ A pre-push git hook (lefthook) runs `pnpm verify` automatically — install it o
 
 For changes that touch a critical user flow (workout logging, rest picker, set editing, drag-reorder, login), additionally run `pnpm verify:full` — it adds Playwright e2e on top of `verify`. Requires the dev server running at `localhost:3000` and `E2E_USER_EMAIL`/`E2E_USER_PASSWORD` env vars set to a test account. Specs live in `e2e/`; add a new one when you ship a critical flow that doesn't have coverage.
 
+## Pre-deploy smoke pass (Playwright MCP)
+
+Before suggesting `git push` for any change that touches a **critical flow** — workout logging, set toggle, rest timer, exercise timer, set-edit view, drag-reorder, login, schema migration, or any mutating Server Action — run a manual smoke pass via the local Playwright MCP server. `pnpm verify` and Vitest don't render UI; the bugs that bite real users (timer not reaching 00:00, click handler racing the rest timer, JS error on a route, broken modal close) only surface in a real browser. This protocol catches them.
+
+**Skip if:** the change is doc-only (CLAUDE.md, BACKLOG.md, comments), test-only, dependency bump with no code touch, or a `chore:` purely about formatting / lint silencing. Say "skipping smoke — change is X" so the skip is visible.
+
+**Prereqs (verify before starting):**
+- Dev server reachable at `http://localhost:3000`. If not, ask the user to run `./scripts/dev.sh` first; do not start it autonomously.
+- `E2E_USER_EMAIL` and `E2E_USER_PASSWORD` set in your shell. If missing, ask the user before continuing.
+
+**Tools:** `mcp__playwright__browser_navigate`, `browser_snapshot`, `browser_click`, `browser_fill_form`, `browser_wait_for`, `browser_take_screenshot`, `browser_console_messages`. Save any failure screenshot to `.playwright-mcp/<flow>-fail.png` (folder is gitignored).
+
+**Protocol — walk every step in order. On any failure, stop, screenshot, report, do NOT push:**
+
+1. **Reachability** — `browser_navigate` to `http://localhost:3000`. Expect a redirect to `/login` (unauthenticated). Confirm the login form is visible. Capture `browser_console_messages`; any `error` level entry fails this step.
+2. **Login** — fill email + password from env vars, submit. Confirm landing on `/` with the "LogEveryLift" header visible.
+3. **Today's workout** — find the `Start Today's Workout` link or equivalent CTA. If absent (e.g. no active program), note it and skip steps 4–6.
+4. **Strength set logging** — open the first exercise; tap the `w-7 h-7 rounded-full` toggle on the first set. Confirm the toggle gains `bg-primary` and a `REST mm:ss` countdown appears. Tap again to un-log (idempotent).
+5. **Timed set countdown** — find an exercise whose set summary shows `mm:ss` without `kg`. If none, skip with a note. Open the first set's edit view, override duration to the `15s` preset, save. Back on the set list, tap play. Within 20 seconds, assert `00:00` is visible (this is the timer-completion bug class). Confirm the set then shows as logged.
+6. **SetEditView notes** — tap a completed set to reopen the edit view. Confirm the notes textarea renders. Type a short note, save. Reopen and confirm the note persisted.
+7. **History page** — navigate to `/history`. Confirm at least one session row OR the empty-state copy. Confirm the search filter input is present. No console errors.
+8. **Metrics page** — navigate to `/more/metrics`. Confirm at least one section heading (e.g. "Volume", "This Week · Volume vs Target", "Personal Records"). No console errors.
+9. **PR feed** — navigate to `/more/prs`. Confirm PR rows OR the empty-state. No console errors.
+
+After all 9 pass, report `smoke ✓: 9/9 flows green` alongside the normal `pnpm verify` summary, then suggest the push. On any failure, report which step, what was expected, what was observed, and the screenshot path — the user decides whether to push anyway.
+
 **In-container commands:**
 ```bash
 docker-compose exec app pnpm lint          # ESLint
