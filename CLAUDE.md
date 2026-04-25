@@ -128,10 +128,13 @@ Migration files in `drizzle/` are committed to git and **must never be regenerat
 **Workflow when changing the schema:**
 1. Edit files in `src/db/schema/`
 2. Run `pnpm db:generate` — answer the interactive prompts carefully (create vs rename)
-3. Commit the generated `drizzle/*.sql` file alongside the schema change
-4. Push — GitHub Action builds, ArgoCD deploys, migrations run automatically
+3. Commit the generated `drizzle/*.sql` file **and** the updated `drizzle/meta/` snapshot in the same commit as the schema change
+4. Apply locally: `docker-compose exec app pnpm db:migrate` (or `pnpm db:push` for quick dev iteration — but **never** ship `db:push`-only changes; prod doesn't run it)
+5. Push — GitHub Action builds, ArgoCD deploys, the entrypoint runs `db:migrate` against prod which executes the new SQL
 
 `pnpm db:generate` is intentionally NOT run by `dev.sh` — it requires human judgment on interactive prompts and must not be automated.
+
+**Never ship a schema TS change without the matching `drizzle/<N>_*.sql` file.** Prod's `db:migrate` only runs committed SQL — a missing migration means prod's DB stays on the old schema while the deployed code references the new one, and queries crash at runtime (`column "X" does not exist`). The pre-push lefthook (`scripts/check-schema-migrations.sh`) blocks pushes that change `src/db/schema/` without adding a migration file in the same push range. If you genuinely have a type-only schema refactor that needs no migration, bypass with `git push --no-verify` (rare).
 
 **Critical rules:**
 - Never add `pnpm db:generate` back to the Dockerfile — it caused non-interactive prompt failures and generated non-idempotent SQL in CI
