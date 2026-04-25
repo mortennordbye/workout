@@ -89,6 +89,8 @@ Run `pnpm verify` from the host. It runs `tsc --noEmit` and the Vitest suite in 
 
 Do not skip this even when the change "looks obviously correct" — the bugs that slip through are the unexpected ones. ESLint is intentionally not in `verify` yet because the codebase has pre-existing lint errors that need a deliberate cleanup pass; once those are fixed it should be added.
 
+A pre-push git hook (lefthook) runs `pnpm verify` automatically — install it once with `pnpm install` (the `prepare` script wires it up). Pre-commit is intentionally empty so commits stay fast for AI loops.
+
 For changes that touch a critical user flow (workout logging, rest picker, set editing, drag-reorder, login), additionally run `pnpm verify:full` — it adds Playwright e2e on top of `verify`. Requires the dev server running at `localhost:3000` and `E2E_USER_EMAIL`/`E2E_USER_PASSWORD` env vars set to a test account. Specs live in `e2e/`; add a new one when you ship a critical flow that doesn't have coverage.
 
 **In-container commands:**
@@ -122,7 +124,8 @@ Migration files in `drizzle/` are committed to git and **must never be regenerat
   EXCEPTION WHEN duplicate_object THEN NULL;
   END $$;
   ```
-  See `drizzle/0006_auth_better_auth.sql` for the reference pattern.
+  See `drizzle/0000_quick_rhodey.sql` for the reference pattern.
+- The production Docker entrypoint runs migrations on every boot, then seeds **only when `SEED_ON_BOOT=true`**. Seed is destructive on a populated DB — do not enable it in normal prod deploys. Use it once on a fresh environment.
 
 ## Architecture
 
@@ -194,10 +197,18 @@ export async function myAction(
 
 - Every Server Action starts with `requireSession()` or `requireAdmin()`. No exceptions.
 - Every read or write of user-owned data filters by `userId` in the `WHERE` clause **or** runs through `assertOwner()`. The demo user shares tables with real users — a missing `userId` filter is a data leak.
+- **Never accept `userId` as a parameter on a Server Action.** Always read it from the session inside the action (`auth.user.id`). A `userId` parameter lets callers query other users' data — even when current call sites pass the right value, the function signature invites the bug.
 - Mutations that touch another user's data (admin actions, friend invites) require `requireAdmin()` *or* an explicit relationship check — never assume.
 - Server Actions that use `requireAdmin()` or `assertOwner()` must wrap the body in `try/catch` and convert `ForbiddenError` to an ActionResult error (see template). Otherwise the throw becomes a generic 500 to the client.
 - `console.error` in Server Actions: always tag with the action name in brackets, e.g. `console.error("[myAction] not_found", { id })`. This makes container logs greppable. Never log secrets, raw user input, or full user records — log IDs and short tags only.
 - When adding a new action, copy from the template above, not from a random existing action.
+
+### Environment variables
+
+- Read env vars via `import { env } from "@/lib/env"` — never `process.env` in app code (`src/`). The exception is the `NEXT_RUNTIME` branch in `instrumentation.ts`, which Next.js sets and isn't user config.
+- `env.ts` validates with Zod at import time. Adding a new env var: extend the schema in `src/lib/env.ts` and `.env.example`. The app will refuse to boot if a required var is missing.
+- During `next build` env validation is skipped (`NEXT_PHASE === "phase-production-build"`) since prod secrets aren't available at build time. Validation runs at startup instead.
+- CLI scripts in `scripts/` may read `process.env` directly — they aren't part of the app boot path.
 
 ### Directory layout
 

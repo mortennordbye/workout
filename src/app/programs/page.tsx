@@ -13,8 +13,8 @@ import { requireSession } from "@/lib/utils/session";
 export const dynamic = "force-dynamic";
 
 export default async function ProgramsPage() {
-  const session = await requireSession();
-  const programResult = await getPrograms(session.user.id);
+  await requireSession();
+  const programResult = await getPrograms();
   const programList = programResult.success ? programResult.data : [];
 
   return (

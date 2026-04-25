@@ -67,12 +67,17 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=builder /app/src/db ./src/db
 
 # Entrypoint script
+# Seed only runs when SEED_ON_BOOT=true. The production image must NOT seed by
+# default — re-running seed against a populated DB risks duplicating data.
+# Seed once into a fresh environment via `SEED_ON_BOOT=true` then unset it.
 RUN echo '#!/bin/sh' > /app/entrypoint.sh && \
     echo 'set -e' >> /app/entrypoint.sh && \
     echo 'echo "🔄 Running database migrations..."' >> /app/entrypoint.sh && \
     echo 'tsx /app/scripts/migrate.ts' >> /app/entrypoint.sh && \
-    echo 'echo "🌱 Seeding database..."' >> /app/entrypoint.sh && \
-    echo 'tsx /app/scripts/seed.ts' >> /app/entrypoint.sh && \
+    echo 'if [ "$SEED_ON_BOOT" = "true" ]; then' >> /app/entrypoint.sh && \
+    echo '  echo "🌱 Seeding database..."' >> /app/entrypoint.sh && \
+    echo '  tsx /app/scripts/seed.ts' >> /app/entrypoint.sh && \
+    echo 'fi' >> /app/entrypoint.sh && \
     echo 'echo "🚀 Starting application..."' >> /app/entrypoint.sh && \
     echo 'exec node server.js' >> /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh

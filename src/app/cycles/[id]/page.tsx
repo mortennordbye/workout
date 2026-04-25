@@ -25,10 +25,10 @@ export default async function CycleDetailPage({
   const cycleId = Number(id);
   if (isNaN(cycleId)) notFound();
 
-  const session = await requireSession();
+  await requireSession();
   const [cycleResult, programsResult] = await Promise.all([
     getTrainingCycleWithSlots(cycleId),
-    getPrograms(session.user.id),
+    getPrograms(),
   ]);
 
   if (!cycleResult.success) notFound();

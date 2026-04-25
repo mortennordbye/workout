@@ -3,6 +3,7 @@
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { exercises, trainingCycles, workoutSessions, workoutSets } from "@/db/schema";
+import { requireSession } from "@/lib/utils/session";
 import { ActionResult } from "@/types/workout";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -635,9 +636,9 @@ function fillWeeklyCardioGaps(rows: WeeklyCardioMetric[], weeks = 8): WeeklyCard
   });
 }
 
-export async function getCardioMetrics(
-  userId: string,
-): Promise<ActionResult<CardioMetrics>> {
+export async function getCardioMetrics(): Promise<ActionResult<CardioMetrics>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   try {
     // All cardio sets with distance + duration for this user
     const allSets = await db
@@ -774,7 +775,7 @@ export async function getCardioMetrics(
       },
     };
   } catch (err) {
-    console.error("getCardioMetrics failed:", err);
+    console.error("[getCardioMetrics] failed", err);
     return { success: false, error: "Failed to load cardio metrics" };
   }
 }
@@ -886,29 +887,32 @@ async function fetchReadinessPerformance(userId: string): Promise<ReadinessPerfo
     .sort((a, b) => a.readiness - b.readiness);
 }
 
-export async function getHeatmapData(userId: string): Promise<ActionResult<HeatmapDay[]>> {
+export async function getHeatmapData(): Promise<ActionResult<HeatmapDay[]>> {
+  const auth = await requireSession();
   try {
-    return { success: true, data: await fetchHeatmapData(userId) };
+    return { success: true, data: await fetchHeatmapData(auth.user.id) };
   } catch (err) {
-    console.error("getHeatmapData failed:", err);
+    console.error("[getHeatmapData] failed", err);
     return { success: false, error: "Failed to load heatmap data" };
   }
 }
 
-export async function getMovementPatternBalance(userId: string): Promise<ActionResult<MovementPatternBalance[]>> {
+export async function getMovementPatternBalance(): Promise<ActionResult<MovementPatternBalance[]>> {
+  const auth = await requireSession();
   try {
-    return { success: true, data: await fetchMovementPatternBalance(userId) };
+    return { success: true, data: await fetchMovementPatternBalance(auth.user.id) };
   } catch (err) {
-    console.error("getMovementPatternBalance failed:", err);
+    console.error("[getMovementPatternBalance] failed", err);
     return { success: false, error: "Failed to load movement pattern data" };
   }
 }
 
-export async function getReadinessPerformance(userId: string): Promise<ActionResult<ReadinessPerformancePoint[]>> {
+export async function getReadinessPerformance(): Promise<ActionResult<ReadinessPerformancePoint[]>> {
+  const auth = await requireSession();
   try {
-    return { success: true, data: await fetchReadinessPerformance(userId) };
+    return { success: true, data: await fetchReadinessPerformance(auth.user.id) };
   } catch (err) {
-    console.error("getReadinessPerformance failed:", err);
+    console.error("[getReadinessPerformance] failed", err);
     return { success: false, error: "Failed to load readiness data" };
   }
 }

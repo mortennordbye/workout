@@ -8,6 +8,7 @@ import { exercises } from "@/db/schema/exercises";
 import { programs } from "@/db/schema/programs";
 import { users } from "@/db/schema/users";
 import { getAllExercises } from "@/lib/actions/exercises";
+import { env } from "@/lib/env";
 import { buildAiSystemPrompt, type PrData, type PromptOptions } from "@/lib/utils/ai-prompt";
 import { parseUserGoals } from "@/lib/utils/goals";
 import { requireSession } from "@/lib/utils/session";
@@ -70,7 +71,7 @@ async function callModel(model: Model, messages: Message[], temperature: number,
   try {
     if (model.provider === "google") {
       // Native Gemini API — the AQ. key format requires ?key= param, not Bearer token
-      const apiKey = process.env.GOOGLE_API_KEY;
+      const apiKey = env.GOOGLE_API_KEY;
       if (!apiKey) return null;
 
       const systemMsg = messages.find((m) => m.role === "system")?.content ?? "";
@@ -104,14 +105,14 @@ async function callModel(model: Model, messages: Message[], temperature: number,
     }
 
     // OpenRouter (OpenAI-compatible)
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const apiKey = env.OPENROUTER_API_KEY;
     if (!apiKey) return null;
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": process.env.BETTER_AUTH_URL ?? "https://logevery.lift",
+        "HTTP-Referer": env.BETTER_AUTH_URL,
         "X-Title": "LogEveryLift AI Setup",
       },
       body: JSON.stringify({ model: model.modelId, messages, temperature, max_tokens: maxTokens }),
@@ -258,7 +259,7 @@ export async function generateWorkoutPlan(
 
 Generate the full plan based on the training goals the user describes. Output only the raw JSON — no explanation, no markdown, no code block.`;
 
-  if (!process.env.OPENROUTER_API_KEY && !process.env.GOOGLE_API_KEY) {
+  if (!env.OPENROUTER_API_KEY && !env.GOOGLE_API_KEY) {
     return { success: false, error: "AI generation is not configured on this server." };
   }
 
@@ -267,8 +268,8 @@ Generate the full plan based on the training goals the user describes. Output on
   let modelUsed = "";
 
   for (const model of models) {
-    if (model.provider === "google" && !process.env.GOOGLE_API_KEY) continue;
-    if (model.provider !== "google" && !process.env.OPENROUTER_API_KEY) continue;
+    if (model.provider === "google" && !env.GOOGLE_API_KEY) continue;
+    if (model.provider !== "google" && !env.OPENROUTER_API_KEY) continue;
 
     const text = await callModel(
       model,
@@ -312,7 +313,7 @@ Generate the full plan based on the training goals the user describes. Output on
   try {
     await db.insert(aiGenerations).values({ userId });
   } catch (err) {
-    console.error("Failed to record AI generation:", err);
+    console.error("[generateWorkoutPlan] record_failed", err);
   }
 
   console.log(`[AI] Generation successful via ${modelUsed}`);

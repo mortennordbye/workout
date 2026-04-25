@@ -151,7 +151,7 @@ export async function logWorkoutSet(
       data: { set, newPRs },
     };
   } catch (error) {
-    console.error("Error logging workout set:", error);
+    console.error("[logWorkoutSet] failed", error);
     return {
       success: false,
       error: "Failed to log workout set. Please try again.",
@@ -304,7 +304,7 @@ async function detectAndRecordPRs({
     }
   } catch (err) {
     // PR detection is non-critical — log and continue
-    console.error("PR detection error:", err);
+    console.error("[logWorkoutSet] pr_detection_failed", err);
   }
 
   return newPRs;
@@ -316,8 +316,8 @@ async function detectAndRecordPRs({
  */
 export async function getExercisePRs(
   exerciseId: number,
-  userId: string,
 ): Promise<ActionResult<Record<string, number>>> {
+  const auth = await requireSession();
   try {
     const prs = await db
       .select({
@@ -327,7 +327,7 @@ export async function getExercisePRs(
       .from(exercisePrs)
       .where(
         and(
-          eq(exercisePrs.userId, userId),
+          eq(exercisePrs.userId, auth.user.id),
           eq(exercisePrs.exerciseId, exerciseId),
           isNull(exercisePrs.supersededAt),
         ),
@@ -339,7 +339,7 @@ export async function getExercisePRs(
     }
     return { success: true, data: result };
   } catch (error) {
-    console.error("Error fetching exercise PRs:", error);
+    console.error("[getExercisePRs] failed", error);
     return { success: false, error: "Failed to fetch PRs" };
   }
 }
@@ -351,9 +351,9 @@ export async function getExercisePRs(
  * - totalReps / totalSets: lifetime totals across all logged sets
  * - thisWeekWorkouts: completed sessions in the current Mon–Sun week
  */
-export async function getWorkoutStats(
-  userId: string,
-): Promise<ActionResult<WorkoutStats>> {
+export async function getWorkoutStats(): Promise<ActionResult<WorkoutStats>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   try {
     const [
       [totals],
@@ -397,7 +397,7 @@ export async function getWorkoutStats(
       },
     };
   } catch (error) {
-    console.error("Error fetching workout stats:", error);
+    console.error("[getWorkoutStats] failed", error);
     return { success: false, error: "Failed to fetch workout stats" };
   }
 }
@@ -496,7 +496,7 @@ export async function getWorkoutHistory(
       },
     };
   } catch (error) {
-    console.error("Error fetching workout history:", error);
+    console.error("[getWorkoutHistory] failed", error);
     return {
       success: false,
       error: "Failed to fetch workout history. Please try again.",
@@ -575,7 +575,7 @@ export async function getCompletedSessions(
       })),
     };
   } catch (error) {
-    console.error("Error fetching completed sessions:", error);
+    console.error("[getCompletedSessions] failed", error);
     return { success: false, error: "Failed to fetch workout history" };
   }
 }
@@ -642,7 +642,7 @@ export async function getSessionDetail(
       },
     };
   } catch (error) {
-    console.error("Error fetching session detail:", error);
+    console.error("[getSessionDetail] failed", error);
     return { success: false, error: "Failed to fetch session detail" };
   }
 }
@@ -811,7 +811,7 @@ export async function getProgressiveSuggestions(
 
     return { success: true, data: suggestions };
   } catch (error) {
-    console.error("Error calculating progressive suggestions:", error);
+    console.error("[getProgressiveSuggestions] failed", error);
     return { success: false, error: "Failed to calculate suggestions" };
   }
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 import Link from "next/link";
 
@@ -17,6 +18,7 @@ export default function Error({
       message: error.message,
       path: typeof window !== "undefined" ? window.location.pathname : undefined,
     });
+    Sentry.captureException(error);
   }, [error]);
 
   return (

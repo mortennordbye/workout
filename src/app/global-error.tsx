@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 export default function GlobalError({
@@ -15,6 +16,7 @@ export default function GlobalError({
       message: error.message,
       path: typeof window !== "undefined" ? window.location.pathname : undefined,
     });
+    Sentry.captureException(error);
   }, [error]);
 
   // global-error replaces the root layout, so it must render <html> and <body>.

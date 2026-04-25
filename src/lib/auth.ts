@@ -1,5 +1,6 @@
 import { db } from "@/db";
 import { accounts, sessions, users, verifications } from "@/db/schema";
+import { env, trustedOrigins } from "@/lib/env";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin } from "better-auth/plugins";
@@ -34,12 +35,9 @@ export const auth = betterAuth({
       adminRole: ["admin"],
     }),
   ],
-  secret: process.env.BETTER_AUTH_SECRET!,
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
-  trustedOrigins: [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-  ],
+  secret: env.BETTER_AUTH_SECRET,
+  baseURL: env.BETTER_AUTH_URL,
+  trustedOrigins: trustedOrigins(),
 });
 
 export type Session = typeof auth.$Infer.Session;

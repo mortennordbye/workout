@@ -49,10 +49,10 @@ export default async function MetricsPage() {
     db.query.users.findFirst({ where: eq(users.id, userId) }),
     topExercise ? getExerciseProgress(userId, topExercise.exerciseId) : Promise.resolve(null),
     getMetricsCycles(userId),
-    getCardioMetrics(userId),
-    getHeatmapData(userId),
-    getMovementPatternBalance(userId),
-    getReadinessPerformance(userId),
+    getCardioMetrics(),
+    getHeatmapData(),
+    getMovementPatternBalance(),
+    getReadinessPerformance(),
   ]);
 
   return (

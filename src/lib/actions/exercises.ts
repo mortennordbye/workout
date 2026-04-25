@@ -21,7 +21,7 @@ export async function getAllExercises(): Promise<ActionResult<Exercise[]>> {
       .orderBy(asc(exercises.name));
     return { success: true, data: rows };
   } catch (error) {
-    console.error("Error fetching exercises:", error);
+    console.error("[getAllExercises] failed", error);
     return { success: false, error: "Failed to fetch exercises" };
   }
 }
@@ -77,7 +77,7 @@ export async function createCustomExercise(
 
     return { success: true, data: exercise };
   } catch (error) {
-    console.error("Error creating exercise:", error);
+    console.error("[createCustomExercise] failed", error);
     return { success: false, error: "Failed to create exercise. Please try again." };
   }
 }
@@ -108,7 +108,7 @@ export async function deleteCustomExercise(id: number): Promise<ActionResult<und
     );
     return { success: true, data: undefined };
   } catch (error) {
-    console.error("Error deleting exercise:", error);
+    console.error("[deleteCustomExercise] failed", error);
     return { success: false, error: "Failed to delete exercise. Please try again." };
   }
 }
@@ -164,7 +164,7 @@ export async function updateCustomExercise(
 
     return { success: true, data: updated };
   } catch (error) {
-    console.error("Error updating exercise:", error);
+    console.error("[updateCustomExercise] failed", error);
     return { success: false, error: "Failed to update exercise. Please try again." };
   }
 }

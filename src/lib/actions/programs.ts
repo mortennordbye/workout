@@ -37,14 +37,13 @@ import { revalidatePath } from "next/cache";
 // Programs
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function getPrograms(
-  userId: string,
-): Promise<ActionResult<Program[]>> {
+export async function getPrograms(): Promise<ActionResult<Program[]>> {
+  const auth = await requireSession();
   try {
     const rows = await db
       .select()
       .from(programs)
-      .where(eq(programs.userId, userId))
+      .where(eq(programs.userId, auth.user.id))
       .orderBy(asc(programs.name));
     return { success: true, data: rows };
   } catch (err) {
@@ -55,9 +54,13 @@ export async function getPrograms(
 export async function getProgramWithExercises(
   programId: number,
 ): Promise<ActionResult<ProgramWithExercises>> {
+  const auth = await requireSession();
   try {
     const program = await db.query.programs.findFirst({
-      where: eq(programs.id, programId),
+      where: and(
+        eq(programs.id, programId),
+        eq(programs.userId, auth.user.id),
+      ),
       with: {
         programExercises: {
           orderBy: (pe, { asc }) => [asc(pe.orderIndex)],
@@ -85,9 +88,13 @@ export async function getProgramsWithExercises(
   ids: number[],
 ): Promise<Record<number, ProgramWithExercises>> {
   if (ids.length === 0) return {};
+  const auth = await requireSession();
   try {
     const rows = await db.query.programs.findMany({
-      where: inArray(programs.id, ids),
+      where: and(
+        inArray(programs.id, ids),
+        eq(programs.userId, auth.user.id),
+      ),
       with: {
         programExercises: {
           orderBy: (pe, { asc }) => [asc(pe.orderIndex)],

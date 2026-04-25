@@ -1,10 +1,47 @@
+import * as Sentry from "@sentry/nextjs";
+
+// Forwards uncaught Server Component / route handler errors into Sentry.
+// No-op when DSN is unset (Sentry init is gated in sentry.*.config.ts).
+export const onRequestError = Sentry.captureRequestError;
+
 export async function register() {
-  // Only run in Node.js (not during edge runtime or client builds)
+  // Sentry runs in both nodejs and edge runtimes. Load the matching config.
+  // No-op when SENTRY_DSN is unset (see config files).
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    await import("../sentry.server.config");
+  } else if (process.env.NEXT_RUNTIME === "edge") {
+    await import("../sentry.edge.config");
+  }
+
+  // The rest of register() is Node-only (DB, env, admin bootstrap).
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
-  const adminEmail = process.env.ADMIN_EMAIL;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-  const adminName = process.env.ADMIN_NAME ?? "Admin";
+  // Force env validation to run at boot — surfaces config errors immediately
+  // instead of on the first request that touches the misconfigured value.
+  const { env } = await import("@/lib/env");
+
+  // Drain the DB pool on SIGTERM so K8s rolling deploys don't drop in-flight
+  // requests. Idempotent — subsequent signals are no-ops.
+  let shuttingDown = false;
+  const shutdown = async (signal: NodeJS.Signals) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[shutdown] received ${signal}, draining DB pool`);
+    try {
+      const { pool } = await import("@/db");
+      await pool.end();
+      console.log("[shutdown] pool drained");
+    } catch (err) {
+      console.error("[shutdown] failed to drain pool", err);
+    }
+    // Let Next.js's own signal handler take over from here (it logs and exits).
+  };
+  process.once("SIGTERM", () => void shutdown("SIGTERM"));
+  process.once("SIGINT", () => void shutdown("SIGINT"));
+
+  const adminEmail = env.ADMIN_EMAIL;
+  const adminPassword = env.ADMIN_PASSWORD;
+  const adminName = env.ADMIN_NAME;
 
   if (!adminEmail || !adminPassword) return;
 

@@ -3,10 +3,30 @@
 import { db } from "@/db";
 import { inviteTokens } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { ForbiddenError, requireAdmin } from "@/lib/utils/session";
 import type { ActionResult } from "@/types/workout";
 import { eq } from "drizzle-orm";
+import { headers } from "next/headers";
 import { randomBytes } from "crypto";
+import { z } from "zod";
+
+const registerWithTokenSchema = z.object({
+  token: z.string().trim().min(1),
+  name: z.string().trim().min(1).max(100),
+  email: z.string().trim().toLowerCase().email(),
+  password: z.string().min(8).max(200),
+});
+
+const TOKEN_VALIDATE_LIMIT = { windowMs: 15 * 60_000, max: 30 };
+const TOKEN_REGISTER_LIMIT = { windowMs: 60 * 60_000, max: 5 };
+
+async function callerIp(): Promise<string> {
+  const h = await headers();
+  const xff = h.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0]?.trim() || "unknown";
+  return h.get("x-real-ip") ?? h.get("cf-connecting-ip") ?? "unknown";
+}
 
 type InviteToken = typeof inviteTokens.$inferSelect;
 
@@ -15,6 +35,12 @@ type InviteToken = typeof inviteTokens.$inferSelect;
 export async function validateInviteToken(
   token: string,
 ): Promise<ActionResult<{ id: string }>> {
+  const ip = await callerIp();
+  const blocked = checkRateLimit(`invite-validate:${ip}`, TOKEN_VALIDATE_LIMIT);
+  if (blocked) {
+    return { success: false, error: "Too many attempts. Please try again later." };
+  }
+
   try {
     const row = await db.query.inviteTokens.findFirst({
       where: (t, { eq }) => eq(t.token, token.trim()),
@@ -32,7 +58,7 @@ export async function validateInviteToken(
 
     return { success: true, data: { id: row.id } };
   } catch (error) {
-    console.error("Error validating invite token:", error);
+    console.error("[validateInviteToken] failed", error);
     return { success: false, error: "Failed to validate token" };
   }
 }
@@ -43,14 +69,25 @@ export async function registerWithToken(
   email: string,
   password: string,
 ): Promise<ActionResult> {
-  try {
-    if (!token.trim() || !name.trim() || !email.trim() || !password) {
-      return { success: false, error: "All fields are required" };
-    }
+  const ip = await callerIp();
+  const blocked = checkRateLimit(`invite-register:${ip}`, TOKEN_REGISTER_LIMIT);
+  if (blocked) {
+    return { success: false, error: "Too many attempts. Please try again later." };
+  }
 
+  const parsed = registerWithTokenSchema.safeParse({ token, name, email, password });
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Invalid input",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
     // Re-validate token under a transaction to prevent double-use
     const row = await db.query.inviteTokens.findFirst({
-      where: (t, { eq }) => eq(t.token, token.trim()),
+      where: (t, { eq }) => eq(t.token, parsed.data.token),
     });
 
     if (!row) return { success: false, error: "Invalid invite token" };
@@ -66,9 +103,9 @@ export async function registerWithToken(
     // Create the user via better-auth's public sign-up endpoint
     const result = await auth.api.signUpEmail({
       body: {
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        password,
+        name: parsed.data.name,
+        email: parsed.data.email,
+        password: parsed.data.password,
       },
     });
 
@@ -88,7 +125,7 @@ export async function registerWithToken(
     if (message.includes("email") || message.includes("user already exists")) {
       return { success: false, error: "An account with this email already exists" };
     }
-    console.error("Error registering user:", error);
+    console.error("[registerWithToken] failed", error);
     return { success: false, error: "Failed to create account. Please try again." };
   }
 }

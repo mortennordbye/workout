@@ -2,6 +2,7 @@
 
 import { db } from "@/db";
 import { aiModelConfigs } from "@/db/schema/ai-model-configs";
+import { env } from "@/lib/env";
 import { requireSession } from "@/lib/utils/session";
 import { asc, eq } from "drizzle-orm";
 
@@ -59,7 +60,7 @@ export async function testAiModel(modelId: string): Promise<ActionResult<{ laten
   const provider = row?.provider ?? "openrouter";
 
   const isGoogle = provider === "google";
-  const apiKey = isGoogle ? process.env.GOOGLE_API_KEY : process.env.OPENROUTER_API_KEY;
+  const apiKey = isGoogle ? env.GOOGLE_API_KEY : env.OPENROUTER_API_KEY;
   if (!apiKey)
     return {
       success: false,
@@ -88,7 +89,7 @@ export async function testAiModel(modelId: string): Promise<ActionResult<{ laten
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": process.env.BETTER_AUTH_URL ?? "https://logevery.lift",
+          "HTTP-Referer": env.BETTER_AUTH_URL,
           "X-Title": "LogEveryLift AI Setup",
         },
         body: JSON.stringify({

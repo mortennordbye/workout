@@ -41,7 +41,7 @@ export default async function Home() {
 
   // Batch remaining queries in parallel, including insight now that we know todayProgram
   const [statsResult, sessionsResult, insight] = await Promise.all([
-    getWorkoutStats(userId),
+    getWorkoutStats(),
     getCompletedSessions(userId, monday),
     todayProgram
       ? getWorkoutInsight(todayProgram.id, userId, cycleResult).catch(() => undefined)

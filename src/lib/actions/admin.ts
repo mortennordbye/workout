@@ -588,7 +588,8 @@ export async function adminResetUserData(): Promise<ActionResult<{ sessions: num
       },
     };
   } catch (err) {
-    console.error("adminResetUserData failed:", err);
+    if (err instanceof ForbiddenError) return { success: false, error: err.message };
+    console.error("[adminResetUserData] failed", err);
     return { success: false, error: "Failed to reset user data" };
   }
 }
@@ -751,7 +752,8 @@ export async function adminSeedFakeData(): Promise<ActionResult<{ programs: numb
     revalidatePath("/", "layout");
     return { success: true, data };
   } catch (err) {
-    console.error("adminSeedFakeData failed:", err);
+    if (err instanceof ForbiddenError) return { success: false, error: err.message };
+    console.error("[adminSeedFakeData] failed", err);
     return { success: false, error: "Failed to seed fake data" };
   }
 }

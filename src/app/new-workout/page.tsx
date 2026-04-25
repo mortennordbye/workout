@@ -18,7 +18,7 @@ export default async function NewWorkoutPage() {
   const session = await requireSession();
   const [cycleResult, programsResult] = await Promise.all([
     getActiveCycleForUser(session.user.id),
-    getPrograms(session.user.id),
+    getPrograms(),
   ]);
 
   const activeCycleInfo = cycleResult.success ? cycleResult.data : null;

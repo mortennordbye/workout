@@ -1,4 +1,7 @@
-CREATE TYPE "public"."friendship_status" AS ENUM('pending', 'accepted', 'declined');--> statement-breakpoint
+DO $$ BEGIN
+  CREATE TYPE "public"."friendship_status" AS ENUM('pending', 'accepted', 'declined');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
 CREATE TABLE "friendships" (
 	"id" serial PRIMARY KEY NOT NULL,
 	"requester_id" text NOT NULL,

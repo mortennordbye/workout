@@ -43,7 +43,7 @@ export async function createWorkoutSession(
     revalidatePath(`/workout/${session.id}`);
     return { success: true, data: session };
   } catch (error) {
-    console.error("Error creating workout session:", error);
+    console.error("[createWorkoutSession] failed", error);
     return { success: false, error: "Failed to create workout session." };
   }
 }
@@ -152,7 +152,7 @@ export async function getLastCompletedSession(
       },
     };
   } catch (error) {
-    console.error("Error fetching last session:", error);
+    console.error("[getLastCompletedSession] failed", error);
     return { success: false, error: "Failed to fetch last session" };
   }
 }

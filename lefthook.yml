@@ -1,0 +1,6 @@
+# Pre-push only — keeps `git commit` fast for AI-driven loops.
+# Run `pnpm lefthook install` once to register the hook in .git/hooks.
+pre-push:
+  commands:
+    verify:
+      run: pnpm verify
