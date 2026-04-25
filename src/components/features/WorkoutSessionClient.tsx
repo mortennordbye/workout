@@ -4,9 +4,8 @@ import { WorkoutExerciseList } from "@/components/features/WorkoutExerciseList";
 import { ReadinessSheet } from "@/components/features/ReadinessSheet";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { createWorkoutSession } from "@/lib/actions/workout-sessions";
 import type { ExerciseInsight, WorkoutInsight } from "@/lib/actions/workout-sets";
-import { formatTime, toDateString } from "@/lib/utils/format";
+import { formatTime } from "@/lib/utils/format";
 import {
     removeExerciseFromProgram,
     reorderProgramExercises,
@@ -74,57 +73,9 @@ export function WorkoutSessionClient({
   const [showReadiness, setShowReadiness] = useState(false);
   const workoutSession = useWorkoutSession();
 
-  useEffect(() => {
-    // Read localStorage directly — context may not be hydrated yet (child effects run before parent effects)
-    const raw = localStorage.getItem("activeWorkout");
-    let persistedStart: string | null = null;
-    let persistedSessionId: number | null = null;
-    if (raw) {
-      try {
-        const stored = JSON.parse(raw) as { programId: number; startTime: string; sessionId: number | null };
-        if (stored.programId === programId) {
-          persistedStart = stored.startTime;
-          persistedSessionId = stored.sessionId;
-        }
-      } catch {
-        // fall through to create new session
-      }
-    }
-
-    // Discard sessions older than 24 hours — same rule as the context.
-    // Child effects run before parent effects so this check must live here too.
-    if (persistedStart != null && Date.now() - new Date(persistedStart).getTime() > 8 * 60 * 60 * 1000) {
-      localStorage.removeItem("activeWorkout");
-      localStorage.removeItem("restTimerEnds");
-      localStorage.removeItem("workoutOverrides");
-      localStorage.removeItem("workoutReadiness");
-      persistedStart = null;
-      persistedSessionId = null;
-    }
-
-    // If there's a persisted session for this program, restore it without creating a new DB session
-    if (persistedSessionId != null && persistedStart != null) {
-      workoutSession?.setActiveWorkout(programId, persistedStart, persistedSessionId);
-      return;
-    }
-
-    if (workoutSession?.sessionId != null) return; // already initialized in this browser session
-
-    const effectiveStart = persistedStart ? new Date(persistedStart) : new Date();
-
-    async function init() {
-      const result = await createWorkoutSession({
-        date: toDateString(effectiveStart),
-        startTime: effectiveStart.toISOString(),
-        programId,
-      });
-      if (result.success) {
-        workoutSession?.setActiveWorkout(programId, effectiveStart.toISOString(), result.data.id);
-      }
-    }
-    init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Session creation/restore is handled by WorkoutSessionInitializer, mounted
+  // in the workout layout so deep links to /workout/exercises/... also get a
+  // session. Don't duplicate the effect here — it would race.
 
   // Show readiness check-in once the session is live and readiness is unknown
   useEffect(() => {

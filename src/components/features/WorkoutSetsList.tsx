@@ -303,12 +303,15 @@ export function WorkoutSetsList({
         for (const item of precedingUncompleted) {
           const sIdx = setItems.findIndex((s) => s.set.id === item.set.id);
           const ov = workoutSession?.overrides[item.set.id];
+          // Zod requires targetReps to be positive when present — for timed
+          // sets it's 0 by default, so coerce 0 to undefined.
+          const tr = ov?.targetReps ?? item.set.targetReps ?? 0;
           void logWithRetry({
             sessionId,
             exerciseId,
             setNumber: sIdx + 1,
-            targetReps: ov?.targetReps ?? item.set.targetReps ?? undefined,
-            actualReps: ov?.targetReps ?? item.set.targetReps ?? 0,
+            targetReps: tr > 0 ? tr : undefined,
+            actualReps: tr,
             weightKg: ov?.weightKg ?? Number(item.set.weightKg ?? 0),
             durationSeconds: ov?.durationSeconds ?? item.set.durationSeconds ?? undefined,
             distanceMeters: ov?.distanceMeters ?? item.set.distanceMeters ?? undefined,
@@ -325,12 +328,13 @@ export function WorkoutSetsList({
         const setData = setItems[setIndex]?.set;
         if (setData) {
           const ov = workoutSession?.overrides[setData.id];
+          const tr = ov?.targetReps ?? setData.targetReps ?? 0;
           const result = await logWithRetry({
             sessionId,
             exerciseId,
             setNumber: setIndex + 1,
-            targetReps: ov?.targetReps ?? setData.targetReps ?? undefined,
-            actualReps: ov?.targetReps ?? setData.targetReps ?? 0,
+            targetReps: tr > 0 ? tr : undefined,
+            actualReps: tr,
             weightKg: ov?.weightKg ?? Number(setData.weightKg ?? 0),
             durationSeconds: ov?.durationSeconds ?? setData.durationSeconds ?? undefined,
             distanceMeters: ov?.distanceMeters ?? setData.distanceMeters ?? undefined,

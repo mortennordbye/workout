@@ -174,12 +174,49 @@ export async function logWorkoutSet(
       data: { set, newPRs },
     };
   } catch (error) {
+    // Unique-violation on (session_id, exercise_id, set_number) means the row
+    // already exists — typically a retry replay after a flaky network. Treat
+    // as success and return the existing row so client-side retry queues stop
+    // looping. Without this, a single failed-then-succeeded request becomes
+    // an infinite retry storm.
+    if (isUniqueViolation(error)) {
+      try {
+        const parsedAgain = logWorkoutSetSchema.safeParse(data);
+        if (parsedAgain.success) {
+          const { sessionId, exerciseId, setNumber } = parsedAgain.data;
+          const [existing] = await db
+            .select()
+            .from(workoutSets)
+            .where(
+              and(
+                eq(workoutSets.sessionId, sessionId),
+                eq(workoutSets.exerciseId, exerciseId),
+                eq(workoutSets.setNumber, setNumber),
+              ),
+            )
+            .limit(1);
+          if (existing) {
+            return { success: true, data: { set: existing, newPRs: [] } };
+          }
+        }
+      } catch (lookupErr) {
+        console.error("[logWorkoutSet] dupe lookup failed", lookupErr);
+      }
+    }
     console.error("[logWorkoutSet] failed", error);
     return {
       success: false,
       error: "Failed to log workout set. Please try again.",
     };
   }
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const e = error as { code?: unknown; cause?: { code?: unknown } };
+  if (e.code === "23505") return true;
+  if (e.cause && typeof e.cause === "object" && e.cause.code === "23505") return true;
+  return false;
 }
 
 // ─── PR Detection ─────────────────────────────────────────────────────────────

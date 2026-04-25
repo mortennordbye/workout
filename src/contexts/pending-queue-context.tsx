@@ -33,10 +33,15 @@ type LogPayload = Parameters<typeof logWorkoutSet>[0];
 type CompletePayload = Parameters<typeof completeWorkoutSession>[0];
 
 type QueuedMutation =
-  | { id: string; kind: "logWorkoutSet"; payload: LogPayload; queuedAt: number }
-  | { id: string; kind: "completeWorkoutSession"; payload: CompletePayload; queuedAt: number };
+  | { id: string; kind: "logWorkoutSet"; payload: LogPayload; queuedAt: number; attempts?: number }
+  | { id: string; kind: "completeWorkoutSession"; payload: CompletePayload; queuedAt: number; attempts?: number };
 
 const STORAGE_KEY = "pendingMutationQueue";
+
+// Drop a queued mutation after this many failed replays. Permanent failures
+// (validation errors, unique violations the server can't recover from) would
+// otherwise loop on every `online` event forever.
+const MAX_ATTEMPTS = 5;
 
 type PendingQueueContextValue = {
   count: number;
@@ -96,35 +101,57 @@ export function PendingQueueProvider({ children }: { children: React.ReactNode }
       if (snapshot.length === 0) return;
 
       const failed: QueuedMutation[] = [];
+      const dropped: QueuedMutation[] = [];
       for (const m of snapshot) {
+        let ok = false;
         try {
           const result =
             m.kind === "logWorkoutSet"
               ? await logWorkoutSet(m.payload)
               : await completeWorkoutSession(m.payload);
-          if (!result.success) failed.push(m);
+          ok = result.success;
         } catch {
-          failed.push(m);
+          ok = false;
+        }
+        if (ok) continue;
+        const nextAttempts = (m.attempts ?? 0) + 1;
+        if (nextAttempts >= MAX_ATTEMPTS) {
+          dropped.push(m);
+        } else {
+          failed.push({ ...m, attempts: nextAttempts } as QueuedMutation);
         }
       }
 
-      // Drop the snapshot, keep failed ones + anything enqueued during replay.
+      // Drop the snapshot, keep failed ones (with bumped attempt counts)
+      // + anything enqueued during replay. Dropped ones disappear silently
+      // from the queue but we surface a toast so the user knows.
       setQueue((prev) => {
-        const stillFailing = new Set(failed.map((m) => m.id));
+        const failedById = new Map(failed.map((m) => [m.id, m]));
         const replayedIds = new Set(snapshot.map((m) => m.id));
-        const carryForward = prev.filter(
-          (m) => !replayedIds.has(m.id) || stillFailing.has(m.id),
-        );
-        return carryForward;
+        return prev.flatMap((m) => {
+          if (!replayedIds.has(m.id)) return [m];
+          const updated = failedById.get(m.id);
+          return updated ? [updated] : [];
+        });
       });
 
-      const succeeded = snapshot.length - failed.length;
+      const succeeded = snapshot.length - failed.length - dropped.length;
       if (succeeded > 0) {
         showToast({
           message:
             succeeded === 1
               ? "Synced 1 pending set"
               : `Synced ${succeeded} pending sets`,
+        });
+      }
+      if (dropped.length > 0) {
+        showToast({
+          variant: "error",
+          durationMs: 8000,
+          message:
+            dropped.length === 1
+              ? "1 pending change couldn't be saved and was dropped"
+              : `${dropped.length} pending changes couldn't be saved and were dropped`,
         });
       }
     } finally {
