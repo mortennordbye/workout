@@ -35,6 +35,7 @@ import {
     integer,
     pgTable,
     serial,
+    text,
     timestamp,
     uniqueIndex,
 } from "drizzle-orm/pg-core";
@@ -59,6 +60,8 @@ export const workoutSets = pgTable("workout_sets", {
   heartRateZone: integer("heart_rate_zone"), // 1-5
   rpe: integer("rpe").notNull(), // 1-10 scale
   restTimeSeconds: integer("rest_time_seconds").notNull(),
+  // Free-text per-set note: "left shoulder twinged", "added belt", "felt easy"
+  notes: text("notes"),
   isCompleted: boolean("is_completed").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [

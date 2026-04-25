@@ -5,6 +5,8 @@ import { LogRunModal } from "@/components/features/LogRunModal";
 import { reorderProgramSets, updateProgramSet } from "@/lib/actions/programs";
 import { logWorkoutSet } from "@/lib/actions/workout-sets";
 import type { SetSuggestionDisplay } from "@/components/features/WorkoutSetsClient";
+import { usePendingQueue } from "@/contexts/pending-queue-context";
+import { useToast } from "@/contexts/toast-context";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { formatDistanceKm, formatPace, formatTime } from "@/lib/utils/format";
 import { haptics } from "@/lib/utils/haptics";
@@ -73,7 +75,46 @@ export function WorkoutSetsList({
   onApplyRepSuggestion,
 }: WorkoutSetsListProps) {
   const router = useRouter();
+  const { showToast } = useToast();
+  const { enqueue: enqueuePending } = usePendingQueue();
   const workoutSession = useWorkoutSession();
+
+  // Wrap logWorkoutSet with: (a) offline detection — if the browser is
+  // offline, queue immediately and tell the user we'll sync on reconnect;
+  // (b) failure handling — on a transient server error, show a Retry toast
+  // and also queue so an `online` event will retry automatically.
+  const logWithRetry = async (
+    payload: Parameters<typeof logWorkoutSet>[0],
+  ): ReturnType<typeof logWorkoutSet> => {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      enqueuePending({ kind: "logWorkoutSet", payload });
+      showToast({
+        message: "Offline — saved locally, will sync when online",
+        durationMs: 4000,
+      });
+      return { success: true, data: { set: null as never, newPRs: [] } };
+    }
+    try {
+      const r = await logWorkoutSet(payload);
+      if (!r.success) {
+        enqueuePending({ kind: "logWorkoutSet", payload });
+        showToast({
+          variant: "error",
+          message: "Set didn't save — tap Retry",
+          onRetry: () => void logWithRetry(payload),
+        });
+      }
+      return r;
+    } catch (err) {
+      enqueuePending({ kind: "logWorkoutSet", payload });
+      showToast({
+        variant: "error",
+        message: "Set didn't save — tap Retry",
+        onRetry: () => void logWithRetry(payload),
+      });
+      throw err;
+    }
+  };
   const workoutSessionRef = useRef(workoutSession);
   useEffect(() => { workoutSessionRef.current = workoutSession; }, [workoutSession]);
   const [flatItems, setFlatItems] = useState<FlatItem[]>(() =>
@@ -262,7 +303,7 @@ export function WorkoutSetsList({
         for (const item of precedingUncompleted) {
           const sIdx = setItems.findIndex((s) => s.set.id === item.set.id);
           const ov = workoutSession?.overrides[item.set.id];
-          void logWorkoutSet({
+          void logWithRetry({
             sessionId,
             exerciseId,
             setNumber: sIdx + 1,
@@ -273,6 +314,7 @@ export function WorkoutSetsList({
             distanceMeters: ov?.distanceMeters ?? item.set.distanceMeters ?? undefined,
             rpe: 7,
             restTimeSeconds: 0,
+            notes: ov?.notes ?? null,
             isCompleted: true,
           });
         }
@@ -283,7 +325,7 @@ export function WorkoutSetsList({
         const setData = setItems[setIndex]?.set;
         if (setData) {
           const ov = workoutSession?.overrides[setData.id];
-          const result = await logWorkoutSet({
+          const result = await logWithRetry({
             sessionId,
             exerciseId,
             setNumber: setIndex + 1,
@@ -294,6 +336,7 @@ export function WorkoutSetsList({
             distanceMeters: ov?.distanceMeters ?? setData.distanceMeters ?? undefined,
             rpe: 7,
             restTimeSeconds: restSeconds,
+            notes: ov?.notes ?? null,
             isCompleted: true,
           });
           // Only celebrate when an existing record was beaten (previousValue defined).
@@ -368,7 +411,7 @@ export function WorkoutSetsList({
     }
 
     if (isWorkout && sessionId != null && exerciseId != null) {
-      await logWorkoutSet({
+      await logWithRetry({
         sessionId,
         exerciseId,
         setNumber: setIndex + 1,
@@ -651,6 +694,7 @@ export function WorkoutSetsList({
                     onApplySuggestion={handleApplySuggestion}
                     onApplyRepSuggestion={handleApplyRepSuggestion}
                     overrideDurationSeconds={isWorkout ? workoutSession?.overrides[item.set.id]?.durationSeconds : undefined}
+                    overrideNotes={isWorkout ? workoutSession?.overrides[item.set.id]?.notes ?? null : null}
                     hasPR={prSetIds.has(item.set.id)}
                   />
                   {isEditing && flatItems[index + 1]?.type !== "rest" && (
@@ -954,6 +998,7 @@ function SortableSetRow({
   onApplySuggestion,
   onApplyRepSuggestion,
   overrideDurationSeconds,
+  overrideNotes,
   hasPR,
 }: {
   id: string;
@@ -975,6 +1020,7 @@ function SortableSetRow({
   onApplySuggestion?: (setId: number, weightKg: number, adjustedReps?: number, durationSeconds?: number, distanceMeters?: number) => void;
   onApplyRepSuggestion?: (setId: number, reps: number) => void;
   overrideDurationSeconds?: number;
+  overrideNotes?: string | null;
   hasPR?: boolean;
 }) {
   const {
@@ -1090,6 +1136,11 @@ function SortableSetRow({
             {Number(set.weightKg ?? 0) > 0
               ? `${set.targetReps ?? "?"} x ${Number(set.weightKg)}kg`
               : `${set.targetReps ?? "?"} reps`}
+          </p>
+        )}
+        {overrideNotes && (
+          <p className="text-xs text-muted-foreground italic mt-0.5 line-clamp-2">
+            {overrideNotes}
           </p>
         )}
         {isWorkout && suggestion && !isCompleted && (() => {

@@ -4,6 +4,8 @@ import { OnboardingTutorialLoader } from "@/components/features/OnboardingTutori
 import { PageTransition } from "@/components/features/PageTransition";
 import { ViewportFix } from "@/components/features/ViewportFix";
 import { ThemeProvider } from "@/components/ui/theme-provider";
+import { PendingQueueProvider } from "@/contexts/pending-queue-context";
+import { ToastProvider } from "@/contexts/toast-context";
 import { WorkoutSessionProvider } from "@/contexts/workout-session-context";
 import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
@@ -69,13 +71,17 @@ export default function RootLayout({
           </div>
           <ViewportFix />
           <ImpersonationBanner />
-          <WorkoutSessionProvider>
-            <PageTransition>{children}</PageTransition>
-            <BottomNav />
-            <Suspense fallback={null}>
-              <OnboardingTutorialLoader />
-            </Suspense>
-          </WorkoutSessionProvider>
+          <ToastProvider>
+            <PendingQueueProvider>
+              <WorkoutSessionProvider>
+                <PageTransition>{children}</PageTransition>
+                <BottomNav />
+                <Suspense fallback={null}>
+                  <OnboardingTutorialLoader />
+                </Suspense>
+              </WorkoutSessionProvider>
+            </PendingQueueProvider>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

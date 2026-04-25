@@ -2,6 +2,7 @@
 
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { updateProgramSet } from "@/lib/actions/programs";
+import { updateWorkoutSetNotes } from "@/lib/actions/workout-sets";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { formatPace, formatTime } from "@/lib/utils/format";
 import type { SetType } from "@/lib/validators/workout";
@@ -15,6 +16,10 @@ type Props = {
   isWorkout?: boolean;
   isTimed?: boolean;
   isRunning?: boolean;
+  /** Exercise id — required to resolve the workout_sets row for note updates. */
+  exerciseId?: number | null;
+  /** 1-based position of this set within the exercise — used as the workout_sets key. */
+  setNumber?: number;
 };
 
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 300, 600];
@@ -30,7 +35,14 @@ const HR_ZONES = [
   { zone: 5, label: "Z5", desc: "VO₂Max" },
 ];
 
-export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning = false }: Props) {
+export function SetEditView({
+  set,
+  isWorkout = false,
+  isTimed = false,
+  isRunning = false,
+  exerciseId = null,
+  setNumber,
+}: Props) {
   const router = useRouter();
   const [showRepsPicker, setShowRepsPicker] = useState(false);
   const [showWeightPicker, setShowWeightPicker] = useState(false);
@@ -50,6 +62,7 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
   const [setType, setSetType] = useState<SetType>(
     (set.setType as SetType | undefined) ?? "working",
   );
+  const [notes, setNotes] = useState<string>(override?.notes ?? "");
   const [duration, setDuration] = useState(override?.durationSeconds ?? Number(set.durationSeconds ?? 0));
   const [distanceMeters, setDistanceMeters] = useState(set.distanceMeters ?? 5000);
   const [distanceStr, setDistanceStr] = useState(String((set.distanceMeters ?? 5000) / 1000));
@@ -99,10 +112,13 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
 
   const handleSave = async () => {
     setSaving(true);
+    const trimmedNote = notes.trim();
+    const noteValue = trimmedNote.length > 0 ? trimmedNote : null;
+
     if (isRunning) {
       if (isWorkout) {
         // During a workout: only update the duration target override (distance target is program-level)
-        workoutSession?.setOverride(set.id, { targetReps: 0, weightKg: 0, durationSeconds: duration > 0 ? duration : undefined });
+        workoutSession?.setOverride(set.id, { targetReps: 0, weightKg: 0, durationSeconds: duration > 0 ? duration : undefined, notes: noteValue });
       } else if (runMode === "distance") {
         await updateProgramSet({ id: set.id, distanceMeters, durationSeconds: duration > 0 ? duration : undefined, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined, setType });
       } else {
@@ -111,15 +127,24 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
     } else if (isWorkout) {
       // During a workout, changes apply to the active session only — never write back to the program
       if (isTimed) {
-        workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight, durationSeconds: duration });
+        workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight, durationSeconds: duration, notes: noteValue });
       } else {
-        workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight });
+        workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight, notes: noteValue });
       }
     } else if (isTimed) {
       await updateProgramSet({ id: set.id, durationSeconds: duration, setType });
     } else {
       await updateProgramSet({ id: set.id, targetReps: reps, weightKg: weight, setType });
     }
+
+    // If this set has already been logged in the active session, persist the
+    // note directly to its workout_sets row. For not-yet-logged sets, the
+    // override above carries the note forward to the next logWorkoutSet call.
+    const activeSessionId = workoutSession?.sessionId ?? null;
+    if (isWorkout && activeSessionId != null && exerciseId != null && setNumber != null) {
+      void updateWorkoutSetNotes({ sessionId: activeSessionId, exerciseId, setNumber, notes: noteValue });
+    }
+
     router.back();
   };
 
@@ -357,6 +382,30 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
               <span className="text-base text-muted-foreground">{weight}</span>
             </button>
           </>
+        )}
+
+        {/* Per-set notes — workout mode only. Captures observations like
+            "shoulder twinge on rep 6", "felt easy", "added belt". */}
+        {isWorkout && (
+          <div className="mt-4">
+            <label
+              htmlFor="set-note"
+              className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2"
+            >
+              Note
+            </label>
+            <textarea
+              id="set-note"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value.slice(0, 500))}
+              placeholder="How did it feel? Any cues or warnings?"
+              rows={3}
+              className="w-full rounded-xl bg-muted px-3 py-2 text-base placeholder:text-muted-foreground/70 focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <p className="text-[10px] text-muted-foreground/70 text-right mt-1 tabular-nums">
+              {notes.length}/500
+            </p>
+          </div>
         )}
 
       </div>

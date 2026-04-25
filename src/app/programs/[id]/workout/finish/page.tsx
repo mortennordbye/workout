@@ -6,6 +6,8 @@ import {
   deleteWorkoutSession,
 } from "@/lib/actions/workout-sessions";
 import { updateProgramSet } from "@/lib/actions/programs";
+import { usePendingQueue } from "@/contexts/pending-queue-context";
+import { useToast } from "@/contexts/toast-context";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { WORKOUT_FEELINGS, type WorkoutFeeling } from "@/lib/validators/workout";
@@ -22,6 +24,8 @@ function FinishContent() {
   const searchParams = useSearchParams();
   const [mountTime] = useState<number>(() => Date.now());
   const workoutSession = useWorkoutSession();
+  const { enqueue: enqueuePending } = usePendingQueue();
+  const { showToast } = useToast();
 
   const startTime = useMemo(() => {
     const contextStart = workoutSession?.startTime;
@@ -52,10 +56,26 @@ function FinishContent() {
     );
 
     const existingSessionId = workoutSession?.sessionId;
+    const isOffline = typeof navigator !== "undefined" && navigator.onLine === false;
+
     if (existingSessionId) {
-      await completeWorkoutSession({ sessionId: existingSessionId, feeling, notes: notes.trim() || undefined });
+      if (isOffline) {
+        enqueuePending({
+          kind: "completeWorkoutSession",
+          payload: { sessionId: existingSessionId, feeling, notes: notes.trim() || undefined },
+        });
+        showToast({ message: "Offline — workout saved locally, will sync when online", durationMs: 4000 });
+      } else {
+        await completeWorkoutSession({ sessionId: existingSessionId, feeling, notes: notes.trim() || undefined });
+      }
     } else {
-      // Fallback if session wasn't pre-created (e.g. direct navigation)
+      // Fallback if session wasn't pre-created (e.g. direct navigation).
+      // We can't queue a "create + complete" pair safely (the second depends
+      // on the first's response), so this path requires the network.
+      if (isOffline) {
+        showToast({ variant: "error", message: "Can't finish without a session — reconnect first" });
+        return false;
+      }
       const created = await createWorkoutSession({
         date: toDateString(startTime),
         startTime: startTime.toISOString(),

@@ -97,6 +97,7 @@ export async function logWorkoutSet(
       heartRateZone,
       rpe,
       restTimeSeconds,
+      notes,
       isCompleted,
     } = validation.data;
 
@@ -147,6 +148,7 @@ export async function logWorkoutSet(
         heartRateZone,
         rpe,
         restTimeSeconds,
+        notes,
         isCompleted,
       })
       .returning();
@@ -687,6 +689,54 @@ export async function getSessionDetail(
 }
 
 /**
+ * Attach (or replace) a free-text note on an already-logged workout set.
+ * Used by SetEditView when the lifter taps a completed set to record an
+ * observation ("shoulder twinge", "felt easy"). Resolves the workout_sets
+ * row by (sessionId, exerciseId, setNumber). If no row exists yet, returns
+ * `success: true` without writing — the override carries the note forward
+ * on the next `logWorkoutSet` call.
+ */
+export async function updateWorkoutSetNotes(
+  data: {
+    sessionId: number;
+    exerciseId: number;
+    setNumber: number;
+    notes: string | null;
+  },
+): Promise<ActionResult<undefined>> {
+  const auth = await requireSession();
+  try {
+    if (data.notes != null && data.notes.length > 500) {
+      return { success: false, error: "Notes must be 500 characters or less" };
+    }
+    // Verify the session belongs to the user before touching anything
+    const [session] = await db
+      .select({ userId: workoutSessions.userId })
+      .from(workoutSessions)
+      .where(eq(workoutSessions.id, data.sessionId))
+      .limit(1);
+    if (!session || session.userId !== auth.user.id) {
+      return { success: false, error: "Unauthorized" };
+    }
+    await db
+      .update(workoutSets)
+      .set({ notes: data.notes })
+      .where(
+        and(
+          eq(workoutSets.sessionId, data.sessionId),
+          eq(workoutSets.exerciseId, data.exerciseId),
+          eq(workoutSets.setNumber, data.setNumber),
+        ),
+      );
+    revalidatePath(`/history`);
+    return { success: true, data: undefined };
+  } catch (e) {
+    console.error("[updateWorkoutSetNotes] failed", e);
+    return { success: false, error: "Failed to save note" };
+  }
+}
+
+/**
  * Calculate progressive overload suggestions for every set in a program.
  *
  * For each program_set, we examine recent completed sessions (excluding "Tired"
@@ -859,7 +909,8 @@ export type WorkoutInsight = {
     | "on_track"
     | "readiness_low"
     | "plateau_warning"
-    | "pr_streak";
+    | "pr_streak"
+    | "deload_recommended";
   headline: string;
   detail?: string;
   cycleWeek?: number;
@@ -888,6 +939,7 @@ export async function getWorkoutInsight(
     currentSessionRow,
     recentSessions,
     recentPRsCount,
+    cookedExerciseCount,
   ] = await Promise.all([
     db
       .select({ count: sql<number>`COUNT(*)` })
@@ -943,6 +995,29 @@ export async function getWorkoutInsight(
         ),
       )
       .then((r) => Number(r[0]?.count ?? 0)),
+    // Count distinct exercises in the most recent completed session that
+    // had at least one set logged at RPE ≥ 9 — the conservative "you got
+    // cooked across multiple lifts" signal for mid-cycle deload nudges.
+    db
+      .select({
+        cookedExerciseCount: sql<number>`COUNT(DISTINCT ${workoutSets.exerciseId})`,
+      })
+      .from(workoutSets)
+      .innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id))
+      .where(
+        and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.programId, programId),
+          eq(workoutSessions.isCompleted, true),
+          sql`${workoutSets.rpe} >= 9`,
+          sql`${workoutSessions.id} = (
+            SELECT id FROM workout_sessions
+            WHERE user_id = ${userId} AND program_id = ${programId} AND is_completed = true
+            ORDER BY start_time DESC LIMIT 1
+          )`,
+        ),
+      )
+      .then((r) => Number(r[0]?.cookedExerciseCount ?? 0)),
   ]);
 
   const sessionCount = sessionCountRow;
@@ -1005,6 +1080,21 @@ export async function getWorkoutInsight(
       type: "fatigued",
       headline: "Your last 2 sessions felt tough.",
       detail: "Consider going slightly lighter today and focusing on form.",
+      ...cycleContext,
+      sessionCount,
+      exerciseInsights,
+    };
+  }
+
+  // ── Priority 1.5: deload_recommended — last session cooked you across
+  // 3+ different exercises (RPE ≥ 9). Conservative single-session signal —
+  // few false positives but catches the "I got hammered" pattern that the
+  // per-exercise deload detection alone won't surface mid-cycle.
+  if (cookedExerciseCount >= 3) {
+    return {
+      type: "deload_recommended",
+      headline: `${cookedExerciseCount} lifts hit RPE 9+ last session.`,
+      detail: "A planned light week now usually beats a forced break later.",
       ...cycleContext,
       sessionCount,
       exerciseInsights,

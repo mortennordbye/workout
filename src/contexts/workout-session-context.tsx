@@ -3,7 +3,14 @@ import { setSessionReadiness } from "@/lib/actions/workout-sessions";
 import { requestNotificationPermission, sendNotification } from "@/lib/notifications";
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 
-type SetOverride = { targetReps: number; weightKg: number; durationSeconds?: number; distanceMeters?: number };
+type SetOverride = {
+  targetReps: number;
+  weightKg: number;
+  durationSeconds?: number;
+  distanceMeters?: number;
+  /** Free-text per-set note captured in SetEditView; flushed on logWorkoutSet. */
+  notes?: string | null;
+};
 
 const STORAGE_KEY = "activeWorkout";
 const REST_TIMERS_KEY = "restTimerEnds";

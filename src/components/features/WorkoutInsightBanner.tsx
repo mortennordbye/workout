@@ -1,14 +1,15 @@
 import type { ExerciseInsight, WorkoutInsight } from "@/lib/actions/workout-sets";
 
 const BORDER: Record<WorkoutInsight["type"], string> = {
-  progressing:     "border-l-4 border-primary",
-  fatigued:        "border-l-4 border-yellow-500",
-  stagnating:      "border-l-4 border-yellow-500",
-  first_session:   "border-l-4 border-muted-foreground/40",
-  on_track:        "border-l-4 border-muted-foreground/40",
-  readiness_low:   "border-l-4 border-amber-500",
-  plateau_warning: "border-l-4 border-amber-500",
-  pr_streak:       "border-l-4 border-primary",
+  progressing:        "border-l-4 border-primary",
+  fatigued:           "border-l-4 border-yellow-500",
+  stagnating:         "border-l-4 border-yellow-500",
+  first_session:      "border-l-4 border-muted-foreground/40",
+  on_track:           "border-l-4 border-muted-foreground/40",
+  readiness_low:      "border-l-4 border-amber-500",
+  plateau_warning:    "border-l-4 border-amber-500",
+  pr_streak:          "border-l-4 border-primary",
+  deload_recommended: "border-l-4 border-rose-500",
 };
 
 const PILL_COLORS: Record<ExerciseInsight["status"], string> = {

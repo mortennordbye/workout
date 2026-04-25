@@ -8,21 +8,7 @@ When you finish an item, delete it. When you add an item, write enough that some
 
 ---
 
-## Pitfalls — fix before they bite
-
-### Service-worker has no offline mutation queue
-- **What:** `src/app/sw.ts` caches reads but does NOT queue failed mutations. A user logging a set in a no-signal gym will see the action fail and the log silently drops. Comment in code calls this out as "future enhancement".
-- **Why deferred:** Largest effort of all the pitfalls (~80–150 LOC + careful testing). The other pitfalls block this in priority.
-- **Unblocked by:** All other pitfalls and polish items shipping; then dedicate a focused ~1–2 day pass.
-- **Touchpoints:** `src/app/sw.ts`, IndexedDB queue, Background Sync API integration with `logWorkoutSet` and `completeWorkoutSession`.
-
 ## Improvements — incremental polish
-
-### Failure handling for set completion (originally "optimistic UI")
-- **What:** Closer look shows the UI is already optimistic — `completedSets` and rest timers are updated synchronously in `toggleSet` BEFORE the `await logWorkoutSet`. The actual gap is failure handling: if `logWorkoutSet` returns `{success: false}` or throws, the local state shows the set complete but it's not in the DB. No rollback, no retry, no error UI. Need: (a) a toast/banner system, (b) decide rollback-vs-keep-and-retry policy, (c) wire it into the few `void logWorkoutSet(...)` and `await logWorkoutSet(...)` call sites.
-- **Why deferred:** Larger than the plan implied. Pairs naturally with the offline queue (#5) since both deal with "the request didn't complete cleanly".
-- **Unblocked by:** Decision on UX (toast vs banner, auto-retry vs manual, rollback vs leave).
-- **Touchpoints:** `src/components/features/WorkoutSetsList.tsx:265–298`, also in `confirmRunLog` and the run log path. New toast/snackbar primitive needed.
 
 ### Drop the legacy `users.goal` column
 - **What:** `parseUserGoals` falls back to legacy single-value `goal` field. Read-only — nothing writes it any more. Once we're confident the new `goals` JSON array is populated for all active users, the column + fallback can go.
@@ -31,18 +17,6 @@ When you finish an item, delete it. When you add an item, write enough that some
 - **Touchpoints:** `src/db/schema/users.ts:22`, `parseUserGoals`, `workout-sets.ts:719`, `ai-generate.ts:252`.
 
 ## New features — additive
-
-### Per-set notes
-- **What:** Add a `notes text` column to `workout_sets`. Small "+ note" affordance per completed set. Use cases: "left shoulder twinged on rep 6", "felt easy", "added belt". Surface in history + session detail.
-- **Why deferred:** First user-facing add after the data-integrity bundle.
-- **Unblocked by:** Nothing.
-- **Touchpoints:** `src/db/schema/workout-sets.ts`, `src/lib/validators/workout.ts`, `src/components/features/WorkoutSetsList.tsx`, `SessionDetailClient.tsx`.
-
-### Mid-cycle auto-deload trigger
-- **What:** `progression.ts` has `isStuck` per-exercise deload detection; cycles support `endAction = "deload"` only at end-of-cycle. Add a mid-cycle "you've been at RPE ≥ 9 for 3 sessions across multiple exercises — consider a deload" recommendation in `WorkoutInsightBanner`.
-- **Why deferred:** "Smart features" round.
-- **Unblocked by:** Nothing.
-- **Touchpoints:** `src/lib/utils/progression.ts`, `src/lib/actions/workout-sets.ts` (insight builder), `src/components/features/WorkoutInsightBanner.tsx`.
 
 ## Smart-progression UX (deferred long-term)
 

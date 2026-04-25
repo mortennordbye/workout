@@ -87,6 +87,11 @@ export const logWorkoutSetSchema = z.object({
     .int()
     .min(0, "Rest time cannot be negative")
     .max(3600, "Rest time must be under 1 hour"),
+  notes: z
+    .string()
+    .max(500, "Notes must be 500 characters or less")
+    .nullable()
+    .optional(),
   isCompleted: z.boolean().default(true),
 });
 

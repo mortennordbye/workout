@@ -123,49 +123,56 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
                   return (
                     <div
                       key={set.id}
-                      className="flex items-center justify-between py-2.5 border-b border-border text-sm"
+                      className="py-2.5 border-b border-border text-sm"
                     >
-                      <span className="text-muted-foreground w-12">
-                        {isRun && group.sets.length > 1
-                          ? `Int ${set.setNumber}`
-                          : isRun
-                          ? "Run"
-                          : `Set ${set.setNumber}`}
-                      </span>
-                      <span className="font-medium flex-1 text-center">
-                        {isRun ? (
-                          <>
-                            <span>
-                              {[
-                                set.distanceMeters ? formatDistanceKm(set.distanceMeters) : null,
-                                set.durationSeconds != null ? formatTime(Number(set.durationSeconds)) : null,
-                                set.distanceMeters && set.durationSeconds
-                                  ? formatPace(Number(set.durationSeconds), set.distanceMeters)
-                                  : null,
-                              ]
-                                .filter(Boolean)
-                                .join(" · ") || "—"}
-                            </span>
-                            {(set.inclinePercent != null || set.heartRateZone != null) && (
-                              <span className="block text-xs text-muted-foreground mt-0.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground w-12">
+                          {isRun && group.sets.length > 1
+                            ? `Int ${set.setNumber}`
+                            : isRun
+                            ? "Run"
+                            : `Set ${set.setNumber}`}
+                        </span>
+                        <span className="font-medium flex-1 text-center">
+                          {isRun ? (
+                            <>
+                              <span>
                                 {[
-                                  set.inclinePercent != null ? `${set.inclinePercent}% incline` : null,
-                                  set.heartRateZone != null ? `Z${set.heartRateZone}` : null,
-                                ].filter(Boolean).join(" · ")}
+                                  set.distanceMeters ? formatDistanceKm(set.distanceMeters) : null,
+                                  set.durationSeconds != null ? formatTime(Number(set.durationSeconds)) : null,
+                                  set.distanceMeters && set.durationSeconds
+                                    ? formatPace(Number(set.durationSeconds), set.distanceMeters)
+                                    : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ") || "—"}
                               </span>
-                            )}
-                          </>
-                        ) : set.durationSeconds != null
-                          ? formatTime(Number(set.durationSeconds))
-                          : Number(set.weightKg) > 0
-                          ? `${set.actualReps} × ${Number(set.weightKg)}kg`
-                          : set.actualReps > 0
-                          ? `${set.actualReps} reps`
-                          : "—"}
-                      </span>
-                      <span className="text-muted-foreground w-16 text-right">
-                        RPE {set.rpe}
-                      </span>
+                              {(set.inclinePercent != null || set.heartRateZone != null) && (
+                                <span className="block text-xs text-muted-foreground mt-0.5">
+                                  {[
+                                    set.inclinePercent != null ? `${set.inclinePercent}% incline` : null,
+                                    set.heartRateZone != null ? `Z${set.heartRateZone}` : null,
+                                  ].filter(Boolean).join(" · ")}
+                                </span>
+                              )}
+                            </>
+                          ) : set.durationSeconds != null
+                            ? formatTime(Number(set.durationSeconds))
+                            : Number(set.weightKg) > 0
+                            ? `${set.actualReps} × ${Number(set.weightKg)}kg`
+                            : set.actualReps > 0
+                            ? `${set.actualReps} reps`
+                            : "—"}
+                        </span>
+                        <span className="text-muted-foreground w-16 text-right">
+                          RPE {set.rpe}
+                        </span>
+                      </div>
+                      {set.notes && (
+                        <p className="text-xs text-muted-foreground italic mt-1 pl-12 pr-1">
+                          {set.notes}
+                        </p>
+                      )}
                     </div>
                   );
                 })}

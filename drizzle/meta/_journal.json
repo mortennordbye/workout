@@ -190,6 +190,13 @@
       "when": 1777128172986,
       "tag": "0026_optimal_zeigeist",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1777129735511,
+      "tag": "0027_common_roland_deschain",
+      "breakpoints": true
     }
   ]
 }
