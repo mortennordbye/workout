@@ -20,10 +20,10 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
   const peId = Number(programExerciseId);
   if (isNaN(programId) || isNaN(peId)) notFound();
 
-  const session = await requireSession();
+  await requireSession();
   const [result, suggestionsResult] = await Promise.all([
     getProgramWithExercises(programId),
-    getProgressiveSuggestions(programId, session.user.id),
+    getProgressiveSuggestions(programId),
   ]);
   if (!result.success) notFound();
 

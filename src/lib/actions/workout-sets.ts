@@ -419,6 +419,7 @@ export async function getWorkoutStats(): Promise<ActionResult<WorkoutStats>> {
 export async function getWorkoutHistory(
   data: unknown,
 ): Promise<ActionResult<WorkoutHistoryResult>> {
+  const auth = await requireSession();
   try {
     // Validate input
     const validation = workoutHistoryQuerySchema.safeParse(data);
@@ -431,7 +432,8 @@ export async function getWorkoutHistory(
       };
     }
 
-    const { userId, exerciseId, limit = 50, offset = 0 } = validation.data;
+    const { exerciseId, limit = 50, offset = 0 } = validation.data;
+    const userId = auth.user.id;
 
     // Build query conditions
     const conditions = [
@@ -509,9 +511,10 @@ export async function getWorkoutHistory(
  * Used for the history list view.
  */
 export async function getCompletedSessions(
-  userId: string,
   since?: Date,
 ): Promise<ActionResult<SessionWithStats[]>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   try {
     const rows = await db
       .select({
@@ -586,6 +589,7 @@ export async function getCompletedSessions(
 export async function getSessionDetail(
   sessionId: number,
 ): Promise<ActionResult<SessionDetail>> {
+  const auth = await requireSession();
   try {
     const [[sessionRow], setsRows] = await Promise.all([
       db
@@ -604,12 +608,23 @@ export async function getSessionDetail(
         })
         .from(workoutSessions)
         .leftJoin(programs, eq(workoutSessions.programId, programs.id))
-        .where(eq(workoutSessions.id, sessionId)),
+        .where(
+          and(
+            eq(workoutSessions.id, sessionId),
+            eq(workoutSessions.userId, auth.user.id),
+          ),
+        ),
       db
         .select({ set: workoutSets, exerciseName: exercises.name, exerciseCategory: exercises.category, exerciseId: exercises.id })
         .from(workoutSets)
         .innerJoin(exercises, eq(workoutSets.exerciseId, exercises.id))
-        .where(eq(workoutSets.sessionId, sessionId))
+        .innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id))
+        .where(
+          and(
+            eq(workoutSets.sessionId, sessionId),
+            eq(workoutSessions.userId, auth.user.id),
+          ),
+        )
         .orderBy(workoutSets.exerciseId, workoutSets.setNumber),
     ]);
 
@@ -687,8 +702,9 @@ export async function getExerciseLoggedCount(
  */
 export async function getProgressiveSuggestions(
   programId: number,
-  userId: string,
 ): Promise<ActionResult<Record<number, SetSuggestion>>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   try {
     // Step 1: get all program sets for this program with exercise metadata
     const programData = await db
@@ -854,9 +870,10 @@ export type WorkoutInsight = {
  */
 export async function getWorkoutInsight(
   programId: number,
-  userId: string,
   prefetchedCycleResult?: ActionResult<ActiveCycleInfo | null>,
 ): Promise<WorkoutInsight> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   const [
     sessionCountRow,
     cycleResult,
@@ -876,8 +893,8 @@ export async function getWorkoutInsight(
         ),
       )
       .then((r) => Number(r[0]?.count ?? 0)),
-    prefetchedCycleResult ?? getActiveCycleForUser(userId),
-    getProgressiveSuggestions(programId, userId),
+    prefetchedCycleResult ?? getActiveCycleForUser(),
+    getProgressiveSuggestions(programId),
     // Fetch the current (incomplete) session to read readiness
     db
       .select({ readiness: workoutSessions.readiness })

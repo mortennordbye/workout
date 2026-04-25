@@ -35,16 +35,16 @@ export default async function Home() {
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
 
   // Fetch cycle first — needed to know today's program before we can fetch insight
-  const cycleResult = await getActiveCycleForUser(userId);
+  const cycleResult = await getActiveCycleForUser();
   const info = cycleResult.success ? cycleResult.data : null;
   const todayProgram = info?.todaySlot?.program ?? null;
 
   // Batch remaining queries in parallel, including insight now that we know todayProgram
   const [statsResult, sessionsResult, insight] = await Promise.all([
     getWorkoutStats(),
-    getCompletedSessions(userId, monday),
+    getCompletedSessions(monday),
     todayProgram
-      ? getWorkoutInsight(todayProgram.id, userId, cycleResult).catch(() => undefined)
+      ? getWorkoutInsight(todayProgram.id, cycleResult).catch(() => undefined)
       : Promise.resolve(undefined),
   ]);
 

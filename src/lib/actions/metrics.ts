@@ -919,9 +919,9 @@ export async function getReadinessPerformance(): Promise<ActionResult<ReadinessP
 
 // ── Exported actions ───────────────────────────────────────────────────────
 
-export async function getMetricsData(
-  userId: string,
-): Promise<ActionResult<MetricsData>> {
+export async function getMetricsData(): Promise<ActionResult<MetricsData>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   try {
     const [weekly, personalRecords, muscleBalance, moodDistribution] =
       await Promise.all([
@@ -935,15 +935,16 @@ export async function getMetricsData(
       data: { weekly, personalRecords, muscleBalance, moodDistribution },
     };
   } catch (err) {
-    console.error("getMetricsData failed:", err);
+    console.error("[getMetricsData] failed", err);
     return { success: false, error: "Failed to load metrics" };
   }
 }
 
 export async function getExerciseProgress(
-  userId: string,
   exerciseId: number,
 ): Promise<ActionResult<ExerciseProgress[]>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   try {
     const rows = await db
       .select({
@@ -984,14 +985,14 @@ export async function getExerciseProgress(
       })),
     };
   } catch (err) {
-    console.error("getExerciseProgress failed:", err);
+    console.error("[getExerciseProgress] failed", err);
     return { success: false, error: "Failed to load progress" };
   }
 }
 
-export async function getSummaryStats(
-  userId: string,
-): Promise<ActionResult<SummaryStats>> {
+export async function getSummaryStats(): Promise<ActionResult<SummaryStats>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   try {
     const [sessionRows, volumeRows, weekRows] = await Promise.all([
       db
@@ -1052,14 +1053,14 @@ export async function getSummaryStats(
       },
     };
   } catch (err) {
-    console.error("getSummaryStats failed:", err);
+    console.error("[getSummaryStats] failed", err);
     return { success: false, error: "Failed to load summary stats" };
   }
 }
 
-export async function getTopProgressingExercises(
-  userId: string,
-): Promise<ActionResult<TopProgressingExercise[]>> {
+export async function getTopProgressingExercises(): Promise<ActionResult<TopProgressingExercise[]>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   try {
     const rows = await db
       .select({
@@ -1102,14 +1103,14 @@ export async function getTopProgressingExercises(
       ),
     };
   } catch (err) {
-    console.error("getTopProgressingExercises failed:", err);
+    console.error("[getTopProgressingExercises] failed", err);
     return { success: false, error: "Failed to load progression data" };
   }
 }
 
-export async function getMetricsCycles(
-  userId: string,
-): Promise<ActionResult<CyclePickerItem[]>> {
+export async function getMetricsCycles(): Promise<ActionResult<CyclePickerItem[]>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   try {
     const rows = await db
       .select({
@@ -1165,15 +1166,16 @@ export async function getMetricsCycles(
       }),
     };
   } catch (err) {
-    console.error("getMetricsCycles failed:", err);
+    console.error("[getMetricsCycles] failed", err);
     return { success: false, error: "Failed to load cycles" };
   }
 }
 
 export async function getCycleMetrics(
-  userId: string,
   cycleId: number,
 ): Promise<ActionResult<CycleMetrics>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   const emptyCycleMetrics: CycleMetrics = {
     summary: { sessionCount: 0, totalVolumeKg: 0, avgSessionDurationMinutes: 0, sessionsPerWeek: 0 },
     weekly: [],
@@ -1212,7 +1214,7 @@ export async function getCycleMetrics(
 
     return { success: true, data: { summary, weekly, muscleBalance, moodDistribution, topGains, rpeTrend } };
   } catch (err) {
-    console.error("getCycleMetrics failed:", err);
+    console.error("[getCycleMetrics] failed", err);
     return { success: false, error: "Failed to load cycle metrics" };
   }
 }

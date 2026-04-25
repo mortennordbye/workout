@@ -21,23 +21,10 @@ export async function register() {
   const { env } = await import("@/lib/env");
 
   // Drain the DB pool on SIGTERM so K8s rolling deploys don't drop in-flight
-  // requests. Idempotent — subsequent signals are no-ops.
-  let shuttingDown = false;
-  const shutdown = async (signal: NodeJS.Signals) => {
-    if (shuttingDown) return;
-    shuttingDown = true;
-    console.log(`[shutdown] received ${signal}, draining DB pool`);
-    try {
-      const { pool } = await import("@/db");
-      await pool.end();
-      console.log("[shutdown] pool drained");
-    } catch (err) {
-      console.error("[shutdown] failed to drain pool", err);
-    }
-    // Let Next.js's own signal handler take over from here (it logs and exits).
-  };
-  process.once("SIGTERM", () => void shutdown("SIGTERM"));
-  process.once("SIGINT", () => void shutdown("SIGINT"));
+  // requests. Lives in a separate file so the Edge Runtime build never sees
+  // the `process.once` calls (which Edge flags as unsupported).
+  const { registerShutdown } = await import("@/lib/shutdown");
+  await registerShutdown();
 
   const adminEmail = env.ADMIN_EMAIL;
   const adminPassword = env.ADMIN_PASSWORD;

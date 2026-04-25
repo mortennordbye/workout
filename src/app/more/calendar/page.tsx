@@ -14,8 +14,8 @@ export default async function CalendarPage() {
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
 
   const [cyclesResult, sessionsResult] = await Promise.all([
-    getAllCyclesWithSlots(session.user.id),
-    getCompletedSessions(session.user.id, oneYearAgo),
+    getAllCyclesWithSlots(),
+    getCompletedSessions(oneYearAgo),
   ]);
 
   const cycles = cyclesResult.success ? cyclesResult.data : [];

@@ -16,15 +16,12 @@ export default async function EditCyclePage({
   const cycleId = Number(id);
   if (isNaN(cycleId)) notFound();
 
-  const session = await requireSession();
+  await requireSession();
   const cycleResult = await getTrainingCycleWithSlots(cycleId);
 
   if (!cycleResult.success) notFound();
 
   const cycle = cycleResult.data;
-
-  // Ownership check
-  if (cycle.userId !== session.user.id) notFound();
 
   return (
     <div className="h-[100dvh] bg-background flex flex-col">

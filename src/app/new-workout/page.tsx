@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 export default async function NewWorkoutPage() {
   const session = await requireSession();
   const [cycleResult, programsResult] = await Promise.all([
-    getActiveCycleForUser(session.user.id),
+    getActiveCycleForUser(),
     getPrograms(),
   ]);
 

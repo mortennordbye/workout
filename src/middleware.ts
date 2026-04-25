@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/api/auth"];
+const PUBLIC_PATHS = ["/login", "/signup", "/api/auth", "/api/health", "/api/ready"];
 
 // Static PWA assets that must be publicly accessible (e.g. iOS home-screen icon fetch)
 const PUBLIC_FILES = [

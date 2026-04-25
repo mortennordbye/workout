@@ -1362,7 +1362,6 @@ function CycleView({
 type Tab = "alltime" | "cycle";
 
 type Props = {
-  userId: string;
   weekly: WeeklyMetric[];
   personalRecords: PersonalRecord[];
   muscleBalance: MuscleBalance[];
@@ -1381,7 +1380,6 @@ type Props = {
 };
 
 export function MetricsClient({
-  userId,
   weekly,
   personalRecords,
   muscleBalance,
@@ -1415,7 +1413,7 @@ export function MetricsClient({
     if (exerciseId === selectedId) return;
     setSelectedId(exerciseId);
     startTransition(async () => {
-      const result = await getExerciseProgress(userId, exerciseId);
+      const result = await getExerciseProgress(exerciseId);
       if (result.success) setProgressData(result.data);
     });
   }
@@ -1426,7 +1424,7 @@ export function MetricsClient({
     setCycleLoading(true);
     setCycleError(null);
     setCycleMetrics(null);
-    const result = await getCycleMetrics(userId, cycleId);
+    const result = await getCycleMetrics(cycleId);
     if (result.success) {
       setCycleMetrics(result.data);
     } else {

@@ -1,3 +1,4 @@
+import { withSentryConfig } from "@sentry/nextjs";
 import withSerwistInit from "@serwist/next";
 import type { NextConfig } from "next";
 
@@ -29,4 +30,12 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSerwist(nextConfig);
+// Sentry build-time wrapper. Source maps upload only when SENTRY_AUTH_TOKEN is
+// set; otherwise this is a no-op. Org/project read from SENTRY_ORG / SENTRY_PROJECT.
+export default withSentryConfig(withSerwist(nextConfig), {
+  silent: !process.env.CI,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  disableLogger: true,
+});

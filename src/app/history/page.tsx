@@ -5,8 +5,8 @@ import { requireSession } from "@/lib/utils/session";
 export const dynamic = "force-dynamic";
 
 export default async function HistoryPage() {
-  const session = await requireSession();
-  const result = await getCompletedSessions(session.user.id);
+  await requireSession();
+  const result = await getCompletedSessions();
   const sessions = result.success ? result.data : [];
   return <HistoryClient sessions={sessions} />;
 }

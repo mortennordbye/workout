@@ -238,40 +238,34 @@ describe("reorderProgramSetsSchema", () => {
 // ─── workoutHistoryQuerySchema ─────────────────────────────────────────────────
 
 describe("workoutHistoryQuerySchema", () => {
-  const uid = "user-abc-123";
-
-  it("accepts valid input with only userId", () => {
-    expect(workoutHistoryQuerySchema.safeParse({ userId: uid }).success).toBe(true);
-  });
-
-  it("rejects empty userId", () => {
-    expect(workoutHistoryQuerySchema.safeParse({ userId: "" }).success).toBe(false);
+  it("accepts empty input", () => {
+    expect(workoutHistoryQuerySchema.safeParse({}).success).toBe(true);
   });
 
   it("accepts optional exerciseId", () => {
-    expect(workoutHistoryQuerySchema.safeParse({ userId: uid, exerciseId: 5 }).success).toBe(true);
+    expect(workoutHistoryQuerySchema.safeParse({ exerciseId: 5 }).success).toBe(true);
   });
 
   it("rejects non-positive exerciseId", () => {
-    expect(workoutHistoryQuerySchema.safeParse({ userId: uid, exerciseId: 0 }).success).toBe(false);
+    expect(workoutHistoryQuerySchema.safeParse({ exerciseId: 0 }).success).toBe(false);
   });
 
   it("defaults limit to 50", () => {
-    const result = workoutHistoryQuerySchema.safeParse({ userId: uid });
+    const result = workoutHistoryQuerySchema.safeParse({});
     expect(result.success && result.data.limit).toBe(50);
   });
 
   it("rejects limit over 100", () => {
-    expect(workoutHistoryQuerySchema.safeParse({ userId: uid, limit: 101 }).success).toBe(false);
+    expect(workoutHistoryQuerySchema.safeParse({ limit: 101 }).success).toBe(false);
   });
 
   it("defaults offset to 0", () => {
-    const result = workoutHistoryQuerySchema.safeParse({ userId: uid });
+    const result = workoutHistoryQuerySchema.safeParse({});
     expect(result.success && result.data.offset).toBe(0);
   });
 
   it("rejects negative offset", () => {
-    expect(workoutHistoryQuerySchema.safeParse({ userId: uid, offset: -1 }).success).toBe(false);
+    expect(workoutHistoryQuerySchema.safeParse({ offset: -1 }).success).toBe(false);
   });
 });
 

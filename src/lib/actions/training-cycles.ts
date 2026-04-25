@@ -30,14 +30,13 @@ import { revalidatePath } from "next/cache";
 // Queries
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function getTrainingCycles(
-  userId: string,
-): Promise<ActionResult<TrainingCycle[]>> {
+export async function getTrainingCycles(): Promise<ActionResult<TrainingCycle[]>> {
+  const auth = await requireSession();
   try {
     const rows = await db
       .select()
       .from(trainingCycles)
-      .where(eq(trainingCycles.userId, userId))
+      .where(eq(trainingCycles.userId, auth.user.id))
       .orderBy(asc(trainingCycles.status), asc(trainingCycles.createdAt));
     return { success: true, data: rows };
   } catch (err) {
@@ -48,9 +47,13 @@ export async function getTrainingCycles(
 export async function getTrainingCycleWithSlots(
   cycleId: number,
 ): Promise<ActionResult<TrainingCycleWithSlots>> {
+  const auth = await requireSession();
   try {
     const cycle = await db.query.trainingCycles.findFirst({
-      where: eq(trainingCycles.id, cycleId),
+      where: and(
+        eq(trainingCycles.id, cycleId),
+        eq(trainingCycles.userId, auth.user.id),
+      ),
       with: {
         slots: {
           orderBy: (s, { asc }) => [asc(s.dayOfWeek), asc(s.orderIndex)],
@@ -71,12 +74,11 @@ export async function getTrainingCycleWithSlots(
   }
 }
 
-export async function getAllCyclesWithSlots(
-  userId: string,
-): Promise<ActionResult<TrainingCycleWithSlots[]>> {
+export async function getAllCyclesWithSlots(): Promise<ActionResult<TrainingCycleWithSlots[]>> {
+  const auth = await requireSession();
   try {
     const rows = await db.query.trainingCycles.findMany({
-      where: eq(trainingCycles.userId, userId),
+      where: eq(trainingCycles.userId, auth.user.id),
       orderBy: [asc(trainingCycles.startDate)],
       with: {
         slots: {
@@ -91,9 +93,9 @@ export async function getAllCyclesWithSlots(
   }
 }
 
-export async function getActiveCycleForUser(
-  userId: string,
-): Promise<ActionResult<ActiveCycleInfo | null>> {
+export async function getActiveCycleForUser(): Promise<ActionResult<ActiveCycleInfo | null>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
   try {
     const cycle = await db.query.trainingCycles.findFirst({
       where: and(

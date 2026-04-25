@@ -97,7 +97,6 @@ export const logWorkoutSetSchema = z.object({
  * Used to query past performance for a specific exercise.
  */
 export const workoutHistoryQuerySchema = z.object({
-  userId: z.string().min(1),
   exerciseId: z
     .number()
     .int()

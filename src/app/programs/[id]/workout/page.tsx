@@ -23,13 +23,12 @@ export default async function WorkoutSessionPage({ params }: Props) {
   const programId = Number(id);
   if (isNaN(programId)) notFound();
 
-  const auth = await requireSession();
-  const userId = auth.user.id;
+  await requireSession();
 
   const [result, lastSessionResult, insight] = await Promise.all([
     getProgramWithExercises(programId),
     getLastCompletedSession(programId),
-    getWorkoutInsight(programId, userId),
+    getWorkoutInsight(programId),
   ]);
 
   if (!result.success) notFound();

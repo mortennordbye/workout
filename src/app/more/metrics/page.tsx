@@ -23,7 +23,7 @@ export default async function MetricsPage() {
   const userId = session.user.id;
 
   // Fetch metrics first to discover the top exercise for the progress chart
-  const metricsResult = await getMetricsData(userId);
+  const metricsResult = await getMetricsData();
   const metrics = metricsResult.success
     ? metricsResult.data
     : { weekly: [], personalRecords: [], muscleBalance: [], moodDistribution: [] };
@@ -43,12 +43,12 @@ export default async function MetricsPage() {
     movementResult,
     readinessResult,
   ] = await Promise.all([
-    getSummaryStats(userId),
-    getTopProgressingExercises(userId),
+    getSummaryStats(),
+    getTopProgressingExercises(),
     getWeightHistory(),
     db.query.users.findFirst({ where: eq(users.id, userId) }),
-    topExercise ? getExerciseProgress(userId, topExercise.exerciseId) : Promise.resolve(null),
-    getMetricsCycles(userId),
+    topExercise ? getExerciseProgress(topExercise.exerciseId) : Promise.resolve(null),
+    getMetricsCycles(),
     getCardioMetrics(),
     getHeatmapData(),
     getMovementPatternBalance(),
@@ -57,7 +57,6 @@ export default async function MetricsPage() {
 
   return (
     <MetricsClient
-      userId={userId}
       weekly={metrics.weekly}
       personalRecords={metrics.personalRecords}
       muscleBalance={metrics.muscleBalance}
