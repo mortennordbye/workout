@@ -4,6 +4,7 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { LogRunModal } from "@/components/features/LogRunModal";
 import { reorderProgramSets, updateProgramSet } from "@/lib/actions/programs";
 import { logWorkoutSet } from "@/lib/actions/workout-sets";
+import { isStaleBundleError, reloadForFreshBundle } from "@/lib/utils/stale-bundle";
 import type { SetSuggestionDisplay } from "@/components/features/WorkoutSetsClient";
 import { usePendingQueue } from "@/contexts/pending-queue-context";
 import { useToast } from "@/contexts/toast-context";
@@ -106,6 +107,17 @@ export function WorkoutSetsList({
       }
       return r;
     } catch (err) {
+      // Stale bundle: cached client calling an action ID the new server
+      // doesn't know. Don't enqueue (replay would loop and drop) — reload
+      // so the user gets fresh chunks. They'll re-tap when they're back.
+      if (isStaleBundleError(err)) {
+        showToast({
+          message: "App updating — refreshing…",
+          durationMs: 3000,
+        });
+        void reloadForFreshBundle();
+        throw err;
+      }
       enqueuePending({ kind: "logWorkoutSet", payload });
       showToast({
         variant: "error",

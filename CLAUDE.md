@@ -175,6 +175,12 @@ Migration files in `drizzle/` are committed to git and **must never be regenerat
   See `drizzle/0000_quick_rhodey.sql` for the reference pattern.
 - The production Docker entrypoint runs migrations on every boot, then seeds **only when `SEED_ON_BOOT=true`**. Seed is destructive on a populated DB — do not enable it in normal prod deploys. Use it once on a fresh environment.
 
+## Server Action stability across deploys
+
+Production must set `NEXT_PRIVATE_SERVER_ACTIONS_ENCRYPTION_KEY` to a stable 32-byte base64 value (`openssl rand -base64 32`). Without it, Next.js generates a fresh key per build, so action IDs are randomized on every deploy — PWA users with cached client bundles then call action IDs the new server doesn't recognize and see `Failed to find Server Action`. Those calls feed into the offline-replay queue, which retries 5× and drops them. Net effect: **silent data loss for any user mid-workout when a deploy lands**.
+
+Set the secret once in the k8s/ArgoCD secret store and never rotate it. The boot-time `env.ts` warns if it's missing in production. Client-side, `src/lib/utils/stale-bundle.ts` detects the specific error and forces a Service Worker update + page reload instead of dropping the write — but the stable key is the only thing that prevents the failure mode in the first place.
+
 ## Architecture
 
 **Mobile-first PWA** targeting a native iOS feel. Next.js 16 App Router with React Server Components, PostgreSQL + Drizzle ORM, Zod validation, Tailwind CSS 4 + shadcn/ui.

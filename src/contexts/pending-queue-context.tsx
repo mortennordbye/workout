@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { useToast } from "@/contexts/toast-context";
 import { logWorkoutSet } from "@/lib/actions/workout-sets";
 import { completeWorkoutSession } from "@/lib/actions/workout-sessions";
+import { isStaleBundleError, reloadForFreshBundle } from "@/lib/utils/stale-bundle";
 
 /**
  * Offline mutation queue.
@@ -102,6 +103,7 @@ export function PendingQueueProvider({ children }: { children: React.ReactNode }
 
       const failed: QueuedMutation[] = [];
       const dropped: QueuedMutation[] = [];
+      let staleBundleSeen = false;
       for (const m of snapshot) {
         let ok = false;
         try {
@@ -110,7 +112,15 @@ export function PendingQueueProvider({ children }: { children: React.ReactNode }
               ? await logWorkoutSet(m.payload)
               : await completeWorkoutSession(m.payload);
           ok = result.success;
-        } catch {
+        } catch (err) {
+          if (isStaleBundleError(err)) {
+            // Whole replay batch is doomed — every queued action will hit
+            // the same stale-bundle error. Stop, keep them queued (with
+            // unincremented attempts), reload so the new bundle picks up.
+            staleBundleSeen = true;
+            failed.push(m);
+            continue;
+          }
           ok = false;
         }
         if (ok) continue;
@@ -120,6 +130,18 @@ export function PendingQueueProvider({ children }: { children: React.ReactNode }
         } else {
           failed.push({ ...m, attempts: nextAttempts } as QueuedMutation);
         }
+      }
+
+      if (staleBundleSeen) {
+        // Persist the queue as-is, then reload — the new bundle will replay
+        // these on next mount.
+        setQueue((prev) => prev);
+        showToast({
+          message: "App updating — refreshing…",
+          durationMs: 3000,
+        });
+        void reloadForFreshBundle();
+        return;
       }
 
       // Drop the snapshot, keep failed ones (with bumped attempt counts)

@@ -19,6 +19,12 @@ const envSchema = z.object({
   ADMIN_PASSWORD: z.string().min(8).optional(),
   ADMIN_NAME: z.string().default("Admin"),
   SENTRY_DSN: z.string().url().optional(),
+  // Stable key Next.js uses to hash Server Action IDs. When unset, Next.js
+  // generates a fresh key per build, so cached client bundles can't talk to
+  // freshly-deployed server pods ("Failed to find Server Action" errors).
+  // Set to a stable 32-byte base64 value (`openssl rand -base64 32`) and
+  // never rotate. Required in production; warned-on if missing.
+  NEXT_PRIVATE_SERVER_ACTIONS_ENCRYPTION_KEY: z.string().optional(),
 });
 
 type Env = z.infer<typeof envSchema>;
@@ -40,6 +46,8 @@ function loadEnv(): Env {
       ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
       ADMIN_NAME: process.env.ADMIN_NAME,
       SENTRY_DSN: process.env.SENTRY_DSN,
+      NEXT_PRIVATE_SERVER_ACTIONS_ENCRYPTION_KEY:
+        process.env.NEXT_PRIVATE_SERVER_ACTIONS_ENCRYPTION_KEY,
     });
   }
 
@@ -52,6 +60,19 @@ function loadEnv(): Env {
       `[env] Invalid or missing environment variables:\n${issues}\n\nSee .env.example for required variables.`,
     );
   }
+
+  if (
+    parsed.data.NODE_ENV === "production" &&
+    !parsed.data.NEXT_PRIVATE_SERVER_ACTIONS_ENCRYPTION_KEY
+  ) {
+    console.warn(
+      "[env] NEXT_PRIVATE_SERVER_ACTIONS_ENCRYPTION_KEY is unset in production. " +
+        "Server Action IDs will be re-randomized every build, causing 'Failed to find Server Action' " +
+        "errors in PWA users with cached bundles. Set a stable 32-byte base64 value " +
+        "(openssl rand -base64 32) and never rotate it.",
+    );
+  }
+
   return parsed.data;
 }
 
