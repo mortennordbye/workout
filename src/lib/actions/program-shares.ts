@@ -221,6 +221,7 @@ export async function copySharedProgram(
               inclinePercent: ps.inclinePercent ?? undefined,
               targetHeartRateZone: ps.targetHeartRateZone ?? undefined,
               restTimeSeconds: ps.restTimeSeconds,
+              setType: ps.setType,
             })),
           );
         }

@@ -75,4 +75,6 @@ export const programSets = pgTable("program_sets", {
   targetHeartRateZone: integer("target_heart_rate_zone"),
   // Rest after this set (seconds)
   restTimeSeconds: integer("rest_time_seconds").notNull().default(0),
+  // "working" | "warmup" — non-working sets are excluded from progression suggestions.
+  setType: text("set_type").notNull().default("working"),
 });

@@ -88,6 +88,8 @@ export type ProgramSetData = {
   overloadIncrementKg: string | null;
   overloadIncrementReps: number | null;
   progressionMode: string | null;
+  /** "working" | "warmup" — non-working sets get no progression suggestions. */
+  setType?: string | null;
   /** Exercise movement pattern — used for adaptive increment sizing. Optional for backwards compatibility. */
   movementPattern?: string | null;
   /** Exercise name — optional, passed through to the suggestion for insight bucketing. */

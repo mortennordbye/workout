@@ -4,6 +4,7 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { updateProgramSet } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { formatDistanceKm, formatPace, formatTime } from "@/lib/utils/format";
+import type { SetType } from "@/lib/validators/workout";
 import type { ProgramSet } from "@/types/workout";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -46,6 +47,9 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
   );
   const [reps, setReps] = useState(override?.targetReps ?? set.targetReps ?? 10);
   const [weight, setWeight] = useState(override?.weightKg ?? Number(set.weightKg ?? 0));
+  const [setType, setSetType] = useState<SetType>(
+    (set.setType as SetType | undefined) ?? "working",
+  );
   const [duration, setDuration] = useState(override?.durationSeconds ?? Number(set.durationSeconds ?? 0));
   const [distanceMeters, setDistanceMeters] = useState(set.distanceMeters ?? 5000);
   const [distanceStr, setDistanceStr] = useState(String((set.distanceMeters ?? 5000) / 1000));
@@ -100,9 +104,9 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
         // During a workout: only update the duration target override (distance target is program-level)
         workoutSession?.setOverride(set.id, { targetReps: 0, weightKg: 0, durationSeconds: duration > 0 ? duration : undefined });
       } else if (runMode === "distance") {
-        await updateProgramSet({ id: set.id, distanceMeters, durationSeconds: duration > 0 ? duration : undefined, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined });
+        await updateProgramSet({ id: set.id, distanceMeters, durationSeconds: duration > 0 ? duration : undefined, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined, setType });
       } else {
-        await updateProgramSet({ id: set.id, distanceMeters: null, durationSeconds: duration, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined });
+        await updateProgramSet({ id: set.id, distanceMeters: null, durationSeconds: duration, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined, setType });
       }
     } else if (isWorkout) {
       // During a workout, changes apply to the active session only — never write back to the program
@@ -112,9 +116,9 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
         workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight });
       }
     } else if (isTimed) {
-      await updateProgramSet({ id: set.id, durationSeconds: duration });
+      await updateProgramSet({ id: set.id, durationSeconds: duration, setType });
     } else {
-      await updateProgramSet({ id: set.id, targetReps: reps, weightKg: weight });
+      await updateProgramSet({ id: set.id, targetReps: reps, weightKg: weight, setType });
     }
     router.back();
   };
@@ -122,6 +126,25 @@ export function SetEditView({ set, isWorkout = false, isTimed = false, isRunning
   return (
     <>
       <div className="flex-1 px-4 animate-in fade-in duration-150">
+        {/* Set-type toggle: warmup sets are excluded from auto-progression. Hidden during workout — setType is a program-level field. */}
+        {!isWorkout && (
+          <div className="flex rounded-xl overflow-hidden border border-border mb-4 mt-2">
+            <button
+              type="button"
+              onClick={() => setSetType("working")}
+              className={`flex-1 py-2 text-sm font-semibold transition-colors ${setType === "working" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
+            >
+              Working set
+            </button>
+            <button
+              type="button"
+              onClick={() => setSetType("warmup")}
+              className={`flex-1 py-2 text-sm font-semibold transition-colors ${setType === "warmup" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
+            >
+              Warm-up
+            </button>
+          </div>
+        )}
         {isRunning ? (
           /* Running mode: distance or time toggle */
           <>

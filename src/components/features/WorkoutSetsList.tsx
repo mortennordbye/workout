@@ -1050,6 +1050,12 @@ function SortableSetRow({
         )}
       </div>
 
+      {set.setType === "warmup" && (
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted rounded px-1.5 py-0.5 shrink-0">
+          Warm-up
+        </span>
+      )}
+
       <div className="flex-1">
         {isRunning ? (
           <div>

@@ -715,6 +715,7 @@ export async function getProgressiveSuggestions(
         targetReps: programSets.targetReps,
         durationSeconds: programSets.durationSeconds,
         distanceMeters: programSets.distanceMeters,
+        setType: programSets.setType,
         exerciseId: programExercises.exerciseId,
         overloadIncrementKg: programExercises.overloadIncrementKg,
         overloadIncrementReps: programExercises.overloadIncrementReps,
@@ -821,9 +822,13 @@ export async function getProgressiveSuggestions(
       const key = `${ps.exerciseId}-${ps.setNumber}`;
       const rows = historyPerKey.get(key) ?? [];
 
-      // Suppress suggestions on probable warm-up sets (latest weight < 70 %
-      // of the heaviest set in the same exercise). Prevents nonsense like
-      // "↑ 42.5 kg" on a 40 kg pyramid warm-up.
+      // Explicit warm-up flag wins: any set marked anything other than
+      // "working" is excluded from progression entirely.
+      if (ps.setType && ps.setType !== "working") continue;
+
+      // Heuristic fallback for unlabeled legacy data: latest weight < 70 %
+      // of the heaviest set in the same exercise → probable warm-up.
+      // Once a user has labeled their program with setType, this is a no-op.
       if (rows.length > 0) {
         const latestWeight = Number(rows[0].weightKg);
         const topWeight = topWeightByExercise.get(ps.exerciseId) ?? 0;
@@ -836,6 +841,7 @@ export async function getProgressiveSuggestions(
         targetReps: ps.targetReps,
         durationSeconds: ps.durationSeconds,
         distanceMeters: ps.distanceMeters,
+        setType: ps.setType,
         exerciseId: ps.exerciseId,
         overloadIncrementKg: ps.overloadIncrementKg,
         overloadIncrementReps: ps.overloadIncrementReps,

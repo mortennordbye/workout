@@ -616,6 +616,7 @@ export async function exportProgram(
           durSec: s.durationSeconds ?? null,
           distM: s.distanceMeters ?? null,
           rest: s.restTimeSeconds ?? 0,
+          type: s.setType ?? "working",
         })),
       })),
     },
@@ -802,6 +803,7 @@ export async function importProgram(
                 durationSeconds: s.durSec ?? undefined,
                 distanceMeters: s.distM ?? undefined,
                 restTimeSeconds: s.rest,
+                setType: s.type,
               })),
             );
           }

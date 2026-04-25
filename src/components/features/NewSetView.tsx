@@ -3,6 +3,7 @@
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { addProgramSet } from "@/lib/actions/programs";
 import { formatDistanceKm, formatPace, formatTime } from "@/lib/utils/format";
+import type { SetType } from "@/lib/validators/workout";
 import type { ProgramSet } from "@/types/workout";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -68,6 +69,9 @@ export function NewSetView({
   );
   const [reps, setReps] = useState(lastSet?.targetReps ?? 10);
   const [weight, setWeight] = useState(Number(lastSet?.weightKg ?? 0));
+  const [setType, setSetType] = useState<SetType>(
+    (lastSet?.setType as SetType | undefined) ?? "working",
+  );
   const initialDuration = isRunning
     ? Number(lastSet?.durationSeconds ?? 0)
     : Number(lastSet?.durationSeconds ?? 60);
@@ -128,6 +132,7 @@ export function NewSetView({
           inclinePercent: inclinePercent ?? undefined,
           targetHeartRateZone: targetHeartRateZone ?? undefined,
           restTimeSeconds: 0,
+          setType,
         });
       } else {
         await addProgramSet({
@@ -137,6 +142,7 @@ export function NewSetView({
           inclinePercent: inclinePercent ?? undefined,
           targetHeartRateZone: targetHeartRateZone ?? undefined,
           restTimeSeconds: 0,
+          setType,
         });
       }
     } else if (isTimed) {
@@ -145,6 +151,7 @@ export function NewSetView({
         setNumber: nextSetNumber,
         durationSeconds: duration,
         restTimeSeconds: 0,
+        setType,
       });
     } else {
       await addProgramSet({
@@ -153,6 +160,7 @@ export function NewSetView({
         targetReps: reps,
         weightKg: weight,
         restTimeSeconds: 0,
+        setType,
       });
     }
     router.push(
@@ -165,6 +173,23 @@ export function NewSetView({
   return (
     <>
       <div className="flex-1 px-4 animate-in fade-in duration-150">
+        {/* Set-type toggle: warmup sets are excluded from auto-progression. */}
+        <div className="flex rounded-xl overflow-hidden border border-border mb-4 mt-2">
+          <button
+            type="button"
+            onClick={() => setSetType("working")}
+            className={`flex-1 py-2 text-sm font-semibold transition-colors ${setType === "working" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
+          >
+            Working set
+          </button>
+          <button
+            type="button"
+            onClick={() => setSetType("warmup")}
+            className={`flex-1 py-2 text-sm font-semibold transition-colors ${setType === "warmup" ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"}`}
+          >
+            Warm-up
+          </button>
+        </div>
         {isRunning ? (
           /* Running mode: distance or time toggle */
           <>

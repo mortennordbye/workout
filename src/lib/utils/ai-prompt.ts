@@ -149,7 +149,8 @@ Each exercise entry:
     "pattern": "push"
   },
   "sets": [
-    { "n": 1, "reps": 8, "kg": 60, "rest": 90 }
+    { "n": 1, "reps": 8, "kg": 40, "rest": 60, "type": "warmup" },
+    { "n": 2, "reps": 8, "kg": 60, "rest": 90 }
   ]
 }
 
@@ -163,6 +164,7 @@ Rules:
 - mode: "manual" (default — no auto-progression suggestions), "weight" (auto-suggest weight increases for compound lifts where progressive overload is the main driver), "smart" (weight + estimated rep adjustment, only for true working compounds at RPE 7+), or "reps" (bodyweight or rep-only progression). Default to "manual" for warm-ups, accessory/isolation work, machines you don't push hard, and anything where auto-suggestions would be noise.
 - kg: use 0 for bodyweight, null if unknown
 - rest: rest between sets in seconds (e.g. 90)
+- type: "working" (default — counts toward progression) or "warmup" (excluded from auto-progression suggestions). Use "warmup" for the first 1–2 light sets of compound lifts (squat, bench, deadlift, OHP, rows). Omit for accessories and isolation work — they don't need warmup sets in the program.
 - idx: 0-based index for exercise order within each program
 - weeks must be one of: 4, 6, 8, 10, 12, 16
 - day: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun

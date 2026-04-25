@@ -160,6 +160,9 @@ export const addExerciseToProgramSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
+export const SET_TYPES = ["working", "warmup"] as const;
+export type SetType = (typeof SET_TYPES)[number];
+
 export const addProgramSetSchema = z.object({
   programExerciseId: z.number().int().positive(),
   setNumber: z.number().int().positive(),
@@ -170,6 +173,7 @@ export const addProgramSetSchema = z.object({
   inclinePercent: z.number().int().min(0).max(30).optional(),
   targetHeartRateZone: z.number().int().min(1).max(5).optional(),
   restTimeSeconds: z.number().int().min(0).max(3600).default(0),
+  setType: z.enum(SET_TYPES).default("working"),
 });
 
 export const updateProgramSetSchema = addProgramSetSchema
@@ -178,6 +182,7 @@ export const updateProgramSetSchema = addProgramSetSchema
     id: z.number().int().positive(),
     // No default — partial updates must not overwrite fields that weren't provided
     restTimeSeconds: z.number().int().min(0).max(3600).optional(),
+    setType: z.enum(SET_TYPES).optional(),
     // Allow explicit null to clear these fields (e.g., switching run mode from distance to time)
     distanceMeters: z.number().int().min(0).nullable().optional(),
     durationSeconds: z.number().int().min(0).nullable().optional(),
@@ -290,6 +295,7 @@ const importProgramEntrySchema = z.object({
               durSec: z.number().int().min(0).nullable().optional(),
               distM: z.number().int().min(0).nullable().optional(),
               rest: z.number().int().min(0).max(3600).catch(0),
+              type: z.enum(SET_TYPES).catch("working"),
             }),
           ),
         }),

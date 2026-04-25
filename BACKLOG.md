@@ -10,12 +10,6 @@ When you finish an item, delete it. When you add an item, write enough that some
 
 ## Smart-progression UX
 
-### Proper warm-up modeling (`setType` column)
-- **What:** Add `set_type text default 'working'` to `program_sets` and `workout_sets` (`"working" | "warmup" | "backoff"`). UI toggle in `NewSetView.tsx` / `SetEditView.tsx` to mark a set. Algorithm skips suggestions for any set with `setType !== "working"`. AI prompt should emit `setType: "warmup"` for the first set of compound lifts when appropriate.
-- **Why deferred:** The 70 % heuristic in `isProbableWarmupSet` (`src/lib/utils/progression.ts`) was shipped as Tier 1. Plan says don't add the column until real-world use proves the heuristic misclassifies — wait for concrete cases.
-- **Unblocked by:** A user reporting the heuristic flagged a top set, or failed to flag an unusual warmup. Or a UX desire to label sets explicitly.
-- **Touchpoints:** `src/db/schema/programs.ts`, `src/db/schema/workout-sets.ts`, `src/lib/actions/workout-sets.ts:806-826` (warmup filter — replace heuristic with explicit check), `src/components/features/NewSetView.tsx`, `src/components/features/SetEditView.tsx`, `src/lib/utils/ai-prompt.ts`.
-
 ### Skip suggestion compute for completed sets
 - **What:** In `getProgressiveSuggestions`, skip program sets whose corresponding `workoutSet.isCompleted = true` in the active session.
 - **Why deferred:** Marginal CPU win. UI already hides suggestions for completed sets via `!isCompleted` gate at `WorkoutSetsList.tsx:1042`. Adds a DB query for negligible benefit.
@@ -23,9 +17,9 @@ When you finish an item, delete it. When you add an item, write enough that some
 - **Touchpoints:** `src/lib/actions/workout-sets.ts:806-826`.
 
 ### Per-exercise (not per-set) progression UI
-- **What:** Collapse the per-set `↑ Xkg` badges into one affordance per exercise: "↑ all working sets to 82.5 kg". Today, Tier 1.D propagates the apply across siblings, but the badges still render per-set.
-- **Why deferred:** Bigger UX redesign than fits this round. Wait for Tier 2 (`setType`) which would change which sets are "working" anyway.
-- **Unblocked by:** Tier 2 ships, or user feedback says the per-set badges still feel cluttered after Tier 1.
+- **What:** Collapse the per-set `↑ Xkg` badges into one affordance per exercise: "↑ all working sets to 82.5 kg". Today, applying a suggestion propagates across siblings, but the badges still render per-set.
+- **Why deferred:** Bigger UX redesign than the recent rounds covered. Hold until you've used the current per-set badges for a while and confirmed the clutter is real.
+- **Unblocked by:** Concrete user feedback that the per-set badges are still too noisy now that warm-ups are filtered and the apply propagates.
 - **Touchpoints:** `src/components/features/WorkoutSetsList.tsx:1040-1207`.
 
 ### `latest.weightKg` vs program-planned weight quirk
