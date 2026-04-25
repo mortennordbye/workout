@@ -14,7 +14,7 @@ import {
   workoutSessions,
   workoutSets,
 } from "@/db/schema";
-import { requireSession } from "@/lib/utils/session";
+import { ForbiddenError, requireAdmin, requireSession } from "@/lib/utils/session";
 import { DEMO_USER_EMAIL, DEMO_USER_NAME } from "@/lib/constants/demo";
 import { ActionResult } from "@/types/workout";
 
@@ -763,14 +763,11 @@ async function wipeDemoUserData(demoUserId: string): Promise<void> {
 }
 
 export async function adminPrepareDemoUser(forceReseed = false): Promise<ActionResult<{ userId: string }>> {
-  const auth = await requireSession();
-  if (auth.user.role !== "admin") {
-    return { success: false, error: "Admin access required." };
-  }
-  if (auth.session.impersonatedBy) {
-    return { success: false, error: "Cannot enter demo mode while impersonating another user." };
-  }
   try {
+    const auth = await requireAdmin();
+    if (auth.session.impersonatedBy) {
+      return { success: false, error: "Cannot enter demo mode while impersonating another user." };
+    }
     // Find or create demo user
     const existing = await db
       .select({ id: users.id })
@@ -812,8 +809,9 @@ export async function adminPrepareDemoUser(forceReseed = false): Promise<ActionR
     }
 
     return { success: true, data: { userId: demoUserId } };
-  } catch (err) {
-    console.error("adminPrepareDemoUser failed:", err);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { success: false, error: e.message };
+    console.error("[adminPrepareDemoUser] failed", e);
     return { success: false, error: "Failed to prepare demo user" };
   }
 }

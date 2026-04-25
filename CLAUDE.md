@@ -2,6 +2,68 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working approach
+
+These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+### Think before coding
+
+Don't assume. Don't hide confusion. Surface tradeoffs.
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+### Simplicity first
+
+Minimum code that solves the problem. Nothing speculative.
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+### Surgical changes
+
+Touch only what you must. Clean up only your own mess.
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it — don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: every changed line should trace directly to the user's request.
+
+### Goal-driven execution
+
+Define success criteria. Loop until verified.
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
 ## Development
 
 All development runs in Docker. **Do not use `npm run dev` directly.**
@@ -20,6 +82,14 @@ pnpm test:watch                                  # Watch mode
 pnpm test src/__tests__/format.test.ts           # Single file
 pnpm test src/__tests__/format.test.ts -t "name" # Single test by name
 ```
+
+## Before reporting a task complete
+
+Run `pnpm verify` from the host. It runs `tsc --noEmit` and the Vitest suite in ~3s. If anything fails, fix it and re-run before declaring the task done.
+
+Do not skip this even when the change "looks obviously correct" — the bugs that slip through are the unexpected ones. ESLint is intentionally not in `verify` yet because the codebase has pre-existing lint errors that need a deliberate cleanup pass; once those are fixed it should be added.
+
+For changes that touch a critical user flow (workout logging, rest picker, set editing, drag-reorder, login), additionally run `pnpm verify:full` — it adds Playwright e2e on top of `verify`. Requires the dev server running at `localhost:3000` and `E2E_USER_EMAIL`/`E2E_USER_PASSWORD` env vars set to a test account. Specs live in `e2e/`; add a new one when you ship a critical flow that doesn't have coverage.
 
 **In-container commands:**
 ```bash
@@ -68,6 +138,66 @@ Migration files in `drizzle/` are committed to git and **must never be regenerat
   type ProgramSet = typeof programSets.$inferSelect;
   ```
 - ActionResult<T> is the standard return type for Server Actions
+
+### Server Actions — canonical template
+
+Copy from this template when adding a new action. Do not copy from a random existing action — many predate the auth helpers and the safe pattern is the one below.
+
+```ts
+"use server";
+
+import { db } from "@/db";
+import {
+  ForbiddenError,
+  assertOwner,
+  requireAdmin,
+  requireSession,
+} from "@/lib/utils/session";
+import type { ActionResult } from "@/types/workout";
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+
+const myActionSchema = z.object({ id: z.number(), name: z.string().min(1) });
+
+export async function myAction(
+  data: unknown,
+): Promise<ActionResult<MyType>> {
+  const auth = await requireSession();              // or requireAdmin() for admin-only
+  const parsed = myActionSchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Invalid input",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    const [existing] = await db
+      .select({ userId: things.userId })
+      .from(things)
+      .where(eq(things.id, parsed.data.id));
+    assertOwner(existing, auth.user.id);            // throws if missing or not owned
+
+    const [row] = await db.update(things).set({ /* ... */ }).returning();
+    revalidatePath("/some/path");
+    return { success: true, data: row };
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { success: false, error: e.message };
+    console.error("[myAction] failed", e);
+    return { success: false, error: "Failed to update" };
+  }
+}
+```
+
+### Safety rules for AI-assisted changes
+
+- Every Server Action starts with `requireSession()` or `requireAdmin()`. No exceptions.
+- Every read or write of user-owned data filters by `userId` in the `WHERE` clause **or** runs through `assertOwner()`. The demo user shares tables with real users — a missing `userId` filter is a data leak.
+- Mutations that touch another user's data (admin actions, friend invites) require `requireAdmin()` *or* an explicit relationship check — never assume.
+- Server Actions that use `requireAdmin()` or `assertOwner()` must wrap the body in `try/catch` and convert `ForbiddenError` to an ActionResult error (see template). Otherwise the throw becomes a generic 500 to the client.
+- `console.error` in Server Actions: always tag with the action name in brackets, e.g. `console.error("[myAction] not_found", { id })`. This makes container logs greppable. Never log secrets, raw user input, or full user records — log IDs and short tags only.
+- When adding a new action, copy from the template above, not from a random existing action.
 
 ### Directory layout
 

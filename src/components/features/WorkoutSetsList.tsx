@@ -104,6 +104,17 @@ export function WorkoutSetsList({
   const [pendingRunSetId, setPendingRunSetId] = useState<number | null>(null);
   const [restMinStr, setRestMinStr] = useState("1");
   const [restSecStr, setRestSecStr] = useState("0");
+  const restRowRef = useRef<HTMLDivElement>(null);
+
+  // Center the selected preset when the picker opens, so the row never sits
+  // on a position that leaves a partial circle peeking past the scroll edge.
+  useEffect(() => {
+    if (editingRestItemId === null) return;
+    const selected = restRowRef.current?.querySelector<HTMLButtonElement>(
+      `[data-rest-seconds="${restDraft}"]`,
+    );
+    selected?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [editingRestItemId, restDraft]);
 
   useEffect(() => {
     setFlatItems(toFlatItems(sets));
@@ -771,14 +782,20 @@ export function WorkoutSetsList({
               Done
             </button>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-4">
+          <div ref={restRowRef} className="flex gap-2 overflow-x-auto pb-4">
             {REST_OPTIONS.map((seconds) => (
               <button
                 key={seconds}
-                onClick={() => {
+                data-rest-seconds={seconds}
+                onClick={(e) => {
                   setRestDraft(seconds);
                   setRestMinStr(String(Math.floor(seconds / 60)));
                   setRestSecStr(String(seconds % 60));
+                  e.currentTarget.scrollIntoView({
+                    inline: "center",
+                    block: "nearest",
+                    behavior: "smooth",
+                  });
                 }}
                 className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all active:scale-95 ${
                   restDraft === seconds

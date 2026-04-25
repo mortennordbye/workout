@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { feedback, users } from "@/db/schema";
-import { requireSession } from "@/lib/utils/session";
+import { ForbiddenError, requireAdmin, requireSession } from "@/lib/utils/session";
 import type { ActionResult } from "@/types/workout";
 import { desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
@@ -42,32 +42,40 @@ export type FeedbackWithUser = {
 };
 
 export async function listFeedback(): Promise<ActionResult<FeedbackWithUser[]>> {
-  const session = await requireSession();
-  if (session.user.role !== "admin") return { success: false, error: "Unauthorized" };
+  try {
+    await requireAdmin();
+    const rows = await db
+      .select({
+        id: feedback.id,
+        userId: feedback.userId,
+        userName: users.name,
+        userEmail: users.email,
+        type: feedback.type,
+        message: feedback.message,
+        status: feedback.status,
+        createdAt: feedback.createdAt,
+      })
+      .from(feedback)
+      .leftJoin(users, eq(feedback.userId, users.id))
+      .orderBy(desc(feedback.createdAt));
 
-  const rows = await db
-    .select({
-      id: feedback.id,
-      userId: feedback.userId,
-      userName: users.name,
-      userEmail: users.email,
-      type: feedback.type,
-      message: feedback.message,
-      status: feedback.status,
-      createdAt: feedback.createdAt,
-    })
-    .from(feedback)
-    .leftJoin(users, eq(feedback.userId, users.id))
-    .orderBy(desc(feedback.createdAt));
-
-  return { success: true, data: rows as FeedbackWithUser[] };
+    return { success: true, data: rows as FeedbackWithUser[] };
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { success: false, error: e.message };
+    console.error("[listFeedback] failed", e);
+    return { success: false, error: "Failed to load feedback" };
+  }
 }
 
 export async function markFeedbackRead(id: number): Promise<ActionResult<void>> {
-  const session = await requireSession();
-  if (session.user.role !== "admin") return { success: false, error: "Unauthorized" };
-
-  await db.update(feedback).set({ status: "read" }).where(eq(feedback.id, id));
-  revalidatePath("/more/admin/feedback");
-  return { success: true, data: undefined };
+  try {
+    await requireAdmin();
+    await db.update(feedback).set({ status: "read" }).where(eq(feedback.id, id));
+    revalidatePath("/more/admin/feedback");
+    return { success: true, data: undefined };
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { success: false, error: e.message };
+    console.error("[markFeedbackRead] failed", e);
+    return { success: false, error: "Failed to update feedback" };
+  }
 }

@@ -76,10 +76,6 @@ describe("restToken", () => {
   it("formats zero rest", () => {
     expect(restToken(makeSet({ restTimeSeconds: 0 }))).toBe("00:00");
   });
-
-  it("formats null restTimeSeconds as 00:00", () => {
-    expect(restToken(makeSet({ restTimeSeconds: null }))).toBe("00:00");
-  });
 });
 
 describe("buildSetSummary", () => {

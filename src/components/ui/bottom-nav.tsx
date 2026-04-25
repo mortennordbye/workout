@@ -35,17 +35,15 @@ export function BottomNav() {
   const pathname = usePathname();
   const workoutSession = useWorkoutSession();
   const workoutPath = workoutSession?.workoutPath ?? null;
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  if (pathname === "/login" || pathname === "/signup") return null;
   const lastWorkoutPath = workoutSession?.lastWorkoutPath ?? null;
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Only match real workout routes like /programs/[id]/workout/..., not /new-workout
   const isWorkoutRoute = pathname.startsWith("/programs") && pathname.includes("/workout");
 
-  if (pathname.startsWith("/login")) return null;
-
-  // Keep lastWorkoutPath in context up to date as the user navigates deeper
+  // Keep lastWorkoutPath in context up to date as the user navigates deeper.
+  // Both effects must run on every render (Rules of Hooks); the conditional
+  // null-return below them comes AFTER all hooks have been called.
   useEffect(() => {
     if (isWorkoutRoute && workoutSession) {
       workoutSession.updateLastWorkoutPath(pathname);
@@ -58,6 +56,8 @@ export function BottomNav() {
     const interval = setInterval(check, 500);
     return () => clearInterval(interval);
   }, []);
+
+  if (pathname === "/login" || pathname === "/signup") return null;
 
   const isActive = (label: string, href: string) => {
     if (label === "Workout") {

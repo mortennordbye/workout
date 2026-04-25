@@ -9,7 +9,7 @@ import {
   users,
   workoutSessions,
 } from "@/db/schema";
-import { requireSession } from "@/lib/utils/session";
+import { ForbiddenError, requireAdmin } from "@/lib/utils/session";
 import type { ActionResult } from "@/types/workout";
 
 export type InsightUserRow = {
@@ -49,12 +49,8 @@ export type AdminInsightsData = {
 };
 
 export async function getAdminInsights(): Promise<ActionResult<AdminInsightsData>> {
-  const auth = await requireSession();
-  if (auth.user.role !== "admin") {
-    return { success: false, error: "Forbidden" };
-  }
-
   try {
+    await requireAdmin();
     const [
       [{ count: totalUsers }],
       [{ count: active7 }],
@@ -178,8 +174,9 @@ export async function getAdminInsights(): Promise<ActionResult<AdminInsightsData
         })),
       },
     };
-  } catch (err) {
-    console.error("getAdminInsights failed:", err);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { success: false, error: e.message };
+    console.error("[getAdminInsights] failed", e);
     return { success: false, error: "Failed to load insights" };
   }
 }

@@ -3,7 +3,7 @@
 import { db } from "@/db";
 import { inviteTokens } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { requireSession } from "@/lib/utils/session";
+import { ForbiddenError, requireAdmin } from "@/lib/utils/session";
 import type { ActionResult } from "@/types/workout";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
@@ -96,18 +96,15 @@ export async function registerWithToken(
 // ─── Admin only ───────────────────────────────────────────────────────────────
 
 export async function listInviteTokens(): Promise<ActionResult<InviteToken[]>> {
-  const session = await requireSession();
-  if (session.user.role !== "admin") {
-    return { success: false, error: "Unauthorized" };
-  }
-
   try {
+    await requireAdmin();
     const rows = await db.query.inviteTokens.findMany({
       orderBy: (t, { desc }) => [desc(t.createdAt)],
     });
     return { success: true, data: rows };
-  } catch (error) {
-    console.error("Error listing invite tokens:", error);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { success: false, error: e.message };
+    console.error("[listInviteTokens] failed", e);
     return { success: false, error: "Failed to load invite tokens" };
   }
 }
@@ -118,12 +115,8 @@ export async function createInviteToken(data: {
   maxUses: number | null;
   expiresAt: Date | null;
 }): Promise<ActionResult<InviteToken>> {
-  const session = await requireSession();
-  if (session.user.role !== "admin") {
-    return { success: false, error: "Unauthorized" };
-  }
-
   try {
+    const session = await requireAdmin();
     const token = data.token ?? randomBytes(12).toString("base64url");
     const id = randomBytes(8).toString("hex");
 
@@ -148,23 +141,21 @@ export async function createInviteToken(data: {
       .returning();
 
     return { success: true, data: row };
-  } catch (error) {
-    console.error("Error creating invite token:", error);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { success: false, error: e.message };
+    console.error("[createInviteToken] failed", e);
     return { success: false, error: "Failed to create invite token" };
   }
 }
 
 export async function revokeInviteToken(id: string): Promise<ActionResult> {
-  const session = await requireSession();
-  if (session.user.role !== "admin") {
-    return { success: false, error: "Unauthorized" };
-  }
-
   try {
+    await requireAdmin();
     await db.delete(inviteTokens).where(eq(inviteTokens.id, id));
     return { success: true, data: undefined };
-  } catch (error) {
-    console.error("Error revoking invite token:", error);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { success: false, error: e.message };
+    console.error("[revokeInviteToken] failed", e);
     return { success: false, error: "Failed to revoke invite token" };
   }
 }

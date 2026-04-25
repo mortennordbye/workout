@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { workoutSessions } from "@/db/schema";
-import { requireSession } from "@/lib/utils/session";
+import { ForbiddenError, assertOwner, requireSession } from "@/lib/utils/session";
 import {
   completeWorkoutSessionSchema,
   createWorkoutSessionSchema,
@@ -69,8 +69,7 @@ export async function completeWorkoutSession(
       .select({ userId: workoutSessions.userId })
       .from(workoutSessions)
       .where(eq(workoutSessions.id, sessionId));
-    if (!existing) return { success: false, error: "Workout session not found" };
-    if (existing.userId !== auth.user.id) return { success: false, error: "Unauthorized" };
+    assertOwner(existing, auth.user.id);
 
     const [session] = await db
       .update(workoutSessions)
@@ -87,8 +86,9 @@ export async function completeWorkoutSession(
     revalidatePath(`/workout/${sessionId}`);
     revalidatePath("/history");
     return { success: true, data: session };
-  } catch (error) {
-    console.error("Error completing workout session:", error);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { success: false, error: e.message };
+    console.error("[completeWorkoutSession] failed", e);
     return { success: false, error: "Failed to complete workout session." };
   }
 }
@@ -103,15 +103,15 @@ export async function deleteWorkoutSession(
       .select({ userId: workoutSessions.userId })
       .from(workoutSessions)
       .where(eq(workoutSessions.id, sessionId));
-    if (!existing) return { success: false, error: "Workout session not found" };
-    if (existing.userId !== auth.user.id) return { success: false, error: "Unauthorized" };
+    assertOwner(existing, auth.user.id);
 
     await db.delete(workoutSessions).where(eq(workoutSessions.id, sessionId));
     revalidatePath("/history");
     revalidatePath("/");
     return { success: true, data: undefined };
-  } catch (error) {
-    console.error("Error deleting workout session:", error);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { success: false, error: e.message };
+    console.error("[deleteWorkoutSession] failed", e);
     return { success: false, error: "Failed to delete workout session" };
   }
 }
@@ -175,16 +175,16 @@ export async function setSessionReadiness(
       .select({ userId: workoutSessions.userId })
       .from(workoutSessions)
       .where(eq(workoutSessions.id, sessionId));
-    if (!existing) return { success: false, error: "Workout session not found" };
-    if (existing.userId !== auth.user.id) return { success: false, error: "Unauthorized" };
+    assertOwner(existing, auth.user.id);
 
     await db
       .update(workoutSessions)
       .set({ readiness })
       .where(eq(workoutSessions.id, sessionId));
     return { success: true, data: undefined };
-  } catch (error) {
-    console.error("Error setting session readiness:", error);
+  } catch (e) {
+    if (e instanceof ForbiddenError) return { success: false, error: e.message };
+    console.error("[setSessionReadiness] failed", e);
     return { success: false, error: "Failed to set readiness" };
   }
 }

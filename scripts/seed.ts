@@ -250,7 +250,7 @@ async function seed() {
     // The seed script only handles the exercise library.
 
     // Seed exercises — skips any that already exist by name
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     await db.insert(exercises).values([...EXERCISES]).onConflictDoNothing();
     console.log(`✅ Seeded ${EXERCISES.length} exercises (skipped duplicates)`);
 
