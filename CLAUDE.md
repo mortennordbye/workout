@@ -62,6 +62,25 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+### Track unfinished work in BACKLOG.md
+
+If you leave anything unfinished, partially implemented, or explicitly defer it, add an entry to `BACKLOG.md` in the repo root before reporting the task done. Don't bury deferrals in chat — they vanish next session.
+
+Each entry needs four things: **what** the work is, **why** it was deferred, **what would unblock it**, and **where** the relevant code lives (file paths). Read existing entries for the format.
+
+Don't put work-in-progress on `BACKLOG.md` — WIP belongs on a branch. The backlog is for *known gaps the team has agreed to leave for later*. If you finish an item, delete it.
+
+What counts as "unfinished":
+- Tier 1 / Tier 2 splits where you only shipped Tier 1.
+- Out-of-scope items you noticed but didn't fix.
+- Features behind a feature flag that still need ramping or cleanup.
+- Tests skipped, mocks left in, debug logging not yet stripped.
+- TODO comments you wrote (write the entry instead — TODOs rot in code).
+
+What does NOT belong:
+- Forward-looking ideas the user didn't agree to defer ("we could also..."). Either do them or drop them.
+- Codebase-wide debts that pre-existed your work and the user didn't ask you to track.
+
 These guidelines are working if: fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
 ## Development

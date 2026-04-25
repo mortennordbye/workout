@@ -6,7 +6,6 @@ import {
   isConfidentHit,
   isProbableWarmupSet,
   roundToNearest,
-  CONSENSUS_WINDOW,
   DELOAD_THRESHOLD,
   REQUIRED_HITS,
 } from "@/lib/utils/progression";
