@@ -489,9 +489,15 @@ export function WorkoutSetsList({
   useEffect(() => {
     if (!exerciseTimer) return;
     if (exerciseTimer.remaining === 0) {
-      void toggleSet(exerciseTimer.setId);
-      setExerciseTimer(null);
-      return;
+      // Hold "00:00" on screen briefly so the user sees the timer hit zero
+      // before the overlay clears. Without this delay the React render that
+      // would paint 00:00 races with the toggleSet/clear and the user's last
+      // visible frame is 00:01 — feels like the timer was cut a second short.
+      const completeId = setTimeout(() => {
+        void toggleSet(exerciseTimer.setId);
+        setExerciseTimer(null);
+      }, 600);
+      return () => clearTimeout(completeId);
     }
     const id = setTimeout(() => {
       setExerciseTimer((prev) => {
