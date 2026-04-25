@@ -32,6 +32,9 @@ export const viewport: Viewport = {
   // used to occur is prevented by font-size ≥ 16px on all inputs (globals.css),
   // which stops iOS from auto-zooming and panning the visual viewport.
   interactiveWidget: "resizes-visual",
+  // Match the manifest's theme_color so the iOS Safari status bar tints to
+  // the app's dark surface (not a stark white) when running standalone.
+  themeColor: "#000000",
 };
 
 export const metadata: Metadata = {

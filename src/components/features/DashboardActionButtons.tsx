@@ -1,5 +1,6 @@
 "use client";
 
+import { haptics } from "@/lib/utils/haptics";
 import { motion } from "framer-motion";
 import Link from "next/link";
 
@@ -28,10 +29,7 @@ export function DashboardActionButtons({ programId, completedToday }: Props) {
           <Link
             href={`/programs/${programId}/workout`}
             prefetch={true}
-            onClick={() => {
-              // Medium Impact haptic — fires on tap, before navigation
-              navigator.vibrate?.(12);
-            }}
+            onClick={haptics.tap}
             className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground ring-2 ring-primary/40 shadow-[0_0_16px_rgba(0,122,255,0.4)] active:opacity-80"
           >
             Start Today&apos;s Workout

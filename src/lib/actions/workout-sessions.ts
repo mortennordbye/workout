@@ -1,14 +1,14 @@
 "use server";
 
 import { db } from "@/db";
-import { workoutSessions } from "@/db/schema";
+import { exercises, programs, workoutSessions, workoutSets } from "@/db/schema";
 import { ForbiddenError, assertOwner, requireSession } from "@/lib/utils/session";
 import {
   completeWorkoutSessionSchema,
   createWorkoutSessionSchema,
 } from "@/lib/validators/workout";
-import type { ActionResult, WorkoutSession } from "@/types/workout";
-import { eq } from "drizzle-orm";
+import type { ActionResult, ExportedSessions, WorkoutSession } from "@/types/workout";
+import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 export async function createWorkoutSession(
@@ -27,6 +27,23 @@ export async function createWorkoutSession(
 
   try {
     const { date, startTime, notes, programId } = validation.data;
+
+    // Sweep orphaned open sessions for this user. Without this, a user who
+    // closes the tab mid-workout leaves a `isCompleted=false` row that
+    // lingers forever; subsequent `createWorkoutSession` calls compound the
+    // mess. Bound to >1h to avoid clobbering a legitimate concurrent start.
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    await db
+      .update(workoutSessions)
+      .set({ isCompleted: true, endTime: new Date() })
+      .where(
+        and(
+          eq(workoutSessions.userId, auth.user.id),
+          eq(workoutSessions.isCompleted, false),
+          lt(workoutSessions.startTime, oneHourAgo),
+        ),
+      );
+
     const [session] = await db
       .insert(workoutSessions)
       .values({
@@ -154,6 +171,109 @@ export async function getLastCompletedSession(
   } catch (error) {
     console.error("[getLastCompletedSession] failed", error);
     return { success: false, error: "Failed to fetch last session" };
+  }
+}
+
+/**
+ * Bulk export of every completed session + its sets for the authenticated user.
+ * The client renders this as a JSON download for backup / analysis / migration
+ * to another tool. Mirrors the program export pattern in actions/programs.ts.
+ */
+export async function exportAllSessions(): Promise<ActionResult<ExportedSessions>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
+  try {
+    const sessions = await db
+      .select({
+        id: workoutSessions.id,
+        date: workoutSessions.date,
+        startTime: workoutSessions.startTime,
+        endTime: workoutSessions.endTime,
+        notes: workoutSessions.notes,
+        feeling: workoutSessions.feeling,
+        readiness: workoutSessions.readiness,
+        programName: programs.name,
+      })
+      .from(workoutSessions)
+      .leftJoin(programs, eq(workoutSessions.programId, programs.id))
+      .where(
+        and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.isCompleted, true),
+        ),
+      )
+      .orderBy(desc(workoutSessions.startTime));
+
+    if (sessions.length === 0) {
+      return {
+        success: true,
+        data: { version: 1, exportedAt: new Date().toISOString(), sessions: [] },
+      };
+    }
+
+    const sessionIds = sessions.map((s) => s.id);
+    const setsAll = await db
+      .select({
+        sessionId: workoutSets.sessionId,
+        exerciseName: exercises.name,
+        setNumber: workoutSets.setNumber,
+        targetReps: workoutSets.targetReps,
+        actualReps: workoutSets.actualReps,
+        weightKg: workoutSets.weightKg,
+        durationSeconds: workoutSets.durationSeconds,
+        distanceMeters: workoutSets.distanceMeters,
+        inclinePercent: workoutSets.inclinePercent,
+        heartRateZone: workoutSets.heartRateZone,
+        rpe: workoutSets.rpe,
+        restTimeSeconds: workoutSets.restTimeSeconds,
+        isCompleted: workoutSets.isCompleted,
+      })
+      .from(workoutSets)
+      .innerJoin(exercises, eq(workoutSets.exerciseId, exercises.id))
+      .where(inArray(workoutSets.sessionId, sessionIds))
+      .orderBy(asc(workoutSets.sessionId), asc(workoutSets.setNumber));
+
+    const setsBySession = new Map<number, ExportedSessions["sessions"][number]["sets"]>();
+    for (const r of setsAll) {
+      const list = setsBySession.get(r.sessionId) ?? [];
+      list.push({
+        exerciseName: r.exerciseName,
+        setNumber: r.setNumber,
+        targetReps: r.targetReps ?? null,
+        actualReps: r.actualReps,
+        weightKg: Number(r.weightKg),
+        durationSeconds: r.durationSeconds ?? null,
+        distanceMeters: r.distanceMeters ?? null,
+        inclinePercent: r.inclinePercent ?? null,
+        heartRateZone: r.heartRateZone ?? null,
+        rpe: r.rpe,
+        restTimeSeconds: r.restTimeSeconds,
+        isCompleted: r.isCompleted,
+      });
+      setsBySession.set(r.sessionId, list);
+    }
+
+    return {
+      success: true,
+      data: {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        sessions: sessions.map((s) => ({
+          id: s.id,
+          date: s.date,
+          startTime: s.startTime.toISOString(),
+          endTime: s.endTime ? s.endTime.toISOString() : null,
+          notes: s.notes ?? null,
+          feeling: s.feeling ?? null,
+          readiness: s.readiness ?? null,
+          programName: s.programName ?? null,
+          sets: setsBySession.get(s.id) ?? [],
+        })),
+      },
+    };
+  } catch (error) {
+    console.error("[exportAllSessions] failed", error);
+    return { success: false, error: "Failed to export sessions" };
   }
 }
 

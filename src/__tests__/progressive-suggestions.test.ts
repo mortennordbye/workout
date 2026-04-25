@@ -4,7 +4,6 @@ import {
   estimate1RM,
   estimateRepsAt,
   isConfidentHit,
-  isProbableWarmupSet,
   roundToNearest,
   DELOAD_THRESHOLD,
   REQUIRED_HITS,
@@ -103,33 +102,6 @@ describe("roundToNearest", () => {
 
   it("returns value unchanged when increment is negative", () => {
     expect(roundToNearest(77.3, -1)).toBeCloseTo(77.3);
-  });
-});
-
-// ─── isProbableWarmupSet ──────────────────────────────────────────────────────
-
-describe("isProbableWarmupSet", () => {
-  it("flags a 40 kg set when top working set is 80 kg (50 % ratio)", () => {
-    expect(isProbableWarmupSet(40, 80)).toBe(true);
-  });
-
-  it("does not flag a 60 kg set when top is 80 kg (75 % ratio)", () => {
-    expect(isProbableWarmupSet(60, 80)).toBe(false);
-  });
-
-  it("does not flag identical sets (3× 80 kg)", () => {
-    expect(isProbableWarmupSet(80, 80)).toBe(false);
-  });
-
-  it("returns false when top weight is 0 (bodyweight, cardio, no data)", () => {
-    expect(isProbableWarmupSet(0, 0)).toBe(false);
-    expect(isProbableWarmupSet(50, 0)).toBe(false);
-  });
-
-  it("flags exactly at the 70 % threshold (not inclusive)", () => {
-    // 70 % is the cutoff; anything < 70 % is warm-up, ≥ 70 % is working
-    expect(isProbableWarmupSet(55.99, 80)).toBe(true);
-    expect(isProbableWarmupSet(56, 80)).toBe(false);
   });
 });
 

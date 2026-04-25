@@ -36,7 +36,6 @@ import {
     buildSuggestion,
     CONSENSUS_WINDOW,
     estimate1RM,
-    isProbableWarmupSet,
 } from "@/lib/utils/progression";
 import type { HistoryRow, ProgramSetData } from "@/lib/utils/progression";
 import type {
@@ -109,6 +108,27 @@ export async function logWorkoutSet(
       .limit(1);
     if (!session || session.userId !== auth.user.id) {
       return { success: false, error: "Unauthorized" };
+    }
+
+    // Timed exercises must record a duration. Without this guard, a quick-tap
+    // completion (no override, program had no planned duration) silently logs
+    // duration=null, which then displays as "—" forever in history.
+    if (isCompleted) {
+      const [exercise] = await db
+        .select({ isTimed: exercises.isTimed, category: exercises.category })
+        .from(exercises)
+        .where(eq(exercises.id, exerciseId))
+        .limit(1);
+      const isCardio = exercise?.category === "cardio";
+      if (exercise?.isTimed && !isCardio) {
+        if (durationSeconds == null || durationSeconds <= 0) {
+          return {
+            success: false,
+            error: "Duration is required for timed exercises",
+            fieldErrors: { durationSeconds: ["Duration must be greater than 0"] },
+          };
+        }
+      }
     }
 
     // Insert set into database
@@ -778,19 +798,6 @@ export async function getProgressiveSuggestions(
       if (list.length < CONSENSUS_WINDOW) list.push(row as HistoryRow);
     }
 
-    // Step 4b: derive each exercise's "top working weight" from the latest
-    // logged weight across all of its set numbers. Used to identify warm-up
-    // sets (latest weight much lighter than top) so we can suppress
-    // progression suggestions on them.
-    const topWeightByExercise = new Map<number, number>();
-    for (const ps of programData) {
-      const rows = historyPerKey.get(`${ps.exerciseId}-${ps.setNumber}`);
-      if (!rows || rows.length === 0) continue;
-      const latestWeight = Number(rows[0].weightKg);
-      const current = topWeightByExercise.get(ps.exerciseId) ?? 0;
-      if (latestWeight > current) topWeightByExercise.set(ps.exerciseId, latestWeight);
-    }
-
     // Step 5: build suggestion for each program set using the pure helper
     const suggestions: Record<number, SetSuggestion> = {};
 
@@ -798,18 +805,9 @@ export async function getProgressiveSuggestions(
       const key = `${ps.exerciseId}-${ps.setNumber}`;
       const rows = historyPerKey.get(key) ?? [];
 
-      // Explicit warm-up flag wins: any set marked anything other than
-      // "working" is excluded from progression entirely.
+      // Any set marked anything other than "working" is excluded from
+      // progression entirely.
       if (ps.setType && ps.setType !== "working") continue;
-
-      // Heuristic fallback for unlabeled legacy data: latest weight < 70 %
-      // of the heaviest set in the same exercise → probable warm-up.
-      // Once a user has labeled their program with setType, this is a no-op.
-      if (rows.length > 0) {
-        const latestWeight = Number(rows[0].weightKg);
-        const topWeight = topWeightByExercise.get(ps.exerciseId) ?? 0;
-        if (isProbableWarmupSet(latestWeight, topWeight)) continue;
-      }
 
       const psData: ProgramSetData = {
         programSetId: ps.programSetId,

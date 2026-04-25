@@ -2,8 +2,9 @@
 
 import { useTheme } from "@/components/ui/theme-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { exportAllSessions } from "@/lib/actions/workout-sessions";
 import { requestNotificationPermission } from "@/lib/notifications";
-import { Bell, BookOpen, CheckIcon, ChevronLeft, ChevronRight, Smartphone } from "lucide-react";
+import { Bell, BookOpen, CheckIcon, ChevronLeft, ChevronRight, Download, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
@@ -103,6 +104,47 @@ function NotificationsRow() {
         <span className="text-xs font-semibold text-destructive flex-none">Blocked</span>
       )}
     </div>
+  );
+}
+
+function ExportHistoryButton() {
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    setExporting(true);
+    const result = await exportAllSessions();
+    setExporting(false);
+    if (!result.success) return;
+    const blob = new Blob([JSON.stringify(result.data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `workout-history-${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <button
+      onClick={handleExport}
+      disabled={exporting}
+      className="w-full flex items-center gap-3 px-4 py-3.5 active:opacity-60 transition-opacity text-left disabled:opacity-50"
+    >
+      <Download className="w-5 h-5 text-muted-foreground flex-none" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">Export workout history</p>
+        <p className="text-xs text-muted-foreground">
+          Download every session + sets as JSON
+        </p>
+      </div>
+      {exporting && (
+        <span className="text-xs font-semibold text-muted-foreground flex-none">
+          …
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -302,6 +344,14 @@ export function SettingsClient() {
             <Row last>
               <NotificationsRow />
             </Row>
+          </div>
+        </div>
+
+        {/* ── Data ───────────────────────────────────── */}
+        <div>
+          <SectionLabel>Data</SectionLabel>
+          <div className="rounded-2xl bg-card overflow-hidden">
+            <ExportHistoryButton />
           </div>
         </div>
 

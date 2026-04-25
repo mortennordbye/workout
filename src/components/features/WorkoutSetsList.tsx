@@ -7,6 +7,7 @@ import { logWorkoutSet } from "@/lib/actions/workout-sets";
 import type { SetSuggestionDisplay } from "@/components/features/WorkoutSetsClient";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { formatDistanceKm, formatPace, formatTime } from "@/lib/utils/format";
+import { haptics } from "@/lib/utils/haptics";
 import { computeMapping, toFlatItems } from "@/lib/utils/set-mapping";
 import type { FlatItem, RestFlatItem, SetFlatItem } from "@/lib/utils/set-mapping";
 import type { ProgramSet } from "@/types/workout";
@@ -213,6 +214,7 @@ export function WorkoutSetsList({
       setPrSetIds((prev) => { const s = new Set(prev); s.delete(setId); return s; });
       if (isWorkout && workoutSession) workoutSession.clearRestTimerEnd(setId);
     } else {
+      haptics.tap();
       // Collect all preceding sets that aren't already completed (catch-up)
       const precedingUncompleted = flatItems
         .slice(0, flatIndex)
@@ -307,6 +309,7 @@ export function WorkoutSetsList({
                 : best.type === "estimated_1rm"
                 ? `~${Math.round(best.value)}kg 1RM`
                 : `${best.value} reps`;
+            haptics.success();
             setPrSetIds((prev) => new Set(prev).add(setData.id));
             setPrCelebration({ setId: setData.id, label });
             setTimeout(() => setPrCelebration(null), 2500);
@@ -559,6 +562,7 @@ export function WorkoutSetsList({
     const oldIndex = flatItems.findIndex((i) => i.id === active.id);
     const newIndex = flatItems.findIndex((i) => i.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
+    haptics.tick();
     const reordered = arrayMove(flatItems, oldIndex, newIndex);
     setFlatItems(reordered);
     await saveCurrentState(reordered);

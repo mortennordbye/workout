@@ -328,6 +328,39 @@ export type ExportedPrograms = {
   programs: ExportedProgram["program"][];
 };
 
+// ============================================================================
+// Session History Export
+// ============================================================================
+
+export type ExportedSessions = {
+  version: 1;
+  exportedAt: string;
+  sessions: Array<{
+    id: number;
+    date: string;
+    startTime: string;
+    endTime: string | null;
+    notes: string | null;
+    feeling: string | null;
+    readiness: number | null;
+    programName: string | null;
+    sets: Array<{
+      exerciseName: string;
+      setNumber: number;
+      targetReps: number | null;
+      actualReps: number;
+      weightKg: number;
+      durationSeconds: number | null;
+      distanceMeters: number | null;
+      inclinePercent: number | null;
+      heartRateZone: number | null;
+      rpe: number;
+      restTimeSeconds: number;
+      isCompleted: boolean;
+    }>;
+  }>;
+};
+
 export type ExportedProgram = {
   version: 1;
   exportedAt: string;

@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "uniq_wsets_session_exercise_set" ON "workout_sets" USING btree ("session_id","exercise_id","set_number");

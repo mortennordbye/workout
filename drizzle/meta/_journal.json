@@ -183,6 +183,13 @@
       "when": 1777119892329,
       "tag": "0025_sharp_stingray",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1777128172986,
+      "tag": "0026_optimal_zeigeist",
+      "breakpoints": true
     }
   ]
 }

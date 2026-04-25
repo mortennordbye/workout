@@ -25,8 +25,6 @@ export function notificationsGranted(): boolean {
 
 export function sendNotification(title: string, body: string): void {
   if (!notificationsGranted()) return;
-  // In-app: direct Notification API
-  // TODO (out-of-app): route through Service Worker push instead
   try {
     new Notification(title, { body, icon: "/icon-192x192.png", badge: "/icon-192x192.png" });
   } catch {

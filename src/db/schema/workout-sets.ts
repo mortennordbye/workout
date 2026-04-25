@@ -36,6 +36,7 @@ import {
     pgTable,
     serial,
     timestamp,
+    uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { exercises } from "./exercises";
 import { workoutSessions } from "./workout-sessions";
@@ -62,4 +63,7 @@ export const workoutSets = pgTable("workout_sets", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
   index("idx_wsets_session").on(t.sessionId),
+  // Prevents double-logging the same set (e.g., rapid double-tap on the
+  // "complete" button). One row per (session, exercise, setNumber).
+  uniqueIndex("uniq_wsets_session_exercise_set").on(t.sessionId, t.exerciseId, t.setNumber),
 ]);

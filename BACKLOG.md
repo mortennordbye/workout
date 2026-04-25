@@ -8,7 +8,67 @@ When you finish an item, delete it. When you add an item, write enough that some
 
 ---
 
-## Smart-progression UX
+## Pitfalls — fix before they bite
+
+### Service-worker has no offline mutation queue
+- **What:** `src/app/sw.ts` caches reads but does NOT queue failed mutations. A user logging a set in a no-signal gym will see the action fail and the log silently drops. Comment in code calls this out as "future enhancement".
+- **Why deferred:** Largest effort of all the pitfalls (~80–150 LOC + careful testing). The other pitfalls block this in priority.
+- **Unblocked by:** All other pitfalls and polish items shipping; then dedicate a focused ~1–2 day pass.
+- **Touchpoints:** `src/app/sw.ts`, IndexedDB queue, Background Sync API integration with `logWorkoutSet` and `completeWorkoutSession`.
+
+## Improvements — incremental polish
+
+### Optimistic UI for set completion
+- **What:** `await logWorkoutSet(...)` blocks the UI until the round-trip completes. On 4G this is 200–400ms of dead button. Should mark the set complete immediately, send the request in the background, revert on error. Pairs with the offline queue.
+- **Why deferred:** Polish round; sequencing keeps the data-integrity bundle ahead.
+- **Unblocked by:** Nothing.
+- **Touchpoints:** `src/components/features/WorkoutSetsList.tsx` (around the `logWorkoutSet` call).
+
+### Skeleton/loading screens for data-heavy routes
+- **What:** No `loading.tsx` for `history`, `more/metrics`, `more/calendar`. Slow networks see flash + blank. Add skeletons + Suspense boundaries to stream the metrics dashboard sections independently.
+- **Why deferred:** UX polish; some skeletons depend on the offline-queue request lifecycle.
+- **Unblocked by:** Offline mutation queue shipped.
+- **Touchpoints:** `src/app/history/`, `src/app/more/metrics/`, `src/app/more/calendar/`, `src/components/features/MetricsClient.tsx`.
+
+### Drop the legacy `users.goal` column
+- **What:** `parseUserGoals` falls back to legacy single-value `goal` field. Read-only — nothing writes it any more. Once we're confident the new `goals` JSON array is populated for all active users, the column + fallback can go.
+- **Why deferred:** Want a migration window first.
+- **Unblocked by:** Confirming via DB query that all active users have non-null `goals`.
+- **Touchpoints:** `src/db/schema/users.ts:22`, `parseUserGoals`, `workout-sets.ts:719`, `ai-generate.ts:252`.
+
+## New features — additive
+
+### Per-set notes
+- **What:** Add a `notes text` column to `workout_sets`. Small "+ note" affordance per completed set. Use cases: "left shoulder twinged on rep 6", "felt easy", "added belt". Surface in history + session detail.
+- **Why deferred:** First user-facing add after the data-integrity bundle.
+- **Unblocked by:** Nothing.
+- **Touchpoints:** `src/db/schema/workout-sets.ts`, `src/lib/validators/workout.ts`, `src/components/features/WorkoutSetsList.tsx`, `SessionDetailClient.tsx`.
+
+### PR notification feed
+- **What:** PRs are detected and stored (`exercisePrs` table, `detectAndRecordPRs`). The celebration shows once at log time and disappears. Add a `/more/prs` page (or section in metrics) listing the last N PRs with date, weight, reps, estimated 1RM.
+- **Why deferred:** Motivational; not on the critical path.
+- **Unblocked by:** Nothing — pure read-side query + UI.
+- **Touchpoints:** New page `src/app/more/prs/page.tsx`, query in `src/lib/actions/metrics.ts` or new action.
+
+### Per-muscle-group volume audit (vs. AI-prompt's 10–20 sets/week)
+- **What:** Metrics dashboard tracks volume per muscle group as raw numbers but doesn't audit against the AI prompt's stated 10–20 working-sets-per-muscle-per-week target. Add a "this week: chest 8 / 10–20 — under-trained" widget. Filter by `setType = 'working'` to exclude warm-ups.
+- **Why deferred:** "Smart features" round after polish settles.
+- **Unblocked by:** Nothing.
+- **Touchpoints:** `src/lib/actions/metrics.ts`, `src/components/features/MetricsClient.tsx`.
+
+### Mid-cycle auto-deload trigger
+- **What:** `progression.ts` has `isStuck` per-exercise deload detection; cycles support `endAction = "deload"` only at end-of-cycle. Add a mid-cycle "you've been at RPE ≥ 9 for 3 sessions across multiple exercises — consider a deload" recommendation in `WorkoutInsightBanner`.
+- **Why deferred:** "Smart features" round.
+- **Unblocked by:** Nothing.
+- **Touchpoints:** `src/lib/utils/progression.ts`, `src/lib/actions/workout-sets.ts` (insight builder), `src/components/features/WorkoutInsightBanner.tsx`.
+
+### Exercise-based history filter
+- **What:** History page is a chronological list. Add a search/filter input: "show me all squat sessions". ~30 LOC client-side filter.
+- **Why deferred:** Nice-to-have.
+- **Unblocked by:** Nothing.
+- **Touchpoints:** `src/components/features/HistoryClient.tsx`.
+
+## Smart-progression UX (deferred long-term)
 
 ### Skip suggestion compute for completed sets
 - **What:** In `getProgressiveSuggestions`, skip program sets whose corresponding `workoutSet.isCompleted = true` in the active session.
@@ -28,10 +88,10 @@ When you finish an item, delete it. When you add an item, write enough that some
 - **Unblocked by:** A user reporting concrete confusion.
 - **Touchpoints:** `src/lib/utils/progression.ts:218-219`.
 
-## Codebase hygiene
+## Codebase hygiene (deferred long-term)
 
 ### Out-of-app push notifications via Service Worker
-- **What:** `src/lib/notifications.ts:33` has a `TODO`. Today the app uses the browser Notification API (in-app only). Real out-of-app push needs a Service Worker registration + `pushManager.subscribe()` + server-side delivery.
+- **What:** Today the app uses the browser Notification API (in-app only). Real out-of-app push needs a Service Worker registration + `pushManager.subscribe()` + server-side delivery.
 - **Why deferred:** Not blocking any current flow.
 - **Unblocked by:** Product decision that out-of-app push is needed.
 - **Touchpoints:** `src/lib/notifications.ts`.
