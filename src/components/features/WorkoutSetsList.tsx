@@ -836,15 +836,6 @@ export function WorkoutSetsList({
             </button>
             <button
               onClick={() => {
-                const elapsed = exerciseTimer.total - exerciseTimer.remaining;
-                if (elapsed > 0 && elapsed < exerciseTimer.total && workoutSession) {
-                  const ov = workoutSession.overrides[exerciseTimer.setId];
-                  workoutSession.setOverride(exerciseTimer.setId, {
-                    targetReps: ov?.targetReps ?? 0,
-                    weightKg: ov?.weightKg ?? 0,
-                    durationSeconds: elapsed,
-                  });
-                }
                 void toggleSet(exerciseTimer.setId);
                 setExerciseTimer(null);
               }}
