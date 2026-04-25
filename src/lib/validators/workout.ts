@@ -208,17 +208,6 @@ export type AddExerciseToProgramInput = z.infer<
 >;
 export type AddProgramSetInput = z.infer<typeof addProgramSetSchema>;
 
-// Type exports for use in components
-export type CreateWorkoutSessionInput = z.infer<
-  typeof createWorkoutSessionSchema
->;
-export type LogWorkoutSetInput = z.infer<typeof logWorkoutSetSchema>;
-export type WorkoutHistoryQueryInput = z.infer<
-  typeof workoutHistoryQuerySchema
->;
-export type CompleteWorkoutSessionInput = z.infer<
-  typeof completeWorkoutSessionSchema
->;
 export type CreateExerciseInput = z.infer<typeof createExerciseSchema>;
 
 /**

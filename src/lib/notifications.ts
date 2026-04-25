@@ -19,10 +19,6 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return result === "granted";
 }
 
-export function notificationsSupported(): boolean {
-  return typeof window !== "undefined" && "Notification" in window;
-}
-
 export function notificationsGranted(): boolean {
   return typeof window !== "undefined" && Notification.permission === "granted";
 }

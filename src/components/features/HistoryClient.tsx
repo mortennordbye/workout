@@ -1,5 +1,6 @@
 "use client";
 
+import { formatDuration } from "@/lib/utils/format";
 import type { SessionWithStats } from "@/types/workout";
 import { Calendar, ChevronLeft } from "lucide-react";
 import Link from "next/link";
@@ -10,13 +11,6 @@ function formatDate(d: Date): string {
     month: "long",
     day: "numeric",
   });
-}
-
-function formatDuration(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return m > 0 ? `${h}h ${m}min` : `${h}h`;
 }
 
 export function HistoryClient({ sessions }: { sessions: SessionWithStats[] }) {

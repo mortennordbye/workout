@@ -110,28 +110,6 @@ export function roundToNearest(value: number, increment: number): number {
 }
 
 /**
- * Choose the effective kg increment for a program exercise.
- * The stored increment takes precedence; the user profile only adjusts
- * when the increment is null (never configured by the user).
- *
- * @deprecated Use adaptiveIncrementKg for new code — it applies load-zone
- * scaling in addition to profile-based defaults.
- */
-export function defaultIncrementKg(
-  storedIncrement: number | null,
-  experienceLevel: string | null,
-  goal: string | null,
-): number {
-  // User has an explicit value — always respect it
-  if (storedIncrement !== null) return storedIncrement;
-  // Profile-based defaults only when increment is unconfigured (null)
-  if (experienceLevel === "beginner") return 5.0;
-  if (experienceLevel === "advanced") return 1.25;
-  if (goal === "endurance") return 1.0;
-  return 2.5;
-}
-
-/**
  * Compute the effective kg increment using load-zone scaling.
  *
  * Priority:

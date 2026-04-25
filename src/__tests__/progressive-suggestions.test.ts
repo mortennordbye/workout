@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSuggestion,
-  defaultIncrementKg,
   estimate1RM,
   estimateRepsAt,
   isConfidentHit,
@@ -104,36 +103,6 @@ describe("roundToNearest", () => {
 
   it("returns value unchanged when increment is negative", () => {
     expect(roundToNearest(77.3, -1)).toBeCloseTo(77.3);
-  });
-});
-
-// ─── defaultIncrementKg ───────────────────────────────────────────────────────
-
-describe("defaultIncrementKg", () => {
-  it("returns beginner default 5kg when increment is null (unconfigured)", () => {
-    expect(defaultIncrementKg(null, "beginner", null)).toBe(5.0);
-  });
-
-  it("returns advanced default 1.25kg when increment is null (unconfigured)", () => {
-    expect(defaultIncrementKg(null, "advanced", null)).toBe(1.25);
-  });
-
-  it("returns endurance default 1kg for endurance goal when unconfigured", () => {
-    expect(defaultIncrementKg(null, "intermediate", "endurance")).toBe(1.0);
-  });
-
-  it("respects user explicit value regardless of experience level", () => {
-    expect(defaultIncrementKg(10, "beginner", null)).toBe(10);
-    expect(defaultIncrementKg(1, "advanced", null)).toBe(1);
-    expect(defaultIncrementKg(5, "intermediate", "endurance")).toBe(5);
-    // explicit 2.5 is always respected even for beginners
-    expect(defaultIncrementKg(2.5, "beginner", null)).toBe(2.5);
-  });
-
-  it("returns 2.5 as fallback for intermediate/general fitness when unconfigured", () => {
-    expect(defaultIncrementKg(null, "intermediate", null)).toBe(2.5);
-    expect(defaultIncrementKg(null, null, null)).toBe(2.5);
-    expect(defaultIncrementKg(null, null, "strength")).toBe(2.5);
   });
 });
 
