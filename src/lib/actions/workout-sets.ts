@@ -36,6 +36,7 @@ import {
     buildSuggestion,
     CONSENSUS_WINDOW,
     estimate1RM,
+    isProbableWarmupSet,
 } from "@/lib/utils/progression";
 import type { HistoryRow, ProgramSetData } from "@/lib/utils/progression";
 import type {
@@ -800,12 +801,35 @@ export async function getProgressiveSuggestions(
       if (list.length < CONSENSUS_WINDOW) list.push(row as HistoryRow);
     }
 
+    // Step 4b: derive each exercise's "top working weight" from the latest
+    // logged weight across all of its set numbers. Used to identify warm-up
+    // sets (latest weight much lighter than top) so we can suppress
+    // progression suggestions on them.
+    const topWeightByExercise = new Map<number, number>();
+    for (const ps of programData) {
+      const rows = historyPerKey.get(`${ps.exerciseId}-${ps.setNumber}`);
+      if (!rows || rows.length === 0) continue;
+      const latestWeight = Number(rows[0].weightKg);
+      const current = topWeightByExercise.get(ps.exerciseId) ?? 0;
+      if (latestWeight > current) topWeightByExercise.set(ps.exerciseId, latestWeight);
+    }
+
     // Step 5: build suggestion for each program set using the pure helper
     const suggestions: Record<number, SetSuggestion> = {};
 
     for (const ps of programData) {
       const key = `${ps.exerciseId}-${ps.setNumber}`;
       const rows = historyPerKey.get(key) ?? [];
+
+      // Suppress suggestions on probable warm-up sets (latest weight < 70 %
+      // of the heaviest set in the same exercise). Prevents nonsense like
+      // "↑ 42.5 kg" on a 40 kg pyramid warm-up.
+      if (rows.length > 0) {
+        const latestWeight = Number(rows[0].weightKg);
+        const topWeight = topWeightByExercise.get(ps.exerciseId) ?? 0;
+        if (isProbableWarmupSet(latestWeight, topWeight)) continue;
+      }
+
       const psData: ProgramSetData = {
         programSetId: ps.programSetId,
         setNumber: ps.setNumber,

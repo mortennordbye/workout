@@ -160,7 +160,7 @@ Rules:
 - muscle: "chest", "back", "shoulders", "biceps", "triceps", "forearms", "quads", "hamstrings", "glutes", "calves", "abs", "lower_back", "full_body", or "cardio"
 - equipment: "barbell", "dumbbell", "machine", "cable", "bodyweight", "kettlebell", "bands", or "other"
 - pattern: "push", "pull", "hinge", "squat", "carry", "rotation", "isometric", or "cardio"
-- mode: "manual", "weight", "smart", or "reps"
+- mode: "manual" (default — no auto-progression suggestions), "weight" (auto-suggest weight increases for compound lifts where progressive overload is the main driver), "smart" (weight + estimated rep adjustment, only for true working compounds at RPE 7+), or "reps" (bodyweight or rep-only progression). Default to "manual" for warm-ups, accessory/isolation work, machines you don't push hard, and anything where auto-suggestions would be noise.
 - kg: use 0 for bodyweight, null if unknown
 - rest: rest between sets in seconds (e.g. 90)
 - idx: 0-based index for exercise order within each program

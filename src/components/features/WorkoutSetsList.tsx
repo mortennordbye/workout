@@ -564,6 +564,49 @@ export function WorkoutSetsList({
     await saveCurrentState(reordered);
   }
 
+  // ── Suggestion propagation ──────────────────────────────────────────────────
+  // The page is per-exercise, so all sets in `flatItems` belong to the same
+  // exercise. When the user applies a suggestion to one set, propagate to any
+  // other uncompleted set with an *identical* pending suggestion that the user
+  // has not already manually overridden — saves clicking the same button N
+  // times for N working sets that share a progression.
+  function siblingsForApply(targetSetId: number): number[] {
+    const target = suggestions?.[targetSetId];
+    if (!target) return [targetSetId];
+    return flatItems
+      .filter((i): i is SetFlatItem => i.type === "set")
+      .filter((item) => !activeCompletedSets.has(item.set.id))
+      .filter((item) => {
+        if (workoutSession?.overrides[item.set.id]) return item.set.id === targetSetId;
+        const s = suggestions?.[item.set.id];
+        return (
+          s != null &&
+          s.reason === target.reason &&
+          s.suggestedWeightKg === target.suggestedWeightKg &&
+          s.suggestedReps === target.suggestedReps &&
+          s.suggestedDurationSeconds === target.suggestedDurationSeconds &&
+          s.suggestedDistanceMeters === target.suggestedDistanceMeters
+        );
+      })
+      .map((item) => item.set.id);
+  }
+
+  const handleApplySuggestion = onApplySuggestion
+    ? (setId: number, weightKg: number, adjustedReps?: number, durationSeconds?: number, distanceMeters?: number) => {
+        for (const id of siblingsForApply(setId)) {
+          onApplySuggestion(id, weightKg, adjustedReps, durationSeconds, distanceMeters);
+        }
+      }
+    : undefined;
+
+  const handleApplyRepSuggestion = onApplyRepSuggestion
+    ? (setId: number, reps: number) => {
+        for (const id of siblingsForApply(setId)) {
+          onApplyRepSuggestion(id, reps);
+        }
+      }
+    : undefined;
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -601,8 +644,8 @@ export function WorkoutSetsList({
                     onStartTimer={startExerciseTimer}
                     onOpenLogRun={isRunning ? (id) => setPendingRunSetId(id) : undefined}
                     suggestion={suggestions?.[item.set.id]}
-                    onApplySuggestion={onApplySuggestion}
-                    onApplyRepSuggestion={onApplyRepSuggestion}
+                    onApplySuggestion={handleApplySuggestion}
+                    onApplyRepSuggestion={handleApplyRepSuggestion}
                     overrideDurationSeconds={isWorkout ? workoutSession?.overrides[item.set.id]?.durationSeconds : undefined}
                     hasPR={prSetIds.has(item.set.id)}
                   />

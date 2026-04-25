@@ -34,6 +34,27 @@ export const DELOAD_THRESHOLD = 3;
  */
 export const DELOAD_FACTOR = 0.9;
 
+/**
+ * Sets logged at less than this fraction of the heaviest set in the same
+ * exercise are treated as warm-ups and excluded from progression suggestions.
+ * 0.7 is the conventional warm-up cutoff — anything ≥ 70 % of top is "working".
+ */
+export const WARMUP_RATIO_THRESHOLD = 0.7;
+
+/**
+ * Heuristic: classify a set as a probable warm-up when its latest logged
+ * weight is meaningfully lighter than the heaviest set of the same exercise.
+ * Returns false when there's no usable top weight (bodyweight, cardio, or
+ * a single-set exercise where every set has the same load).
+ */
+export function isProbableWarmupSet(
+  latestWeightKg: number,
+  topExerciseWeightKg: number,
+): boolean {
+  if (topExerciseWeightKg <= 0) return false;
+  return latestWeightKg < topExerciseWeightKg * WARMUP_RATIO_THRESHOLD;
+}
+
 // ─── Input types ────────────────────────────────────────────────────────────
 
 /**
@@ -228,7 +249,7 @@ export function buildSuggestion(
   // For "time" mode, overloadIncrementReps encodes seconds increment.
   // (overloadIncrementReps is unused for timed exercises in all other modes.)
   const incrementReps = Number(ps.overloadIncrementReps ?? 0);
-  const mode = ps.progressionMode ?? "weight";
+  const mode = ps.progressionMode ?? "manual";
 
   const roundToInc = (kg: number) => roundToNearest(kg, incrementKg);
 
@@ -401,12 +422,16 @@ export function buildSuggestion(
       if (shouldProgress && incrementKg > 0) {
         const newWeight = roundToInc(baseWeight + incrementKg);
         let adjustedRepsForWeight: number | undefined;
-        // 1RM estimation: only valid for weight > 0 and 2–12 reps
+        // 1RM estimation: only valid for weight > 0, 2–12 reps, and a near-max
+        // last set (RPE ≥ 7). Sub-max sets aren't on the Epley curve, so an
+        // estimated rep cut would be meaningless.
         const canComputeRM =
           baseWeight > 0 &&
           latest.actualReps != null &&
           latest.actualReps >= 2 &&
-          latest.actualReps <= 12;
+          latest.actualReps <= 12 &&
+          latest.rpe != null &&
+          latest.rpe >= 7;
         if (canComputeRM && newWeight > baseWeight) {
           const oneRM = estimate1RM(baseWeight, latest.actualReps);
           const adj = estimateRepsAt(oneRM, newWeight);

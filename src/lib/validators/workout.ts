@@ -224,7 +224,7 @@ const importProgramEntrySchema = z.object({
           incReps: z.number().int().min(0).max(100).catch(0),
           mode: z
             .enum(["none", "manual", "weight", "smart", "reps", "time", "distance"])
-            .catch("weight"),
+            .catch("manual"),
           exercise: z.object({
             name: z.string().min(1).max(100),
             category: z.enum(["strength", "cardio", "flexibility"]).catch("strength"),

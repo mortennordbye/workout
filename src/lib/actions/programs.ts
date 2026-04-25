@@ -600,7 +600,7 @@ export async function exportProgram(
         notes: pe.notes ?? null,
         incKg: Number(pe.overloadIncrementKg ?? 2.5),
         incReps: pe.overloadIncrementReps ?? 0,
-        mode: pe.progressionMode ?? "weight",
+        mode: pe.progressionMode ?? "manual",
         exercise: {
           name: pe.exercise.name,
           category: pe.exercise.category,
@@ -654,7 +654,7 @@ export async function exportAllPrograms(): Promise<ActionResult<ExportedPrograms
             notes: pe.notes ?? null,
             incKg: Number(pe.overloadIncrementKg ?? 2.5),
             incReps: pe.overloadIncrementReps ?? 0,
-            mode: pe.progressionMode ?? "weight",
+            mode: pe.progressionMode ?? "manual",
             exercise: {
               name: pe.exercise.name,
               category: pe.exercise.category,

@@ -30,7 +30,7 @@ export default async function ProgramExerciseDetailPage({ params, searchParams }
   const pe = program.programExercises.find((e) => e.id === peId);
   if (!pe) notFound();
 
-  const progressionMode = (pe.progressionMode ?? "weight") as "manual" | "weight" | "smart" | "reps" | "time" | "distance";
+  const progressionMode = (pe.progressionMode ?? "manual") as "manual" | "weight" | "smart" | "reps" | "time" | "distance";
 
   return (
     <WorkoutSetsClient

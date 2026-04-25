@@ -66,7 +66,7 @@ export function WorkoutSetsClient({
   suggestions,
   overloadIncrementKg: initialIncrement = null,
   overloadIncrementReps: initialIncrementReps = 0,
-  progressionMode: initialMode = "weight",
+  progressionMode: initialMode = "manual",
   initialEditing = false,
 }: Props) {
   const router = useRouter();

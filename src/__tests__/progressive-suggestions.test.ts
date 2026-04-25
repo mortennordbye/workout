@@ -4,6 +4,7 @@ import {
   estimate1RM,
   estimateRepsAt,
   isConfidentHit,
+  isProbableWarmupSet,
   roundToNearest,
   CONSENSUS_WINDOW,
   DELOAD_THRESHOLD,
@@ -103,6 +104,33 @@ describe("roundToNearest", () => {
 
   it("returns value unchanged when increment is negative", () => {
     expect(roundToNearest(77.3, -1)).toBeCloseTo(77.3);
+  });
+});
+
+// ─── isProbableWarmupSet ──────────────────────────────────────────────────────
+
+describe("isProbableWarmupSet", () => {
+  it("flags a 40 kg set when top working set is 80 kg (50 % ratio)", () => {
+    expect(isProbableWarmupSet(40, 80)).toBe(true);
+  });
+
+  it("does not flag a 60 kg set when top is 80 kg (75 % ratio)", () => {
+    expect(isProbableWarmupSet(60, 80)).toBe(false);
+  });
+
+  it("does not flag identical sets (3× 80 kg)", () => {
+    expect(isProbableWarmupSet(80, 80)).toBe(false);
+  });
+
+  it("returns false when top weight is 0 (bodyweight, cardio, no data)", () => {
+    expect(isProbableWarmupSet(0, 0)).toBe(false);
+    expect(isProbableWarmupSet(50, 0)).toBe(false);
+  });
+
+  it("flags exactly at the 70 % threshold (not inclusive)", () => {
+    // 70 % is the cutoff; anything < 70 % is warm-up, ≥ 70 % is working
+    expect(isProbableWarmupSet(55.99, 80)).toBe(true);
+    expect(isProbableWarmupSet(56, 80)).toBe(false);
   });
 });
 
@@ -207,8 +235,8 @@ describe("buildSuggestion — deload detection", () => {
 });
 
 describe("buildSuggestion — smart mode", () => {
-  it("provides adjustedRepsForWeight for valid weight+reps combos", () => {
-    const rows = makeRows(REQUIRED_HITS, { weightKg: "80.00", actualReps: 8, targetReps: 8, rpe: 6 });
+  it("provides adjustedRepsForWeight for near-max sets (RPE ≥ 7)", () => {
+    const rows = makeRows(REQUIRED_HITS, { weightKg: "80.00", actualReps: 8, targetReps: 8, rpe: 7 });
     const result = buildSuggestion(rows, makePs({ progressionMode: "smart" }), null);
     expect(result?.reason).toBe("progressed");
     expect(result?.suggestedWeightKg).toBeCloseTo(82.5);
@@ -217,21 +245,29 @@ describe("buildSuggestion — smart mode", () => {
     expect(result?.adjustedRepsForWeight!).toBeLessThan(8);
   });
 
+  it("skips adjustedRepsForWeight on sub-max sets (RPE < 7) — Epley invalid", () => {
+    // Same data as above but RPE 5 — too easy for the 1RM estimate to be meaningful
+    const rows = makeRows(REQUIRED_HITS, { weightKg: "80.00", actualReps: 8, targetReps: 8, rpe: 5 });
+    const result = buildSuggestion(rows, makePs({ progressionMode: "smart" }), null);
+    expect(result?.reason).toBe("progressed");
+    expect(result?.adjustedRepsForWeight).toBeUndefined();
+  });
+
   it("skips adjustedRepsForWeight when weight is 0 (bodyweight exercises)", () => {
-    const rows = makeRows(REQUIRED_HITS, { weightKg: "0.00", actualReps: 8, targetReps: 8, rpe: 6 });
+    const rows = makeRows(REQUIRED_HITS, { weightKg: "0.00", actualReps: 8, targetReps: 8, rpe: 7 });
     const result = buildSuggestion(rows, makePs({ progressionMode: "smart", overloadIncrementKg: "2.50" }), null);
     // With weight=0, Epley can't compute 1RM; no adjustedRepsForWeight
     expect(result?.adjustedRepsForWeight).toBeUndefined();
   });
 
   it("skips adjustedRepsForWeight for actualReps > 12 (Epley unreliable at high reps)", () => {
-    const rows = makeRows(REQUIRED_HITS, { weightKg: "60.00", actualReps: 15, targetReps: 15, rpe: 6 });
+    const rows = makeRows(REQUIRED_HITS, { weightKg: "60.00", actualReps: 15, targetReps: 15, rpe: 7 });
     const result = buildSuggestion(rows, makePs({ progressionMode: "smart" }), null);
     expect(result?.adjustedRepsForWeight).toBeUndefined();
   });
 
   it("holds and provides no adjustedRepsForWeight when not enough consensus", () => {
-    const rows = [makeRow({ rpe: 6 })]; // only 1 confident hit
+    const rows = [makeRow({ rpe: 7 })]; // only 1 confident hit
     const result = buildSuggestion(rows, makePs({ progressionMode: "smart" }), null);
     expect(result?.reason).toBe("held");
     expect(result?.adjustedRepsForWeight).toBeUndefined();

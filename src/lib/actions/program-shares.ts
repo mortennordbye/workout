@@ -204,7 +204,7 @@ export async function copySharedProgram(
             notes: pe.notes ?? undefined,
             overloadIncrementKg: pe.overloadIncrementKg ?? undefined,
             overloadIncrementReps: pe.overloadIncrementReps ?? 0,
-            progressionMode: pe.progressionMode ?? "weight",
+            progressionMode: pe.progressionMode ?? "manual",
           })
           .returning({ id: programExercises.id });
 
