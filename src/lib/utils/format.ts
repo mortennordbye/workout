@@ -32,7 +32,9 @@ export function setToken(s: ProgramSet, isTimed = false): string {
   if (isTimed || s.durationSeconds != null) {
     return formatTime(Number(s.durationSeconds ?? 60));
   }
-  return `${s.targetReps ?? "?"}x${Number(s.weightKg ?? 0)}kg`;
+  const weight = Number(s.weightKg ?? 0);
+  const reps = s.targetReps ?? "?";
+  return weight > 0 ? `${reps}x${weight}kg` : `${reps} reps`;
 }
 
 export function restToken(s: ProgramSet): string {

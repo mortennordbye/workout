@@ -63,8 +63,9 @@ describe("setToken", () => {
     expect(setToken(makeSet({ durationSeconds: 90, targetReps: null, weightKg: null }))).toBe("01:30");
   });
 
-  it("shows 0kg when weightKg is null", () => {
-    expect(setToken(makeSet({ weightKg: null, targetReps: 10 }))).toBe("10x0kg");
+  it("shows reps-only for bodyweight (weightKg null or 0)", () => {
+    expect(setToken(makeSet({ weightKg: null, targetReps: 10 }))).toBe("10 reps");
+    expect(setToken(makeSet({ weightKg: "0.00", targetReps: 10 }))).toBe("10 reps");
   });
 });
 

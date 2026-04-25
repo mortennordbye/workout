@@ -157,7 +157,11 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
                           </>
                         ) : set.durationSeconds != null
                           ? formatTime(Number(set.durationSeconds))
-                          : `${set.actualReps} × ${Number(set.weightKg)}kg`}
+                          : Number(set.weightKg) > 0
+                          ? `${set.actualReps} × ${Number(set.weightKg)}kg`
+                          : set.actualReps > 0
+                          ? `${set.actualReps} reps`
+                          : "—"}
                       </span>
                       <span className="text-muted-foreground w-16 text-right">
                         RPE {set.rpe}

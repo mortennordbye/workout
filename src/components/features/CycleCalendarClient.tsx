@@ -1,7 +1,7 @@
 "use client";
 
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { buildSetSummary } from "@/lib/utils/format";
+import { buildRunSetSummary, buildSetSummary } from "@/lib/utils/format";
 import type { ProgramWithExercises, TrainingCycleWithSlots } from "@/types/workout";
 import { ChevronLeftIcon, ChevronRight, ChevronRightIcon } from "lucide-react";
 import Link from "next/link";
@@ -335,7 +335,9 @@ export function CycleCalendarClient({ cycles, completedDates, programsMap }: Pro
                   {sheetProgram && sheetProgram.programExercises.length > 0 && (
                     <div className="divide-y divide-border">
                       {sheetProgram.programExercises.map((pe) => {
-                        const summary = buildSetSummary(pe.programSets, pe.exercise.isTimed || pe.exercise.category === "cardio");
+                        const summary = pe.exercise.category === "cardio"
+                          ? buildRunSetSummary(pe.programSets)
+                          : buildSetSummary(pe.programSets, pe.exercise.isTimed);
                         return (
                           <div key={pe.id} className="px-4 py-3">
                             <p className="text-sm font-medium">{pe.exercise.name}</p>

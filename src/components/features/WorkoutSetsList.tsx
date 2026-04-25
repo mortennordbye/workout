@@ -1034,7 +1034,9 @@ function SortableSetRow({
           </p>
         ) : (
           <p className="text-lg font-medium">
-            {set.targetReps ?? "?"} x {Number(set.weightKg ?? 0)}kg
+            {Number(set.weightKg ?? 0) > 0
+              ? `${set.targetReps ?? "?"} x ${Number(set.weightKg)}kg`
+              : `${set.targetReps ?? "?"} reps`}
           </p>
         )}
         {isWorkout && suggestion && !isCompleted && (() => {
@@ -1062,15 +1064,21 @@ function SortableSetRow({
           const distancePending =
             suggestion.reason === "progressed-distance" &&
             suggestion.suggestedDistanceMeters !== undefined;
-          const lastLabel = isRunning
+          const lastValue = isRunning
             ? suggestion.basedOnDistanceMeters != null
-              ? `Last: ${formatDistanceKm(suggestion.basedOnDistanceMeters)} (${suggestion.basedOnFeeling})`
-              : `Last: (${suggestion.basedOnFeeling})`
-            : isTimed && suggestion.basedOnDurationSeconds != null
-            ? `Last: ${formatTime(suggestion.basedOnDurationSeconds)} (${suggestion.basedOnFeeling})`
-            : suggestion.basedOnRpe != null
-            ? `Last: ${suggestion.basedOnWeightKg}kg (${suggestion.basedOnFeeling}, RPE ${suggestion.basedOnRpe})`
-            : `Last: ${suggestion.basedOnWeightKg}kg (${suggestion.basedOnFeeling})`;
+              ? formatDistanceKm(suggestion.basedOnDistanceMeters)
+              : ""
+            : isTimed
+            ? suggestion.basedOnDurationSeconds != null
+              ? formatTime(suggestion.basedOnDurationSeconds)
+              : ""
+            : suggestion.basedOnWeightKg > 0
+            ? `${suggestion.basedOnWeightKg}kg`
+            : suggestion.basedOnReps > 0
+            ? `${suggestion.basedOnReps} reps`
+            : "";
+          const showRpe = !isRunning && !isTimed && suggestion.basedOnRpe != null;
+          const lastLabel = `Last: ${lastValue ? lastValue + " " : ""}(${suggestion.basedOnFeeling}${showRpe ? `, RPE ${suggestion.basedOnRpe}` : ""})`;
 
           // Progress dots: show when held and not yet at required hits
           const showProgressDots =
