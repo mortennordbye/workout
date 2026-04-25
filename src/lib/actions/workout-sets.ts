@@ -553,10 +553,12 @@ export async function getCompletedSessions(
         setCount: sql<number>`COUNT(${workoutSets.id})`,
         exerciseCount: sql<number>`COUNT(DISTINCT ${workoutSets.exerciseId})`,
         totalVolumeKg: sql<string>`COALESCE(SUM(CAST(${workoutSets.weightKg} AS numeric) * ${workoutSets.actualReps}), 0)`,
+        exerciseNames: sql<string[]>`COALESCE(ARRAY_AGG(DISTINCT ${exercises.name}) FILTER (WHERE ${exercises.name} IS NOT NULL), ARRAY[]::text[])`,
       })
       .from(workoutSessions)
       .leftJoin(programs, eq(workoutSessions.programId, programs.id))
       .leftJoin(workoutSets, eq(workoutSets.sessionId, workoutSessions.id))
+      .leftJoin(exercises, eq(exercises.id, workoutSets.exerciseId))
       .where(
         and(
           eq(workoutSessions.userId, userId),
@@ -587,6 +589,7 @@ export async function getCompletedSessions(
         setCount: Number(row.setCount),
         exerciseCount: Number(row.exerciseCount),
         totalVolumeKg: Number(row.totalVolumeKg),
+        exerciseNames: row.exerciseNames ?? [],
         durationMinutes:
           row.endTime && row.startTime
             ? Math.max(

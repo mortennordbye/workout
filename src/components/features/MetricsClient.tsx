@@ -17,6 +17,7 @@ import {
   type SummaryStats,
   type TopProgressingExercise,
   type WeeklyMetric,
+  type WeeklyMuscleVolume,
 } from "@/lib/actions/metrics";
 import {
   deleteWeightEntry,
@@ -167,6 +168,88 @@ function WeeklyChart({ data, label }: { data: WeeklyMetric[]; label?: string }) 
             )}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function WeeklyVolumeSection({ data }: { data: WeeklyMuscleVolume[] }) {
+  if (data.length === 0) {
+    return (
+      <div className="rounded-2xl bg-muted p-4">
+        <SectionLabel>This Week · Volume vs Target</SectionLabel>
+        <p className="text-sm text-muted-foreground">No sets logged yet this week.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl bg-muted p-4 space-y-3">
+      <div className="flex items-baseline justify-between">
+        <SectionLabel>This Week · Volume vs Target</SectionLabel>
+        <span className="text-xs text-muted-foreground">10–20 sets/muscle</span>
+      </div>
+      <div className="space-y-2">
+        {data.map((row) => {
+          // Visualise against an upper bound 25 % over targetMax so the bar
+          // can show "over-trained" without saturating.
+          const visualMax = row.targetMax * 1.25;
+          const pct = Math.min(100, (row.setCount / visualMax) * 100);
+          const status: "under" | "in" | "over" =
+            row.setCount < row.targetMin
+              ? "under"
+              : row.setCount > row.targetMax
+              ? "over"
+              : "in";
+          const barColor =
+            status === "in"
+              ? "bg-primary"
+              : status === "over"
+              ? "bg-rose-400"
+              : "bg-amber-400";
+          const statusLabel =
+            status === "in"
+              ? "in range"
+              : status === "over"
+              ? "over"
+              : "under";
+          return (
+            <div key={row.muscleGroup} className="space-y-0.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium">
+                  {MUSCLE_LABELS[row.muscleGroup] ?? row.muscleGroup}
+                </span>
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {row.setCount} / {row.targetMin}–{row.targetMax} ·{" "}
+                  <span
+                    className={
+                      status === "in"
+                        ? "text-primary"
+                        : status === "over"
+                        ? "text-rose-500"
+                        : "text-amber-500"
+                    }
+                  >
+                    {statusLabel}
+                  </span>
+                </span>
+              </div>
+              <div className="h-1.5 bg-border rounded-full overflow-hidden relative">
+                {/* target band: from min/visualMax → max/visualMax */}
+                <div
+                  className="absolute top-0 bottom-0 bg-primary/15"
+                  style={{
+                    left: `${(row.targetMin / visualMax) * 100}%`,
+                    width: `${((row.targetMax - row.targetMin) / visualMax) * 100}%`,
+                  }}
+                />
+                <div
+                  className={`relative h-full ${barColor} rounded-full`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -1368,6 +1451,7 @@ type Props = {
   heatmapData: HeatmapDay[];
   movementPatternData: MovementPatternBalance[];
   readinessData: ReadinessPerformancePoint[];
+  weeklyMuscleVolume: WeeklyMuscleVolume[];
 };
 
 export function MetricsClient({
@@ -1386,6 +1470,7 @@ export function MetricsClient({
   heatmapData,
   movementPatternData,
   readinessData,
+  weeklyMuscleVolume,
 }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("alltime");
   const [selectedId, setSelectedId] = useState<number | null>(initialExerciseId);
@@ -1473,6 +1558,9 @@ export function MetricsClient({
 
             {/* ── Cardio ─────────────────────────────────────────────── */}
             {cardioMetrics && <CardioSection data={cardioMetrics} />}
+
+            {/* ── Weekly Volume vs Target ─────────────────────────────── */}
+            <WeeklyVolumeSection data={weeklyMuscleVolume} />
 
             {/* ── Muscle Balance ─────────────────────────────────────── */}
             <MuscleBalanceSection data={muscleBalance} />

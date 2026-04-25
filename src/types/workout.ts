@@ -97,6 +97,8 @@ export type SessionWithStats = WorkoutSession & {
   exerciseCount: number;
   totalVolumeKg: number;
   durationMinutes: number;
+  /** Distinct exercise names logged in this session — used for history filtering. */
+  exerciseNames: string[];
 };
 
 /**

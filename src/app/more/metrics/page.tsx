@@ -9,6 +9,7 @@ import {
   getHeatmapData,
   getMovementPatternBalance,
   getReadinessPerformance,
+  getWeeklyMuscleVolume,
 } from "@/lib/actions/metrics";
 import { getWeightHistory } from "@/lib/actions/profile";
 import { db } from "@/db";
@@ -42,6 +43,7 @@ export default async function MetricsPage() {
     heatmapResult,
     movementResult,
     readinessResult,
+    weeklyVolumeResult,
   ] = await Promise.all([
     getSummaryStats(),
     getTopProgressingExercises(),
@@ -53,6 +55,7 @@ export default async function MetricsPage() {
     getHeatmapData(),
     getMovementPatternBalance(),
     getReadinessPerformance(),
+    getWeeklyMuscleVolume(),
   ]);
 
   return (
@@ -72,6 +75,7 @@ export default async function MetricsPage() {
       heatmapData={heatmapResult.success ? heatmapResult.data : []}
       movementPatternData={movementResult.success ? movementResult.data : []}
       readinessData={readinessResult.success ? readinessResult.data : []}
+      weeklyMuscleVolume={weeklyVolumeResult.success ? weeklyVolumeResult.data : []}
     />
   );
 }

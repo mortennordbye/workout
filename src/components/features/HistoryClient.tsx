@@ -2,8 +2,9 @@
 
 import { formatDuration } from "@/lib/utils/format";
 import type { SessionWithStats } from "@/types/workout";
-import { Calendar, ChevronLeft } from "lucide-react";
+import { Calendar, ChevronLeft, Search } from "lucide-react";
 import Link from "next/link";
+import { useMemo, useState } from "react";
 
 function formatDate(d: Date): string {
   return d.toLocaleDateString("en-US", {
@@ -14,6 +15,16 @@ function formatDate(d: Date): string {
 }
 
 export function HistoryClient({ sessions }: { sessions: SessionWithStats[] }) {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sessions;
+    return sessions.filter((s) => {
+      if (s.programName?.toLowerCase().includes(q)) return true;
+      return s.exerciseNames.some((name) => name.toLowerCase().includes(q));
+    });
+  }, [sessions, query]);
+
   return (
     <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
       <div className="flex items-center px-4 pt-6 pb-2 shrink-0">
@@ -26,6 +37,21 @@ export function HistoryClient({ sessions }: { sessions: SessionWithStats[] }) {
         <h1 className="text-3xl font-bold tracking-tight">History</h1>
       </div>
 
+      {sessions.length > 0 && (
+        <div className="px-4 pb-3 shrink-0">
+          <label className="flex items-center gap-2 bg-muted rounded-xl px-3 h-11">
+            <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Filter by program or exercise"
+              className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
+            />
+          </label>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto px-4">
         {sessions.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 pb-nav-safe">
@@ -34,9 +60,15 @@ export function HistoryClient({ sessions }: { sessions: SessionWithStats[] }) {
               Complete a workout to see it here
             </p>
           </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center pt-12 gap-2 pb-nav-safe">
+            <p className="text-sm text-muted-foreground">
+              No sessions match &ldquo;{query}&rdquo;
+            </p>
+          </div>
         ) : (
           <div className="space-y-3 pb-nav-safe">
-            {sessions.map((session) => (
+            {filtered.map((session) => (
               <Link key={session.id} href={`/history/${session.id}`}>
                 <div className="bg-card rounded-2xl p-4 active:bg-muted/50 transition-colors">
                   <div className="flex items-start justify-between">

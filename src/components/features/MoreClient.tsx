@@ -2,7 +2,7 @@
 
 import { authClient } from "@/lib/auth-client";
 import { DEMO_USER_EMAIL } from "@/lib/constants/demo";
-import { BarChart2, CalendarDays, ChevronRight, Clock, Library, LogOut, MessageSquare, Settings, Shield, Sparkles, UserCircle, Users } from "lucide-react";
+import { BarChart2, CalendarDays, ChevronRight, Clock, Library, LogOut, MessageSquare, Settings, Shield, Sparkles, Trophy, UserCircle, Users } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -48,6 +48,12 @@ const baseItems = [
     href: "/more/metrics",
     icon: BarChart2,
     description: "Volume, records, and muscle balance",
+  },
+  {
+    label: "Personal records",
+    href: "/more/prs",
+    icon: Trophy,
+    description: "Every PR you've broken, newest first",
   },
   {
     label: "Settings",

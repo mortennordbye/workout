@@ -2,7 +2,7 @@
 
 import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { exercises, trainingCycles, workoutSessions, workoutSets } from "@/db/schema";
+import { exercisePrs, exercises, trainingCycles, workoutSessions, workoutSets } from "@/db/schema";
 import { requireSession } from "@/lib/utils/session";
 import { ActionResult } from "@/types/workout";
 
@@ -19,6 +19,36 @@ export type PersonalRecord = {
   exerciseName: string;
   muscleGroup: string | null;
   maxWeightKg: number;
+};
+
+/**
+ * Sets logged this ISO week per muscle group, with the AI-prompt-derived
+ * 10–20 working-sets-per-muscle-per-week target range. Used for the
+ * "did I hit volume?" audit on the metrics page.
+ *
+ * Note: counts ALL completed sets (warmup + working). The AI target is on
+ * working sets, so this slightly over-reports — but `setType` lives on
+ * `program_sets`, not `workout_sets`, so we can't filter cleanly without a
+ * schema change. See BACKLOG.
+ */
+export type WeeklyMuscleVolume = {
+  muscleGroup: string;
+  setCount: number;
+  /** Recommended lower bound (10 working sets/week per muscle). */
+  targetMin: number;
+  /** Recommended upper bound (20 working sets/week — junk-volume territory above). */
+  targetMax: number;
+};
+
+export type PrFeedEntry = {
+  id: number;
+  exerciseId: number;
+  exerciseName: string;
+  prType: "weight" | "reps_at_weight" | "estimated_1rm";
+  value: number;
+  weightKg: number | null;
+  achievedAt: string; // ISO timestamp
+  isCurrent: boolean; // true when supersededAt is null
 };
 
 export type MuscleBalance = {
@@ -914,6 +944,92 @@ export async function getReadinessPerformance(): Promise<ActionResult<ReadinessP
   } catch (err) {
     console.error("[getReadinessPerformance] failed", err);
     return { success: false, error: "Failed to load readiness data" };
+  }
+}
+
+export async function getWeeklyMuscleVolume(): Promise<ActionResult<WeeklyMuscleVolume[]>> {
+  const auth = await requireSession();
+  try {
+    const rows = await db
+      .select({
+        muscleGroup: exercises.muscleGroup,
+        setCount: sql<number>`COUNT(${workoutSets.id})`,
+      })
+      .from(workoutSets)
+      .innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id))
+      .innerJoin(exercises, eq(workoutSets.exerciseId, exercises.id))
+      .where(
+        and(
+          eq(workoutSessions.userId, auth.user.id),
+          eq(workoutSessions.isCompleted, true),
+          eq(workoutSets.isCompleted, true),
+          // ISO week start = Monday in PG with default LC_TIME
+          sql`${workoutSessions.startTime} >= date_trunc('week', NOW())`,
+          isNotNull(exercises.muscleGroup),
+        ),
+      )
+      .groupBy(exercises.muscleGroup)
+      .orderBy(desc(sql`COUNT(${workoutSets.id})`));
+
+    return {
+      success: true,
+      data: rows
+        .filter((r) => r.muscleGroup !== null)
+        .map((r) => ({
+          muscleGroup: r.muscleGroup!,
+          setCount: Number(r.setCount),
+          targetMin: 10,
+          targetMax: 20,
+        })),
+    };
+  } catch (err) {
+    console.error("[getWeeklyMuscleVolume] failed", err);
+    return { success: false, error: "Failed to load weekly volume" };
+  }
+}
+
+/**
+ * Returns chronological PR achievements for the authenticated user. Includes
+ * superseded PRs so the feed shows the lifter's full history of breakthroughs,
+ * not just the current bests. `isCurrent` flags whichever entry is the
+ * still-active record per (exercise, prType).
+ */
+export async function getRecentPRs(
+  limit = 100,
+): Promise<ActionResult<PrFeedEntry[]>> {
+  const auth = await requireSession();
+  try {
+    const rows = await db
+      .select({
+        id: exercisePrs.id,
+        exerciseId: exercisePrs.exerciseId,
+        exerciseName: exercises.name,
+        prType: exercisePrs.prType,
+        value: exercisePrs.value,
+        weightKg: exercisePrs.weightKg,
+        achievedAt: exercisePrs.achievedAt,
+        supersededAt: exercisePrs.supersededAt,
+      })
+      .from(exercisePrs)
+      .innerJoin(exercises, eq(exercisePrs.exerciseId, exercises.id))
+      .where(eq(exercisePrs.userId, auth.user.id))
+      .orderBy(desc(exercisePrs.achievedAt))
+      .limit(limit);
+
+    const data: PrFeedEntry[] = rows.map((r) => ({
+      id: r.id,
+      exerciseId: r.exerciseId,
+      exerciseName: r.exerciseName,
+      prType: r.prType as PrFeedEntry["prType"],
+      value: Number(r.value),
+      weightKg: r.weightKg != null ? Number(r.weightKg) : null,
+      achievedAt: r.achievedAt.toISOString(),
+      isCurrent: r.supersededAt == null,
+    }));
+    return { success: true, data };
+  } catch (err) {
+    console.error("[getRecentPRs] failed", err);
+    return { success: false, error: "Failed to load PRs" };
   }
 }
 

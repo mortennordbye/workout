@@ -18,17 +18,11 @@ When you finish an item, delete it. When you add an item, write enough that some
 
 ## Improvements — incremental polish
 
-### Optimistic UI for set completion
-- **What:** `await logWorkoutSet(...)` blocks the UI until the round-trip completes. On 4G this is 200–400ms of dead button. Should mark the set complete immediately, send the request in the background, revert on error. Pairs with the offline queue.
-- **Why deferred:** Polish round; sequencing keeps the data-integrity bundle ahead.
-- **Unblocked by:** Nothing.
-- **Touchpoints:** `src/components/features/WorkoutSetsList.tsx` (around the `logWorkoutSet` call).
-
-### Skeleton/loading screens for data-heavy routes
-- **What:** No `loading.tsx` for `history`, `more/metrics`, `more/calendar`. Slow networks see flash + blank. Add skeletons + Suspense boundaries to stream the metrics dashboard sections independently.
-- **Why deferred:** UX polish; some skeletons depend on the offline-queue request lifecycle.
-- **Unblocked by:** Offline mutation queue shipped.
-- **Touchpoints:** `src/app/history/`, `src/app/more/metrics/`, `src/app/more/calendar/`, `src/components/features/MetricsClient.tsx`.
+### Failure handling for set completion (originally "optimistic UI")
+- **What:** Closer look shows the UI is already optimistic — `completedSets` and rest timers are updated synchronously in `toggleSet` BEFORE the `await logWorkoutSet`. The actual gap is failure handling: if `logWorkoutSet` returns `{success: false}` or throws, the local state shows the set complete but it's not in the DB. No rollback, no retry, no error UI. Need: (a) a toast/banner system, (b) decide rollback-vs-keep-and-retry policy, (c) wire it into the few `void logWorkoutSet(...)` and `await logWorkoutSet(...)` call sites.
+- **Why deferred:** Larger than the plan implied. Pairs naturally with the offline queue (#5) since both deal with "the request didn't complete cleanly".
+- **Unblocked by:** Decision on UX (toast vs banner, auto-retry vs manual, rollback vs leave).
+- **Touchpoints:** `src/components/features/WorkoutSetsList.tsx:265–298`, also in `confirmRunLog` and the run log path. New toast/snackbar primitive needed.
 
 ### Drop the legacy `users.goal` column
 - **What:** `parseUserGoals` falls back to legacy single-value `goal` field. Read-only — nothing writes it any more. Once we're confident the new `goals` JSON array is populated for all active users, the column + fallback can go.
@@ -44,29 +38,11 @@ When you finish an item, delete it. When you add an item, write enough that some
 - **Unblocked by:** Nothing.
 - **Touchpoints:** `src/db/schema/workout-sets.ts`, `src/lib/validators/workout.ts`, `src/components/features/WorkoutSetsList.tsx`, `SessionDetailClient.tsx`.
 
-### PR notification feed
-- **What:** PRs are detected and stored (`exercisePrs` table, `detectAndRecordPRs`). The celebration shows once at log time and disappears. Add a `/more/prs` page (or section in metrics) listing the last N PRs with date, weight, reps, estimated 1RM.
-- **Why deferred:** Motivational; not on the critical path.
-- **Unblocked by:** Nothing — pure read-side query + UI.
-- **Touchpoints:** New page `src/app/more/prs/page.tsx`, query in `src/lib/actions/metrics.ts` or new action.
-
-### Per-muscle-group volume audit (vs. AI-prompt's 10–20 sets/week)
-- **What:** Metrics dashboard tracks volume per muscle group as raw numbers but doesn't audit against the AI prompt's stated 10–20 working-sets-per-muscle-per-week target. Add a "this week: chest 8 / 10–20 — under-trained" widget. Filter by `setType = 'working'` to exclude warm-ups.
-- **Why deferred:** "Smart features" round after polish settles.
-- **Unblocked by:** Nothing.
-- **Touchpoints:** `src/lib/actions/metrics.ts`, `src/components/features/MetricsClient.tsx`.
-
 ### Mid-cycle auto-deload trigger
 - **What:** `progression.ts` has `isStuck` per-exercise deload detection; cycles support `endAction = "deload"` only at end-of-cycle. Add a mid-cycle "you've been at RPE ≥ 9 for 3 sessions across multiple exercises — consider a deload" recommendation in `WorkoutInsightBanner`.
 - **Why deferred:** "Smart features" round.
 - **Unblocked by:** Nothing.
 - **Touchpoints:** `src/lib/utils/progression.ts`, `src/lib/actions/workout-sets.ts` (insight builder), `src/components/features/WorkoutInsightBanner.tsx`.
-
-### Exercise-based history filter
-- **What:** History page is a chronological list. Add a search/filter input: "show me all squat sessions". ~30 LOC client-side filter.
-- **Why deferred:** Nice-to-have.
-- **Unblocked by:** Nothing.
-- **Touchpoints:** `src/components/features/HistoryClient.tsx`.
 
 ## Smart-progression UX (deferred long-term)
 
