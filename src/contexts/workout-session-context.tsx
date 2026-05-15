@@ -25,6 +25,7 @@ type WorkoutSessionContextValue = {
   completedSetIds: Set<number>;
   addCompletedSet: (id: number) => void;
   removeCompletedSet: (id: number) => void;
+  hydrateCompletedSetIds: (ids: Set<number>) => void;
   restTimerEnds: Record<number, number>;
   setRestTimerEnd: (setId: number, endMs: number) => void;
   clearRestTimerEnd: (setId: number) => void;
@@ -154,6 +155,12 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
       return s;
     });
 
+  // Replace the whole set, used to seed from the server on workout-page mount
+  // (the JS context may have been evicted while the PWA was backgrounded, in
+  // which case localStorage restores the session but completedSetIds is empty).
+  const hydrateCompletedSetIds = (ids: Set<number>) =>
+    setCompletedSetIds(new Set(ids));
+
   const setRestTimerEnd = (setId: number, endMs: number) => {
     // Cancel any existing notification timeout so it can be rescheduled at the new end time
     const existing = restTimeoutRefs.current[setId];
@@ -225,6 +232,7 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
         completedSetIds,
         addCompletedSet,
         removeCompletedSet,
+        hydrateCompletedSetIds,
         restTimerEnds,
         setRestTimerEnd,
         clearRestTimerEnd,

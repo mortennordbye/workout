@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { createWorkoutSession } from "@/lib/actions/workout-sessions";
+import { getActiveSessionCompletedProgramSetIds } from "@/lib/actions/workout-sets";
 import { toDateString } from "@/lib/utils/format";
 
 const STALE_MS = 8 * 60 * 60 * 1000;
@@ -16,6 +17,26 @@ const STALE_MS = 8 * 60 * 60 * 1000;
  */
 export function WorkoutSessionInitializer({ programId }: { programId: number }) {
   const workoutSession = useWorkoutSession();
+  const hydrateCompletedSetIds = workoutSession?.hydrateCompletedSetIds;
+  const sessionId = workoutSession?.sessionId ?? null;
+
+  // Rehydrate completed-set toggles from the server once the session id is
+  // known. `completedSetIds` lives only in React state; if iOS evicted the
+  // PWA's JS context while backgrounded, localStorage restores the session
+  // but the toggles would otherwise come back empty and the workout would
+  // look reset even though the DB still has the rows.
+  useEffect(() => {
+    if (sessionId == null || !hydrateCompletedSetIds) return;
+    let ignore = false;
+    void (async () => {
+      const result = await getActiveSessionCompletedProgramSetIds(sessionId);
+      if (ignore || !result.success) return;
+      hydrateCompletedSetIds(new Set(result.data));
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [sessionId, hydrateCompletedSetIds]);
 
   useEffect(() => {
     const raw = localStorage.getItem("activeWorkout");

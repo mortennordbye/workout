@@ -55,6 +55,49 @@ import { and, desc, eq, gte, inArray, isNotNull, isNull, sql } from "drizzle-orm
 import { revalidatePath } from "next/cache";
 
 /**
+ * Resolve the program_set.id values for every completed workout_set in the
+ * given active session. Used on workout-page mount to rehydrate the in-memory
+ * `completedSetIds` set — necessary because that state lives only in React and
+ * is lost when iOS evicts the PWA's JS context after backgrounding.
+ */
+export async function getActiveSessionCompletedProgramSetIds(
+  sessionId: number,
+): Promise<ActionResult<number[]>> {
+  const auth = await requireSession();
+  try {
+    const rows = await db
+      .select({ id: programSets.id })
+      .from(workoutSets)
+      .innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id))
+      .innerJoin(
+        programExercises,
+        and(
+          eq(programExercises.programId, workoutSessions.programId),
+          eq(programExercises.exerciseId, workoutSets.exerciseId),
+        ),
+      )
+      .innerJoin(
+        programSets,
+        and(
+          eq(programSets.programExerciseId, programExercises.id),
+          eq(programSets.setNumber, workoutSets.setNumber),
+        ),
+      )
+      .where(
+        and(
+          eq(workoutSets.sessionId, sessionId),
+          eq(workoutSessions.userId, auth.user.id),
+          eq(workoutSets.isCompleted, true),
+        ),
+      );
+    return { success: true, data: rows.map((r) => r.id) };
+  } catch (error) {
+    console.error("[getActiveSessionCompletedProgramSetIds] failed", error);
+    return { success: false, error: "Failed to fetch completed sets" };
+  }
+}
+
+/**
  * Log a workout set
  *
  * Records a single set within a workout session. This is called after each
