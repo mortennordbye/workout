@@ -18,6 +18,25 @@ When you finish an item, delete it. When you add an item, write enough that some
 
 ## New features — additive
 
+### Link make-up sessions back to the missed cycle slot
+- **What:** When a user taps "Make up" on a missed workout, the resulting session is logged with today's date — history won't say "this was Monday's push." A proper fix adds an `intendedDate` column (or `cycle_slot_id` FK) to `workout_sessions` so the original missed date is preserved.
+- **Why deferred:** Cosmetic for history; doesn't affect correctness of cycle progression. Wait until users actually ask for accurate history attribution.
+- **Unblocked by:** A user reporting that make-up sessions look wrong in the history view.
+- **Touchpoints:** `src/db/schema/workout-sessions.ts`, `src/app/page.tsx` (missed-this-week section), `src/lib/actions/workout-sets.ts` (session creation).
+
+### Dismiss a missed workout
+- **What:** Today, a missed workout clears from the home-page list only when the user logs a completed session for that program on today's date (day-of-week mode) or completes the rotation slot (rotation mode). There's no explicit "I know I missed it, hide this" action.
+- **Why deferred:** Implicit clearing handles the common case. An explicit dismiss adds state (`dismissedMissedSlot` rows or a column) we may not need.
+- **Unblocked by:** Users complaining the missed list nags too much.
+- **Touchpoints:** `src/lib/actions/training-cycles.ts` (`getActiveCycleForUser`), `src/app/page.tsx` missed-this-week section.
+
+### Two workouts in one day — rotation walker edge case
+- **What:** `walkRotation` in `src/lib/utils/cycle-position.ts` consumes at most one completed session per calendar day. If a user logs two workouts on the same date, the second one doesn't advance the rotation cursor.
+- **Why deferred:** Vanishingly rare in practice; the previous modulo-counter version had the inverse limitation (double-counted, arguably more wrong).
+- **Unblocked by:** Concrete report of a power user hitting it.
+- **Touchpoints:** `src/lib/utils/cycle-position.ts` (`walkRotation`), tests in `src/__tests__/cycle-position.test.ts`.
+
+
 ## Smart-progression UX (deferred long-term)
 
 ### Skip suggestion compute for completed sets

@@ -14,6 +14,15 @@ function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function dowLabel(dateStr: string): string {
+  // dateStr is YYYY-MM-DD; build a local Date to avoid TZ shifts.
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const jsDay = date.getDay();
+  const dow = jsDay === 0 ? 6 : jsDay - 1; // 0=Mon … 6=Sun
+  return DAY_LABELS_FULL[dow];
+}
+
 function getThisWeekDates(): string[] {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -60,6 +69,26 @@ export default async function Home() {
 
   const isRestDay = info !== null && info.todaySlot !== null && !todayProgram;
 
+  // Rotation mode: if missedSlots is non-empty, today's slot is overdue.
+  // Use the earliest miss date to compute "days overdue."
+  const todayLocal = new Date();
+  todayLocal.setHours(0, 0, 0, 0);
+  const rotationOverdueDays =
+    info?.cycle.scheduleType === "rotation" && info.missedSlots.length > 0
+      ? Math.max(
+          1,
+          Math.floor(
+            (todayLocal.getTime() -
+              new Date(info.missedSlots[0].date + "T00:00:00").getTime()) /
+              86400000,
+          ),
+        )
+      : 0;
+
+  // Day-of-week mode: missed workouts to surface as make-up prompts.
+  const dowMissed =
+    info?.cycle.scheduleType === "day_of_week" ? info.missedSlots : [];
+
   const slotByDay =
     info?.cycle.scheduleType === "day_of_week"
       ? Object.fromEntries(
@@ -100,7 +129,7 @@ export default async function Home() {
               </div>
               <span className="text-xs text-muted-foreground shrink-0">ends {endFormatted}</span>
             </div>
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
               <p className="text-xl font-bold">
                 {todayProgram?.name ?? (isRestDay ? "Rest Day" : "No program today")}
               </p>
@@ -110,6 +139,11 @@ export default async function Home() {
                     <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   Done
+                </span>
+              )}
+              {!completedToday && rotationOverdueDays > 0 && todayProgram && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-amber-500/15 px-2 py-0.5 rounded-full shrink-0">
+                  {rotationOverdueDays === 1 ? "1 day overdue" : `${rotationOverdueDays} days overdue`}
                 </span>
               )}
             </div>
@@ -150,6 +184,34 @@ export default async function Home() {
             )}
           </div>
         ) : null}
+
+        {/* ── Missed this week (day-of-week mode) ───────── */}
+        {dowMissed.length > 0 && (
+          <div className="rounded-2xl bg-amber-500/10 border border-amber-500/30 px-4 py-3 shrink-0">
+            <p className="text-xs font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-300 mb-2">
+              Missed this week
+            </p>
+            <ul className="flex flex-col divide-y divide-amber-500/20">
+              {dowMissed.map((m) =>
+                m.slot.program ? (
+                  <li key={m.date} className="flex items-center justify-between py-2">
+                    <span className="text-sm">
+                      <span className="text-muted-foreground">{dowLabel(m.date)} — </span>
+                      <span className="font-medium">{m.slot.program.name}</span>
+                    </span>
+                    <Link
+                      href={`/programs/${m.slot.program.id}/workout`}
+                      prefetch={true}
+                      className="text-xs font-semibold text-primary px-3 py-1.5 rounded-full bg-primary/10 active:opacity-70"
+                    >
+                      Make up
+                    </Link>
+                  </li>
+                ) : null,
+              )}
+            </ul>
+          </div>
+        )}
 
         {/* ── Week strip ─────────────────────────────────── */}
         {info?.cycle.scheduleType === "day_of_week" && (

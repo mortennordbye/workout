@@ -123,6 +123,11 @@ export function CreateCycleForm() {
             Rotation
           </button>
         </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {scheduleType === "day_of_week"
+            ? "Each weekday has a workout. Missed days don't carry over — Monday's leg day stays on Monday."
+            : "Follow a sequence in order. Missed workouts repeat until done; rest days auto-advance with the calendar."}
+        </p>
       </div>
 
       {/* End action */}

@@ -19,11 +19,19 @@ import {
 import type {
   ActionResult,
   ActiveCycleInfo,
+  MissedSlot,
   TrainingCycle,
   TrainingCycleSlot,
+  TrainingCycleSlotWithProgram,
   TrainingCycleWithSlots,
 } from "@/types/workout";
-import { and, asc, count, eq, gte, inArray } from "drizzle-orm";
+import {
+  findDayOfWeekMissed,
+  jsDayToDow,
+  resolveRotation,
+  toDateStr,
+} from "@/lib/utils/cycle-position";
+import { and, asc, eq, gte, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,37 +148,66 @@ export async function getActiveCycleForUser(): Promise<ActionResult<ActiveCycleI
     );
     const currentWeek = Math.floor(daysSinceStart / 7) + 1;
 
-    let todaySlot = null;
+    const slots = cycle.slots as TrainingCycleWithSlots["slots"];
+    const slotById = new Map<number, TrainingCycleSlotWithProgram>(
+      slots.map((s) => [s.id, s]),
+    );
+
+    let todaySlot: TrainingCycleSlotWithProgram | null = null;
+    let missedSlots: MissedSlot[] = [];
 
     if (cycle.scheduleType === "day_of_week") {
-      // JS getDay(): 0=Sun,1=Mon…6=Sat → convert to 1=Mon…7=Sun
-      const jsDay = today.getDay();
-      const dayOfWeek = jsDay === 0 ? 7 : jsDay;
-      todaySlot =
-        (cycle.slots as TrainingCycleWithSlots["slots"]).find(
-          (s) => s.dayOfWeek === dayOfWeek,
-        ) ?? null;
-    } else {
-      // Rotation: count completed sessions since this cycle started
-      const [{ value: sessionCount }] = await db
-        .select({ value: count() })
+      const dayOfWeek = jsDayToDow(today.getDay());
+      todaySlot = slots.find((s) => s.dayOfWeek === dayOfWeek) ?? null;
+
+      // Look back up to 7 days for missed active slots (bounded by startDate).
+      const lookbackStart = new Date(today);
+      lookbackStart.setDate(lookbackStart.getDate() - 7);
+      const windowStart = lookbackStart < startDate ? startDate : lookbackStart;
+      const sessions = await db
+        .select({ date: workoutSessions.date })
         .from(workoutSessions)
         .where(
           and(
             eq(workoutSessions.userId, userId),
             eq(workoutSessions.isCompleted, true),
-            gte(workoutSessions.startTime, startDate),
+            gte(workoutSessions.date, toDateStr(windowStart)),
           ),
         );
-
-      const slots = (cycle.slots as TrainingCycleWithSlots["slots"]).sort(
-        (a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0),
+      const completedDates = new Set(sessions.map((s) => s.date));
+      const missed = findDayOfWeekMissed(startDate, slots, completedDates, today, 7);
+      missedSlots = missed
+        .map((m) => {
+          const slot = slotById.get(m.slotId);
+          return slot ? { date: m.date, slot } : null;
+        })
+        .filter((x): x is MissedSlot => x !== null);
+    } else {
+      // Rotation: walk forward from startDate, advancing position per-slot.
+      const sessions = await db
+        .select({ date: workoutSessions.date })
+        .from(workoutSessions)
+        .where(
+          and(
+            eq(workoutSessions.userId, userId),
+            eq(workoutSessions.isCompleted, true),
+            gte(workoutSessions.date, toDateStr(startDate)),
+          ),
+        );
+      const sortedDates = sessions.map((s) => s.date).sort();
+      const { todaySlotId, missed } = resolveRotation(
+        startDate,
+        slots,
+        sortedDates,
+        today,
       );
-
-      if (slots.length > 0) {
-        const slotIndex = Number(sessionCount) % slots.length;
-        todaySlot = slots[slotIndex] ?? null;
-      }
+      todaySlot = todaySlotId != null ? (slotById.get(todaySlotId) ?? null) : null;
+      missedSlots = missed
+        .map((m) => {
+          const slot = slotById.get(m.slotId);
+          return slot ? { date: m.date, slot } : null;
+        })
+        .filter((x): x is MissedSlot => x !== null);
     }
 
     return {
@@ -180,6 +217,7 @@ export async function getActiveCycleForUser(): Promise<ActionResult<ActiveCycleI
         todaySlot,
         currentWeek,
         endDate: endDateStr,
+        missedSlots,
       },
     };
   } catch (err) {

@@ -121,12 +121,24 @@ export type TrainingCycleWithSlots = TrainingCycle & {
   slots: TrainingCycleSlotWithProgram[];
 };
 
+// A scheduled slot that was missed (no completed session on its expected date).
+export type MissedSlot = {
+  date: string; // ISO date string (YYYY-MM-DD)
+  slot: TrainingCycleSlotWithProgram;
+};
+
 // The active cycle with today's slot resolved
 export type ActiveCycleInfo = {
   cycle: TrainingCycleWithSlots;
   todaySlot: TrainingCycleSlotWithProgram | null;
   currentWeek: number;
   endDate: string; // ISO date string
+  /**
+   * Active slots whose expected day has passed without a completed session.
+   * - Rotation mode: surfaces today's slot when overdue (date == earliest miss).
+   * - Day-of-week mode: missed days within the last 7 days bounded by [startDate, today).
+   */
+  missedSlots: MissedSlot[];
 };
 
 // ============================================================================
