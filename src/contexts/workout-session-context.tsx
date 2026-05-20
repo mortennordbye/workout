@@ -1,7 +1,7 @@
 "use client";
 import { setSessionReadiness } from "@/lib/actions/workout-sessions";
 import { requestNotificationPermission, sendNotification } from "@/lib/notifications";
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 
 type SetOverride = {
   targetReps: number;
@@ -158,8 +158,10 @@ export function WorkoutSessionProvider({ children }: { children: React.ReactNode
   // Replace the whole set, used to seed from the server on workout-page mount
   // (the JS context may have been evicted while the PWA was backgrounded, in
   // which case localStorage restores the session but completedSetIds is empty).
-  const hydrateCompletedSetIds = (ids: Set<number>) =>
-    setCompletedSetIds(new Set(ids));
+  const hydrateCompletedSetIds = useCallback(
+    (ids: Set<number>) => setCompletedSetIds(new Set(ids)),
+    [],
+  );
 
   const setRestTimerEnd = (setId: number, endMs: number) => {
     // Cancel any existing notification timeout so it can be rescheduled at the new end time
