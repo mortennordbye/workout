@@ -26,6 +26,7 @@ import {
 } from "@/lib/actions/profile";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { estimate1RM } from "@/lib/utils/progression";
+import { sanitizeDecimalInput } from "@/lib/utils/format";
 import { Activity, ChevronLeft, ChevronRight, Plus, TrendingUp, Trash2, Zap } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -743,11 +744,11 @@ function WeightHistorySection({
           <div className="flex flex-col gap-4 px-4 pb-10">
             <div className="flex items-center gap-3">
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
                 placeholder="80.0"
                 value={weightInput}
-                onChange={(e) => { setWeightInput(e.target.value); setLogError(null); }}
+                onChange={(e) => { setWeightInput(sanitizeDecimalInput(e.target.value)); setLogError(null); }}
                 className="flex-1 rounded-xl bg-muted px-4 py-3.5 text-sm outline-none focus:ring-2 ring-primary"
               />
               <span className="text-sm text-muted-foreground w-6">kg</span>

@@ -4,6 +4,7 @@ import { useTheme } from "@/components/ui/theme-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { exportAllSessions } from "@/lib/actions/workout-sessions";
 import { requestNotificationPermission } from "@/lib/notifications";
+import { sanitizeDecimalInput } from "@/lib/utils/format";
 import { Bell, BookOpen, CheckIcon, ChevronLeft, ChevronRight, Download, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -159,6 +160,18 @@ export function SettingsClient() {
   } = useTheme();
   const colorInputRef = useRef<HTMLInputElement>(null);
 
+  // String buffer for the custom increment so partial decimals ("7." / "1,")
+  // survive while typing; the parsed number is committed on blur. Resyncs during
+  // render when defaultIncrementKg changes externally (preset tap or hydration).
+  const [incrementStr, setIncrementStr] = useState(() =>
+    isKgPreset(defaultIncrementKg) ? "" : String(defaultIncrementKg),
+  );
+  const [prevIncrementKg, setPrevIncrementKg] = useState(defaultIncrementKg);
+  if (prevIncrementKg !== defaultIncrementKg) {
+    setPrevIncrementKg(defaultIncrementKg);
+    setIncrementStr(isKgPreset(defaultIncrementKg) ? "" : String(defaultIncrementKg));
+  }
+
   const presetBtn = (active: boolean) =>
     `h-11 min-w-[44px] px-3 rounded-xl text-sm font-semibold active:scale-95 transition-colors ${
       active ? "bg-primary text-primary-foreground" : "bg-background text-foreground"
@@ -277,14 +290,13 @@ export function SettingsClient() {
               <div className="flex items-center gap-3 mt-3">
                 <span className="text-xs text-muted-foreground">Custom</span>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  min="0"
-                  step="0.5"
                   placeholder="e.g. 7.5"
-                  value={isKgPreset(defaultIncrementKg) ? "" : defaultIncrementKg}
-                  onChange={(e) => {
-                    const v = parseFloat(e.target.value);
+                  value={incrementStr}
+                  onChange={(e) => setIncrementStr(sanitizeDecimalInput(e.target.value))}
+                  onBlur={() => {
+                    const v = parseFloat(incrementStr);
                     if (!isNaN(v) && v >= 0) setDefaultIncrementKg(v);
                   }}
                   className={`h-9 w-24 rounded-xl text-sm font-semibold text-center border-0 outline-none appearance-none ${

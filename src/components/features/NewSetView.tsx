@@ -2,7 +2,7 @@
 
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { addProgramSet } from "@/lib/actions/programs";
-import { formatPace, formatTime } from "@/lib/utils/format";
+import { formatPace, formatTime, sanitizeDecimalInput } from "@/lib/utils/format";
 import type { SetType } from "@/lib/validators/workout";
 import type { ProgramSet } from "@/types/workout";
 import { Loader2 } from "lucide-react";
@@ -243,7 +243,7 @@ export function NewSetView({
                       inputMode="decimal"
                       value={distanceStr}
                       onChange={(e) => {
-                        const val = e.target.value.replace(/[^\d.]/g, "");
+                        const val = sanitizeDecimalInput(e.target.value);
                         setDistanceStr(val);
                         const km = parseFloat(val);
                         if (!isNaN(km) && km >= 0) setDistanceMeters(Math.round(km * 1000));
@@ -628,7 +628,7 @@ export function NewSetView({
                   inputMode="decimal"
                   value={weightStr}
                   onChange={(e) => {
-                    const val = e.target.value.replace(/[^\d.]/g, "");
+                    const val = sanitizeDecimalInput(e.target.value);
                     setWeightStr(val);
                     const n = parseFloat(val);
                     if (!isNaN(n)) setWeight(Math.max(0, n));

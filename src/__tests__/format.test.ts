@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildSetSummary, formatTime, restToken, setToken } from "@/lib/utils/format";
+import {
+  buildSetSummary,
+  formatTime,
+  normalizeDecimal,
+  restToken,
+  sanitizeDecimalInput,
+  setToken,
+} from "@/lib/utils/format";
 import type { ProgramSet } from "@/types/workout";
 
 // Minimal ProgramSet factory
@@ -138,5 +145,45 @@ describe("buildSetSummary", () => {
     expect(result).not.toContain("kg");
     expect(result).toContain("00:30");
     expect(result).toContain("01:00");
+  });
+});
+
+describe("normalizeDecimal", () => {
+  it("converts comma to period", () => {
+    expect(normalizeDecimal("67,5")).toBe("67.5");
+  });
+
+  it("leaves a period untouched", () => {
+    expect(normalizeDecimal("67.5")).toBe("67.5");
+  });
+});
+
+describe("sanitizeDecimalInput", () => {
+  it("accepts a comma decimal separator", () => {
+    expect(sanitizeDecimalInput("67,5")).toBe("67.5");
+  });
+
+  it("accepts a period decimal separator", () => {
+    expect(sanitizeDecimalInput("67.5")).toBe("67.5");
+  });
+
+  it("strips non-numeric characters", () => {
+    expect(sanitizeDecimalInput("6a7,5kg")).toBe("67.5");
+  });
+
+  it("collapses multiple comma separators to one point", () => {
+    expect(sanitizeDecimalInput("67,5,5")).toBe("67.55");
+  });
+
+  it("collapses multiple period separators to one point", () => {
+    expect(sanitizeDecimalInput("67.5.5")).toBe("67.55");
+  });
+
+  it("returns empty string for empty input", () => {
+    expect(sanitizeDecimalInput("")).toBe("");
+  });
+
+  it("returns empty string when there are no digits", () => {
+    expect(sanitizeDecimalInput("abc")).toBe("");
   });
 });

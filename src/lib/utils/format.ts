@@ -1,5 +1,21 @@
 import type { ProgramSet } from "@/types/workout";
 
+/** Normalize a locale decimal separator (comma) to a period. */
+export function normalizeDecimal(raw: string): string {
+  return raw.replace(/,/g, ".");
+}
+
+/**
+ * Sanitize free-text decimal input: accept commas (comma-locale keyboards),
+ * keep digits and a single decimal point, drop everything else.
+ */
+export function sanitizeDecimalInput(raw: string): string {
+  const s = normalizeDecimal(raw).replace(/[^\d.]/g, "");
+  const first = s.indexOf(".");
+  if (first === -1) return s;
+  return s.slice(0, first + 1) + s.slice(first + 1).replace(/\./g, "");
+}
+
 export function formatTime(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
   const s = (totalSeconds % 60).toString().padStart(2, "0");

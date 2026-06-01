@@ -8,6 +8,7 @@ import {
   updateProgramExerciseProgressionMode,
 } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
+import { sanitizeDecimalInput } from "@/lib/utils/format";
 import type { ProgramSet } from "@/types/workout";
 import { ChevronLeftIcon, Plus } from "lucide-react";
 import Link from "next/link";
@@ -354,7 +355,7 @@ export function WorkoutSetsClient({
                         inputMode="decimal"
                         placeholder="Custom kg"
                         value={customKgInput}
-                        onChange={(e) => setCustomKgInput(e.target.value)}
+                        onChange={(e) => setCustomKgInput(sanitizeDecimalInput(e.target.value))}
                         className="flex-1 min-w-0 bg-transparent text-base font-medium outline-none placeholder:text-muted-foreground/50"
                       />
                       <button

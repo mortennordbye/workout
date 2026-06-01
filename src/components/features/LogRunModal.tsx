@@ -1,7 +1,7 @@
 "use client";
 
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { formatDistanceKm, formatPace } from "@/lib/utils/format";
+import { formatDistanceKm, formatPace, sanitizeDecimalInput } from "@/lib/utils/format";
 import { useState, useEffect } from "react";
 
 const DISTANCE_PRESETS_M = [500, 1000, 2000, 3000, 5000, 10000, 15000, 21097, 42195];
@@ -136,7 +136,7 @@ export function LogRunModal({
                 inputMode="decimal"
                 value={distanceStr}
                 onChange={(e) => {
-                  const val = e.target.value.replace(/[^\d.]/g, "");
+                  const val = sanitizeDecimalInput(e.target.value);
                   setDistanceStr(val);
                   const km = parseFloat(val);
                   if (!isNaN(km) && km >= 0) setDistanceMeters(Math.round(km * 1000));
