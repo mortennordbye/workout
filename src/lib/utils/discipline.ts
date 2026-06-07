@@ -111,3 +111,27 @@ export const DISCIPLINE_CONFIG: Record<Discipline, DisciplineConfig> = {
 export function disciplineConfig(d: Discipline | null | undefined): DisciplineConfig {
   return DISCIPLINE_CONFIG[d ?? "run"];
 }
+
+/**
+ * Distance brackets a given effort falls into for pace-PR tracking. An effort
+ * can match more than one overlapping bracket; it matches none if its distance
+ * sits outside every bracket window (e.g. an odd 7 km run). Pure — used by
+ * endurance PR detection.
+ */
+export function matchingPaceBrackets(
+  discipline: Discipline,
+  distanceMeters: number,
+): PaceBracket[] {
+  return DISCIPLINE_CONFIG[discipline].paceBrackets.filter(
+    (b) => distanceMeters >= b.min && distanceMeters <= b.max,
+  );
+}
+
+/**
+ * Pace as seconds per meter — the unit-agnostic comparison key for endurance
+ * PRs (lower is always faster, for swim/bike/run alike). Returns Infinity when
+ * distance is non-positive so a zero-distance effort never wins a pace PR.
+ */
+export function paceSecondsPerMeter(durationSeconds: number, distanceMeters: number): number {
+  return distanceMeters > 0 ? durationSeconds / distanceMeters : Infinity;
+}

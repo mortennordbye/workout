@@ -27,6 +27,11 @@
 import { db } from "@/db";
 import { exercisePrs, exercises, programExercises, programSets, programs, users, workoutSessions, workoutSets } from "@/db/schema";
 import { getActiveCycleForUser } from "@/lib/actions/training-cycles";
+import {
+    matchingPaceBrackets,
+    paceSecondsPerMeter,
+    type Discipline,
+} from "@/lib/utils/discipline";
 import { requireSession } from "@/lib/utils/session";
 import {
     logWorkoutSetSchema,
@@ -207,6 +212,19 @@ export async function logWorkoutSet(
         weightKg,
         actualReps,
       });
+    }
+    // Endurance PRs (swim/bike/run): distance + pace-per-bracket. Independent of
+    // the weight path — endurance sets carry distance, not weight.
+    if (distanceMeters != null && distanceMeters > 0) {
+      const endurancePRs = await detectAndRecordEndurancePRs({
+        userId: auth.user.id,
+        exerciseId,
+        sessionId,
+        setId: set.id,
+        distanceMeters,
+        durationSeconds: durationSeconds ?? 0,
+      });
+      newPRs.push(...endurancePRs);
     }
 
     revalidatePath(`/workout/${sessionId}`);
@@ -408,6 +426,139 @@ async function detectAndRecordPRs({
   } catch (err) {
     // PR detection is non-critical — log and continue
     console.error("[logWorkoutSet] pr_detection_failed", err);
+  }
+
+  return newPRs;
+}
+
+/**
+ * Endurance PR detection for swim/bike/run sets. Records two kinds of record:
+ *   - distance: the longest single set ever for this exercise (value = meters)
+ *   - pace:     the fastest pace within each standard distance bracket the set
+ *               falls into (value = duration seconds, distance_meters = the
+ *               effort's distance; faster = lower duration/distance ratio)
+ * No-ops for non-discipline exercises. Non-critical — failures are logged.
+ */
+async function detectAndRecordEndurancePRs({
+  userId,
+  exerciseId,
+  sessionId,
+  setId,
+  distanceMeters,
+  durationSeconds,
+}: {
+  userId: string;
+  exerciseId: number;
+  sessionId: number;
+  setId: number;
+  distanceMeters: number;
+  durationSeconds: number;
+}): Promise<PRResult[]> {
+  const newPRs: PRResult[] = [];
+  if (distanceMeters <= 0) return newPRs;
+
+  try {
+    // Only swim/bike/run exercises carry endurance PRs.
+    const [exercise] = await db
+      .select({ discipline: exercises.discipline })
+      .from(exercises)
+      .where(eq(exercises.id, exerciseId))
+      .limit(1);
+    const discipline = exercise?.discipline as Discipline | null | undefined;
+    if (!discipline) return newPRs;
+
+    const now = new Date();
+
+    // 1. Distance PR — longest single endurance set ever.
+    const [currentDistancePR] = await db
+      .select()
+      .from(exercisePrs)
+      .where(
+        and(
+          eq(exercisePrs.userId, userId),
+          eq(exercisePrs.exerciseId, exerciseId),
+          eq(exercisePrs.prType, "distance"),
+          isNull(exercisePrs.supersededAt),
+        ),
+      )
+      .limit(1);
+
+    if (!currentDistancePR || distanceMeters > Number(currentDistancePR.value)) {
+      if (currentDistancePR) {
+        await db
+          .update(exercisePrs)
+          .set({ supersededAt: now })
+          .where(and(eq(exercisePrs.id, currentDistancePR.id), isNull(exercisePrs.supersededAt)));
+      }
+      await db.insert(exercisePrs).values({
+        userId,
+        exerciseId,
+        prType: "distance",
+        value: distanceMeters.toFixed(2),
+        distanceMeters,
+        sessionId,
+        setId,
+      });
+      newPRs.push({
+        type: "distance",
+        value: distanceMeters,
+        previousValue: currentDistancePR ? Number(currentDistancePR.value) : undefined,
+        discipline,
+      });
+    }
+
+    // 2. Pace PR — fastest pace in each standard distance bracket this set hits.
+    if (durationSeconds > 0) {
+      const newPace = paceSecondsPerMeter(durationSeconds, distanceMeters);
+      for (const bracket of matchingPaceBrackets(discipline, distanceMeters)) {
+        const [currentPacePR] = await db
+          .select()
+          .from(exercisePrs)
+          .where(
+            and(
+              eq(exercisePrs.userId, userId),
+              eq(exercisePrs.exerciseId, exerciseId),
+              eq(exercisePrs.prType, "pace"),
+              eq(exercisePrs.bracket, bracket.label),
+              isNull(exercisePrs.supersededAt),
+            ),
+          )
+          .limit(1);
+
+        const currentPace = currentPacePR
+          ? paceSecondsPerMeter(Number(currentPacePR.value), Number(currentPacePR.distanceMeters))
+          : Infinity;
+
+        if (newPace < currentPace) {
+          if (currentPacePR) {
+            await db
+              .update(exercisePrs)
+              .set({ supersededAt: now })
+              .where(and(eq(exercisePrs.id, currentPacePR.id), isNull(exercisePrs.supersededAt)));
+          }
+          await db.insert(exercisePrs).values({
+            userId,
+            exerciseId,
+            prType: "pace",
+            value: durationSeconds.toFixed(2),
+            distanceMeters,
+            bracket: bracket.label,
+            sessionId,
+            setId,
+          });
+          newPRs.push({
+            type: "pace",
+            value: durationSeconds,
+            previousValue: currentPacePR ? Number(currentPacePR.value) : undefined,
+            discipline,
+            distanceMeters,
+            bracket: bracket.label,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error("[logWorkoutSet] endurance_pr_detection_failed", err);
   }
 
   return newPRs;

@@ -9,6 +9,10 @@
  *   weight       — heaviest single set ever logged for this exercise
  *   reps_at_weight — most reps ever at this exact weight (±0.5kg)
  *   estimated_1rm — highest Epley-estimated 1RM ever
+ *   distance     — longest single endurance set (swim/bike/run); value = meters
+ *   pace         — best pace within a distance bracket; value = duration seconds,
+ *                  distance_meters = the effort's distance, bracket = bracket label.
+ *                  Faster = lower (duration / distance); compare via that ratio.
  *
  * Query pattern:
  *   Current PR  → WHERE superseded_at IS NULL
@@ -29,12 +33,17 @@ export const exercisePrs = pgTable("exercise_prs", {
   exerciseId: integer("exercise_id")
     .notNull()
     .references(() => exercises.id, { onDelete: "cascade" }),
-  // 'weight' | 'reps_at_weight' | 'estimated_1rm'
+  // 'weight' | 'reps_at_weight' | 'estimated_1rm' | 'distance' | 'pace'
   prType: text("pr_type").notNull(),
-  // The PR value: kg for weight/estimated_1rm, rep count for reps_at_weight
+  // The PR value: kg for weight/estimated_1rm, rep count for reps_at_weight,
+  // meters for distance, duration seconds for pace.
   value: decimal("value", { precision: 8, scale: 2 }).notNull(),
   // Context: the weight used (populated for 'reps_at_weight' type)
   weightKg: decimal("weight_kg", { precision: 6, scale: 2 }),
+  // Context for endurance PRs: the effort's distance in meters (populated for 'pace').
+  distanceMeters: integer("distance_meters"),
+  // Distance bracket label for 'pace' PRs (e.g. "5 km"); NULL for all others.
+  bracket: text("bracket"),
   sessionId: integer("session_id").references(() => workoutSessions.id, {
     onDelete: "set null",
   }),

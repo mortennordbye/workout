@@ -27,7 +27,6 @@ import {
   type WeightEntry,
 } from "@/lib/actions/profile";
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { useTheme } from "@/components/ui/theme-provider";
 import { estimate1RM } from "@/lib/utils/progression";
 import {
   formatEnduranceDistance,
@@ -1023,14 +1022,6 @@ function DisciplineCard({ d }: { d: DisciplineMetric }) {
 }
 
 function TriathlonSection({ data }: { data: TriathlonMetrics }) {
-  if (data.disciplines.length === 0) {
-    return (
-      <div className="rounded-2xl bg-muted p-4 space-y-2">
-        <SectionLabel>Triathlon</SectionLabel>
-        <p className="text-sm text-muted-foreground">No swim, bike, or run sessions logged yet.</p>
-      </div>
-    );
-  }
   return (
     <div className="space-y-4">
       <SectionLabel>Triathlon</SectionLabel>
@@ -1561,7 +1552,6 @@ export function MetricsClient({
   readinessData,
   weeklyMuscleVolume,
 }: Props) {
-  const { triathlonEnabled } = useTheme();
   const [activeTab, setActiveTab] = useState<Tab>("alltime");
   const [selectedId, setSelectedId] = useState<number | null>(initialExerciseId);
   const [progressData, setProgressData] = useState<ExerciseProgress[]>(initialProgress);
@@ -1647,8 +1637,8 @@ export function MetricsClient({
             <WeeklyChart data={weekly} />
 
             {/* ── Triathlon (swim/bike/run) ──────────────────────────── */}
-            {/* Shown when there's discipline data, or when Triathlon mode is opted in via Settings. */}
-            {triathlonMetrics && (triathlonMetrics.disciplines.length > 0 || triathlonEnabled) && (
+            {/* Shown once swim/bike/run sessions have been logged. */}
+            {triathlonMetrics && triathlonMetrics.disciplines.length > 0 && (
               <TriathlonSection data={triathlonMetrics} />
             )}
 

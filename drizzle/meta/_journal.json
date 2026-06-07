@@ -211,6 +211,13 @@
       "when": 1780846974093,
       "tag": "0029_organic_beast",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1780850066795,
+      "tag": "0030_rapid_moondragon",
+      "breakpoints": true
     }
   ]
 }

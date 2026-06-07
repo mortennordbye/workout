@@ -14,7 +14,7 @@ import { disciplineConfig, type Discipline } from "@/lib/utils/discipline";
 import { haptics } from "@/lib/utils/haptics";
 import { computeMapping, toFlatItems } from "@/lib/utils/set-mapping";
 import type { FlatItem, RestFlatItem, SetFlatItem } from "@/lib/utils/set-mapping";
-import type { ProgramSet } from "@/types/workout";
+import type { PRResult, ProgramSet } from "@/types/workout";
 import {
   DndContext,
   KeyboardSensor,
@@ -35,6 +35,26 @@ import { CSS } from "@dnd-kit/utilities";
 import { Check, GripVertical, Minus, Play, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Short label for the in-workout PR celebration badge. */
+function prBadgeLabel(pr: PRResult): string {
+  switch (pr.type) {
+    case "weight":
+      return `${pr.value}kg`;
+    case "estimated_1rm":
+      return `~${Math.round(pr.value)}kg 1RM`;
+    case "reps_at_weight":
+      return `${pr.value} reps`;
+    case "distance":
+      return formatEnduranceDistance(disciplineConfig(pr.discipline).inputUnit, pr.value);
+    case "pace":
+      return pr.distanceMeters != null
+        ? formatEndurancePace(disciplineConfig(pr.discipline).paceFormatter, pr.value, pr.distanceMeters)
+        : "PR";
+  }
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -365,12 +385,7 @@ export function WorkoutSetsList({
             : [];
           if (beatenPRs.length > 0) {
             const best = beatenPRs[0];
-            const label =
-              best.type === "weight"
-                ? `${best.value}kg`
-                : best.type === "estimated_1rm"
-                ? `~${Math.round(best.value)}kg 1RM`
-                : `${best.value} reps`;
+            const label = prBadgeLabel(best);
             haptics.success();
             setPrSetIds((prev) => new Set(prev).add(setData.id));
             setPrCelebration({ setId: setData.id, label });

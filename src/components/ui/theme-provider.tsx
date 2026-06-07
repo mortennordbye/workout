@@ -20,8 +20,6 @@ interface ThemeContextValue {
   setDefaultIncrementReps: (n: number) => void;
   uiScale: number;
   setUiScale: (scale: number) => void;
-  triathlonEnabled: boolean;
-  setTriathlonEnabled: (enabled: boolean) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
@@ -58,7 +56,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [defaultIncrementKg, setDefaultIncrementKgState] = useState(2.5);
   const [defaultIncrementReps, setDefaultIncrementRepsState] = useState(0);
   const [uiScale, setUiScaleState] = useState(1);
-  const [triathlonEnabled, setTriathlonEnabledState] = useState(false);
 
   const applyAccentColor = (color: AccentColor, currentTheme: Theme, hexOverride?: string) => {
     const colorValue =
@@ -82,10 +79,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const storedIncrementKg = localStorage.getItem("defaultIncrementKg");
     const storedIncrementReps = localStorage.getItem("defaultIncrementReps");
     const storedUiScale = localStorage.getItem("uiScale");
-    const storedTriathlon = localStorage.getItem("triathlonEnabled");
 
     setTheme(storedTheme);
-    setTriathlonEnabledState(storedTriathlon === "true");
     setAccentColorState(storedAccent);
     setCustomAccentHexState(storedCustomHex);
     setWeeklyGoalState(storedGoal ? Number(storedGoal) : 4);
@@ -161,16 +156,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const setTriathlonEnabled = (enabled: boolean) => {
-    setTriathlonEnabledState(enabled);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("triathlonEnabled", String(enabled));
-    }
-  };
-
   return (
     <ThemeContext.Provider
-      value={{ theme, toggleTheme, accentColor, setAccentColor, customAccentHex, setCustomAccentHex, weeklyGoal, setWeeklyGoal, defaultIncrementKg, setDefaultIncrementKg, defaultIncrementReps, setDefaultIncrementReps, uiScale, setUiScale, triathlonEnabled, setTriathlonEnabled }}
+      value={{ theme, toggleTheme, accentColor, setAccentColor, customAccentHex, setCustomAccentHex, weeklyGoal, setWeeklyGoal, defaultIncrementKg, setDefaultIncrementKg, defaultIncrementReps, setDefaultIncrementReps, uiScale, setUiScale }}
     >
       {children}
     </ThemeContext.Provider>

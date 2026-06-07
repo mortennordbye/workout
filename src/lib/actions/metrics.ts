@@ -50,9 +50,15 @@ export type PrFeedEntry = {
   id: number;
   exerciseId: number;
   exerciseName: string;
-  prType: "weight" | "reps_at_weight" | "estimated_1rm";
+  prType: "weight" | "reps_at_weight" | "estimated_1rm" | "distance" | "pace";
   value: number;
   weightKg: number | null;
+  /** Endurance context: the exercise's discipline (null for strength). */
+  discipline: Discipline | null;
+  /** Endurance context: the effort's distance in meters (set for "pace"). */
+  distanceMeters: number | null;
+  /** Endurance context: distance bracket label, e.g. "5 km" (set for "pace"). */
+  bracket: string | null;
   achievedAt: string; // ISO timestamp
   isCurrent: boolean; // true when supersededAt is null
 };
@@ -1159,9 +1165,12 @@ export async function getRecentPRs(
         id: exercisePrs.id,
         exerciseId: exercisePrs.exerciseId,
         exerciseName: exercises.name,
+        discipline: exercises.discipline,
         prType: exercisePrs.prType,
         value: exercisePrs.value,
         weightKg: exercisePrs.weightKg,
+        distanceMeters: exercisePrs.distanceMeters,
+        bracket: exercisePrs.bracket,
         achievedAt: exercisePrs.achievedAt,
         supersededAt: exercisePrs.supersededAt,
       })
@@ -1178,6 +1187,9 @@ export async function getRecentPRs(
       prType: r.prType as PrFeedEntry["prType"],
       value: Number(r.value),
       weightKg: r.weightKg != null ? Number(r.weightKg) : null,
+      discipline: (r.discipline as Discipline | null) ?? null,
+      distanceMeters: r.distanceMeters != null ? Number(r.distanceMeters) : null,
+      bracket: r.bracket ?? null,
       achievedAt: r.achievedAt.toISOString(),
       isCurrent: r.supersededAt == null,
     }));

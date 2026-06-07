@@ -1,4 +1,6 @@
-import { getRecentPRs } from "@/lib/actions/metrics";
+import { getRecentPRs, type PrFeedEntry } from "@/lib/actions/metrics";
+import { disciplineConfig } from "@/lib/utils/discipline";
+import { formatEnduranceDistance, formatEndurancePace } from "@/lib/utils/format";
 import { requireSession } from "@/lib/utils/session";
 import { ChevronLeftIcon, Trophy } from "lucide-react";
 import Link from "next/link";
@@ -11,17 +13,33 @@ const PR_TYPE_LABEL: Record<string, string> = {
   reps_at_weight: "Reps at weight",
 };
 
-function formatPrValue(
-  prType: "weight" | "reps_at_weight" | "estimated_1rm",
-  value: number,
-  weightKg: number | null,
-): string {
+/** Subtitle describing what kind of record this is. */
+function prTypeLabel(pr: PrFeedEntry): string {
+  if (pr.prType === "distance") {
+    return `Longest ${disciplineConfig(pr.discipline).label.toLowerCase()}`;
+  }
+  if (pr.prType === "pace") {
+    return pr.bracket ? `Best ${pr.bracket} pace` : "Best pace";
+  }
+  return PR_TYPE_LABEL[pr.prType] ?? pr.prType;
+}
+
+function formatPrValue(pr: PrFeedEntry): string {
+  const { prType, value, weightKg } = pr;
   if (prType === "weight") return `${value} kg`;
   if (prType === "estimated_1rm") return `~${Math.round(value)} kg 1RM`;
-  // reps_at_weight
-  return weightKg != null
-    ? `${value} reps @ ${weightKg} kg`
-    : `${value} reps`;
+  if (prType === "reps_at_weight") {
+    return weightKg != null ? `${value} reps @ ${weightKg} kg` : `${value} reps`;
+  }
+  const cfg = disciplineConfig(pr.discipline);
+  if (prType === "distance") {
+    // value = meters
+    return formatEnduranceDistance(cfg.inputUnit, value);
+  }
+  // pace: value = duration seconds, distanceMeters = the effort's distance
+  return pr.distanceMeters != null
+    ? formatEndurancePace(cfg.paceFormatter, value, pr.distanceMeters)
+    : "—";
 }
 
 function formatAchievedAt(iso: string): string {
@@ -85,13 +103,12 @@ export default async function PrsPage() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate">{pr.exerciseName}</p>
                   <p className="text-xs text-muted-foreground">
-                    {PR_TYPE_LABEL[pr.prType] ?? pr.prType} ·{" "}
-                    {formatAchievedAt(pr.achievedAt)}
+                    {prTypeLabel(pr)} · {formatAchievedAt(pr.achievedAt)}
                   </p>
                 </div>
                 <div className="text-right shrink-0">
                   <p className="font-semibold tabular-nums">
-                    {formatPrValue(pr.prType, pr.value, pr.weightKg)}
+                    {formatPrValue(pr)}
                   </p>
                   {!pr.isCurrent && (
                     <p className="text-[10px] uppercase tracking-wider text-muted-foreground/70">

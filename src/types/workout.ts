@@ -16,6 +16,7 @@ import {
   workoutSessions,
   workoutSets,
 } from "@/db/schema";
+import type { Discipline } from "@/lib/utils/discipline";
 
 // ============================================================================
 // Database Table Types (Inferred from Drizzle Schemas)
@@ -201,12 +202,23 @@ export type SetSuggestion = {
 
 // ─── Personal Records ─────────────────────────────────────────────────────────
 
-export type PRType = "weight" | "reps_at_weight" | "estimated_1rm";
+export type PRType =
+  | "weight"
+  | "reps_at_weight"
+  | "estimated_1rm"
+  | "distance"
+  | "pace";
 
 export type PRResult = {
   type: PRType;
   value: number;
   previousValue?: number;
+  /** Endurance context (set for "distance"/"pace") so the UI can render the unit. */
+  discipline?: Discipline;
+  /** The effort's distance in meters — set for "pace" so pace can be formatted. */
+  distanceMeters?: number;
+  /** Distance bracket label, e.g. "5 km" — set for "pace". */
+  bracket?: string;
 };
 
 /** Return type for logWorkoutSet — includes PR data detected from this set. */
