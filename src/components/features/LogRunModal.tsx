@@ -1,11 +1,10 @@
 "use client";
 
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { formatDistanceKm, formatPace, sanitizeDecimalInput } from "@/lib/utils/format";
+import { formatEnduranceDistance, formatEndurancePace, sanitizeDecimalInput } from "@/lib/utils/format";
+import { disciplineConfig, type Discipline } from "@/lib/utils/discipline";
 import { useState, useEffect } from "react";
 
-const DISTANCE_PRESETS_M = [500, 1000, 2000, 3000, 5000, 10000, 15000, 21097, 42195];
-const DISTANCE_LABELS = ["0.5km", "1km", "2km", "3km", "5km", "10km", "15km", "21km", "42km"];
 const RPE_OPTIONS = [6, 7, 8, 9, 10];
 const INCLINE_PRESETS = [0, 1, 2, 3, 5, 8, 10, 12, 15];
 const HR_ZONES = [
@@ -19,6 +18,7 @@ const HR_ZONES = [
 type Props = {
   open: boolean;
   onClose: () => void;
+  discipline?: Discipline | null;
   onConfirm: (distanceMeters: number, durationSeconds: number, rpe: number, inclinePercent: number | null, heartRateZone: number | null) => void;
   targetDistanceMeters?: number | null;
   targetDurationSeconds?: number | null;
@@ -31,6 +31,7 @@ type Props = {
 export function LogRunModal({
   open,
   onClose,
+  discipline = null,
   onConfirm,
   targetDistanceMeters,
   targetDurationSeconds,
@@ -39,8 +40,15 @@ export function LogRunModal({
   setNumber,
   totalSets,
 }: Props) {
+  const cfg = disciplineConfig(discipline);
+  const metersToInput = (m: number) => (cfg.inputUnit === "m" ? String(m) : String(m / 1000));
+  const inputToMeters = (val: string): number | null => {
+    const n = parseFloat(val);
+    if (isNaN(n) || n < 0) return null;
+    return cfg.inputUnit === "m" ? Math.round(n) : Math.round(n * 1000);
+  };
   const [distanceMeters, setDistanceMeters] = useState(
-    targetDistanceMeters ?? 5000,
+    targetDistanceMeters ?? cfg.defaultDistanceM,
   );
   const [durationSeconds, setDurationSeconds] = useState(
     targetDurationSeconds ?? 0,
@@ -56,35 +64,35 @@ export function LogRunModal({
     String((targetDurationSeconds ?? 0) % 60).padStart(2, "0"),
   );
   const [distanceStr, setDistanceStr] = useState(
-    String((targetDistanceMeters ?? 5000) / 1000),
+    metersToInput(targetDistanceMeters ?? cfg.defaultDistanceM),
   );
 
   // Reset when opened with new target values
   useEffect(() => {
     if (!open) return;
-    const dist = targetDistanceMeters ?? 5000;
+    const dist = targetDistanceMeters ?? cfg.defaultDistanceM;
     const dur = targetDurationSeconds ?? 0;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting form state when the modal reopens with new target values
     setDistanceMeters(dist);
     setDurationSeconds(dur);
-    setDistanceStr(String(dist / 1000));
+    setDistanceStr(metersToInput(dist));
     setMinStr(String(Math.floor(dur / 60)));
     setSecStr(String(dur % 60).padStart(2, "0"));
     setRpe(7);
     setInclinePercent(targetInclinePercent ?? null);
     setInclineStr(targetInclinePercent != null ? String(targetInclinePercent) : "");
     setHeartRateZone(targetHeartRateZone ?? null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, targetDistanceMeters, targetDurationSeconds, targetInclinePercent, targetHeartRateZone]);
 
   const pace =
     distanceMeters > 0 && durationSeconds > 0
-      ? formatPace(durationSeconds, distanceMeters)
+      ? formatEndurancePace(cfg.paceFormatter, durationSeconds, distanceMeters)
       : null;
 
   const title =
     totalSets > 1
       ? `Log Interval ${setNumber} of ${totalSets}`
-      : "Log Run";
+      : cfg.logVerb;
 
   const handleConfirm = () => {
     onConfirm(distanceMeters, durationSeconds, rpe, inclinePercent, heartRateZone);
@@ -112,12 +120,12 @@ export function LogRunModal({
             </p>
             {/* Preset bubbles */}
             <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-              {DISTANCE_PRESETS_M.map((m, i) => (
+              {cfg.distancePresetsM.map((m, i) => (
                 <button
                   key={m}
                   onClick={() => {
                     setDistanceMeters(m);
-                    setDistanceStr(String(m / 1000));
+                    setDistanceStr(metersToInput(m));
                   }}
                   className={`flex-shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all active:scale-95 ${
                     distanceMeters === m
@@ -125,7 +133,7 @@ export function LogRunModal({
                       : "bg-muted text-foreground"
                   }`}
                 >
-                  {DISTANCE_LABELS[i]}
+                  {cfg.distanceLabels[i]}
                 </button>
               ))}
             </div>
@@ -138,20 +146,19 @@ export function LogRunModal({
                 onChange={(e) => {
                   const val = sanitizeDecimalInput(e.target.value);
                   setDistanceStr(val);
-                  const km = parseFloat(val);
-                  if (!isNaN(km) && km >= 0) setDistanceMeters(Math.round(km * 1000));
+                  const m = inputToMeters(val);
+                  if (m != null) setDistanceMeters(m);
                 }}
                 onBlur={() => {
-                  const km = parseFloat(distanceStr);
-                  if (!isNaN(km) && km >= 0) {
-                    const m = Math.round(km * 1000);
+                  const m = inputToMeters(distanceStr);
+                  if (m != null) {
                     setDistanceMeters(m);
-                    setDistanceStr(String(m / 1000));
+                    setDistanceStr(metersToInput(m));
                   }
                 }}
                 className="flex-1 rounded-xl bg-background border border-border px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
               />
-              <span className="text-base font-medium text-muted-foreground w-8">km</span>
+              <span className="text-base font-medium text-muted-foreground w-8">{cfg.inputUnit}</span>
             </div>
           </div>
 
@@ -206,7 +213,8 @@ export function LogRunModal({
             </div>
           )}
 
-          {/* Incline */}
+          {/* Incline — treadmill running only */}
+          {cfg.showIncline && (
           <div>
             <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">
               Incline <span className="normal-case">(optional)</span>
@@ -251,6 +259,7 @@ export function LogRunModal({
               <span className="text-sm font-medium text-muted-foreground w-5">%</span>
             </div>
           </div>
+          )}
 
           {/* Heart Rate Zone */}
           <div>
@@ -309,8 +318,8 @@ export function LogRunModal({
             className="w-full rounded-xl bg-primary py-4 text-base font-semibold text-primary-foreground transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {pace
-              ? `Log Run — ${formatDistanceKm(distanceMeters)} at ${pace}`
-              : `Log Run — ${formatDistanceKm(distanceMeters)}`}
+              ? `${cfg.logVerb} — ${formatEnduranceDistance(cfg.inputUnit, distanceMeters)} at ${pace}`
+              : `${cfg.logVerb} — ${formatEnduranceDistance(cfg.inputUnit, distanceMeters)}`}
           </button>
         </div>
       </div>

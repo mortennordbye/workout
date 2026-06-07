@@ -4,7 +4,8 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { updateProgramSet } from "@/lib/actions/programs";
 import { updateWorkoutSetNotes } from "@/lib/actions/workout-sets";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { formatPace, formatTime, sanitizeDecimalInput } from "@/lib/utils/format";
+import { formatEndurancePace, formatTime, sanitizeDecimalInput } from "@/lib/utils/format";
+import { disciplineConfig, type Discipline } from "@/lib/utils/discipline";
 import type { SetType } from "@/lib/validators/workout";
 import type { ProgramSet } from "@/types/workout";
 import { Loader2 } from "lucide-react";
@@ -16,6 +17,8 @@ type Props = {
   isWorkout?: boolean;
   isTimed?: boolean;
   isRunning?: boolean;
+  /** Triathlon discipline of the exercise. Null → generic run-mode behavior. */
+  discipline?: Discipline | null;
   /** Exercise id — required to resolve the workout_sets row for note updates. */
   exerciseId?: number | null;
   /** 1-based position of this set within the exercise — used as the workout_sets key. */
@@ -24,8 +27,6 @@ type Props = {
 
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 300, 600];
 const RUNNING_DURATION_PRESETS_S = [600, 1200, 1800, 2400, 3000, 3600, 4500, 5400, 7200]; // 10–120 min
-const DISTANCE_PRESETS_M = [500, 1000, 2000, 3000, 5000, 10000, 15000, 21097, 42195];
-const DISTANCE_LABELS = ["0.5km", "1km", "2km", "3km", "5km", "10km", "15km", "21km", "42km"];
 const INCLINE_PRESETS = [0, 1, 2, 3, 5, 8, 10, 12, 15];
 const HR_ZONES = [
   { zone: 1, label: "Z1", desc: "Recovery" },
@@ -40,10 +41,19 @@ export function SetEditView({
   isWorkout = false,
   isTimed = false,
   isRunning = false,
+  discipline = null,
   exerciseId = null,
   setNumber,
 }: Props) {
   const router = useRouter();
+  const cfg = disciplineConfig(discipline);
+  // Convert between the editor's distance input (m for swim, km otherwise) and stored meters.
+  const metersToInput = (m: number) => (cfg.inputUnit === "m" ? String(m) : String(m / 1000));
+  const inputToMeters = (val: string): number | null => {
+    const n = parseFloat(val);
+    if (isNaN(n) || n < 0) return null;
+    return cfg.inputUnit === "m" ? Math.round(n) : Math.round(n * 1000);
+  };
   const [showRepsPicker, setShowRepsPicker] = useState(false);
   const [showWeightPicker, setShowWeightPicker] = useState(false);
   const [showDurationPicker, setShowDurationPicker] = useState(false);
@@ -64,8 +74,8 @@ export function SetEditView({
   );
   const [notes, setNotes] = useState<string>(override?.notes ?? "");
   const [duration, setDuration] = useState(override?.durationSeconds ?? Number(set.durationSeconds ?? 0));
-  const [distanceMeters, setDistanceMeters] = useState(set.distanceMeters ?? 5000);
-  const [distanceStr, setDistanceStr] = useState(String((set.distanceMeters ?? 5000) / 1000));
+  const [distanceMeters, setDistanceMeters] = useState(set.distanceMeters ?? cfg.defaultDistanceM);
+  const [distanceStr, setDistanceStr] = useState(metersToInput(set.distanceMeters ?? cfg.defaultDistanceM));
   const [inclinePercent, setInclinePercent] = useState<number | null>(set.inclinePercent ?? null);
   const [inclineStr, setInclineStr] = useState(set.inclinePercent != null ? String(set.inclinePercent) : "");
   const [targetHeartRateZone, setTargetHeartRateZone] = useState<number | null>(set.targetHeartRateZone ?? null);
@@ -194,17 +204,17 @@ export function SetEditView({
                 <div className="py-4 border-b border-border">
                   <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">Distance</p>
                   <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                    {DISTANCE_PRESETS_M.map((m, i) => (
+                    {cfg.distancePresetsM.map((m, i) => (
                       <button
                         key={m}
-                        onClick={() => { setDistanceMeters(m); setDistanceStr(String(m / 1000)); }}
+                        onClick={() => { setDistanceMeters(m); setDistanceStr(metersToInput(m)); }}
                         className={`flex-shrink-0 px-4 h-11 rounded-full text-sm font-semibold transition-all active:scale-95 ${
                           distanceMeters === m
                             ? "bg-primary text-primary-foreground"
                             : "bg-muted text-foreground"
                         }`}
                       >
-                        {DISTANCE_LABELS[i]}
+                        {cfg.distanceLabels[i]}
                       </button>
                     ))}
                   </div>
@@ -216,20 +226,19 @@ export function SetEditView({
                       onChange={(e) => {
                         const val = sanitizeDecimalInput(e.target.value);
                         setDistanceStr(val);
-                        const km = parseFloat(val);
-                        if (!isNaN(km) && km >= 0) setDistanceMeters(Math.round(km * 1000));
+                        const m = inputToMeters(val);
+                        if (m != null) setDistanceMeters(m);
                       }}
                       onBlur={() => {
-                        const km = parseFloat(distanceStr);
-                        if (!isNaN(km) && km >= 0) {
-                          const m = Math.round(km * 1000);
+                        const m = inputToMeters(distanceStr);
+                        if (m != null) {
                           setDistanceMeters(m);
-                          setDistanceStr(String(m / 1000));
+                          setDistanceStr(metersToInput(m));
                         }
                       }}
                       className="flex-1 rounded-xl bg-background border border-border px-4 py-2.5 text-center text-xl font-bold outline-none focus:ring-2 ring-primary"
                     />
-                    <span className="text-sm font-medium text-muted-foreground">km</span>
+                    <span className="text-sm font-medium text-muted-foreground">{cfg.inputUnit}</span>
                   </div>
                 </div>
                 <button
@@ -244,7 +253,7 @@ export function SetEditView({
                 {distanceMeters > 0 && duration > 0 && (
                   <div className="py-3 flex items-center justify-center">
                     <span className="px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold">
-                      {formatPace(duration, distanceMeters)}
+                      {formatEndurancePace(cfg.paceFormatter, duration, distanceMeters)}
                     </span>
                   </div>
                 )}
@@ -283,7 +292,8 @@ export function SetEditView({
               </div>
             )}
 
-            {/* Incline */}
+            {/* Incline — treadmill running only */}
+            {cfg.showIncline && (
             <div className="py-4 border-b border-border">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
                 Incline <span className="normal-case text-xs">(optional)</span>
@@ -328,6 +338,7 @@ export function SetEditView({
                 <span className="text-sm font-medium text-muted-foreground">%</span>
               </div>
             </div>
+            )}
             {/* Target HR Zone */}
             <div className="py-4 border-b border-border">
               <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3">

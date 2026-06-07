@@ -7,7 +7,15 @@
  */
 
 import { db } from "@/db";
-import { programs, trainingCycleSlots, trainingCycles, workoutSessions } from "@/db/schema";
+import { programExercises, programSets, programs, trainingCycleSlots, trainingCycles, workoutSessions } from "@/db/schema";
+import {
+  periodizedLoad,
+  phaseLabel,
+  phaseLayout,
+  scaledDistance,
+  type TrainingGoal,
+  type TrainingPhase,
+} from "@/lib/utils/periodization";
 import { requireSession } from "@/lib/utils/session";
 import {
   createTrainingCycleSchema,
@@ -31,7 +39,7 @@ import {
   resolveRotation,
   toDateStr,
 } from "@/lib/utils/cycle-position";
-import { and, asc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -149,6 +157,13 @@ export async function getActiveCycleForUser(): Promise<ActionResult<ActiveCycleI
     const currentWeek = Math.floor(daysSinceStart / 7) + 1;
 
     const slots = cycle.slots as TrainingCycleWithSlots["slots"];
+
+    // Periodization: once per cycle-week, scale the endurance targets from their
+    // stored peak via the curve (Base→Build→Peak→Taper, or flat for "maintain").
+    // No-op for non-triathlon cycles (no peak_distance_meters anchors).
+    if (cycle.lastSyncedWeek !== currentWeek) {
+      await syncPeriodizedTargets(cycle.id, slots, currentWeek, cycle.durationWeeks, cycle.goal);
+    }
     const slotById = new Map<number, TrainingCycleSlotWithProgram>(
       slots.map((s) => [s.id, s]),
     );
@@ -223,6 +238,138 @@ export async function getActiveCycleForUser(): Promise<ActionResult<ActiveCycleI
   } catch (err) {
     return { success: false, error: String(err) };
   }
+}
+
+export type CyclePeriodization = {
+  goal: TrainingGoal;
+  currentWeek: number;
+  totalWeeks: number;
+  phase: TrainingPhase;
+  phaseLabel: string;
+  /** This week's endurance volume as a fraction of peak. */
+  multiplier: number;
+  isDeload: boolean;
+  /** Weeks until the peak block (0 once in/after peak). */
+  weeksUntilPeak: number;
+  /** Weeks until taper begins (0 once in/after taper). */
+  weeksUntilTaper: number;
+};
+
+/**
+ * Periodization summary for a triathlon cycle's detail page. Returns null for
+ * cycles with no peak-anchored endurance (i.e. ordinary, non-periodized cycles).
+ */
+export async function getCyclePeriodization(
+  cycleId: number,
+): Promise<ActionResult<CyclePeriodization | null>> {
+  const auth = await requireSession();
+  try {
+    const cycle = await db.query.trainingCycles.findFirst({
+      where: and(eq(trainingCycles.id, cycleId), eq(trainingCycles.userId, auth.user.id)),
+      with: { slots: { with: { program: true } } },
+    });
+    if (!cycle) return { success: true, data: null };
+
+    const programIds = (cycle.slots ?? [])
+      .map((s) => s.programId)
+      .filter((id): id is number => id != null);
+    if (programIds.length === 0) return { success: true, data: null };
+
+    const [peak] = await db
+      .select({ id: programSets.id })
+      .from(programSets)
+      .innerJoin(programExercises, eq(programSets.programExerciseId, programExercises.id))
+      .where(
+        and(
+          inArray(programExercises.programId, programIds),
+          isNotNull(programSets.peakDistanceMeters),
+        ),
+      )
+      .limit(1);
+    if (!peak) return { success: true, data: null };
+
+    const totalWeeks = cycle.durationWeeks;
+    let currentWeek = 1;
+    if (cycle.status === "active" && cycle.startDate) {
+      const start = new Date(cycle.startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const days = Math.floor((today.getTime() - start.getTime()) / 86_400_000);
+      currentWeek = Math.min(totalWeeks, Math.max(1, Math.floor(days / 7) + 1));
+    } else if (cycle.status === "completed") {
+      currentWeek = totalWeeks;
+    }
+
+    const load = periodizedLoad(currentWeek, totalWeeks, cycle.goal);
+    const { rampWeeks, peakWeeks } = phaseLayout(totalWeeks);
+    const peakStart = rampWeeks + 1;
+    const taperStart = rampWeeks + peakWeeks + 1;
+
+    return {
+      success: true,
+      data: {
+        goal: cycle.goal,
+        currentWeek,
+        totalWeeks,
+        phase: load.phase,
+        phaseLabel: phaseLabel(load.phase),
+        multiplier: load.multiplier,
+        isDeload: load.isDeload,
+        weeksUntilPeak: Math.max(0, peakStart - currentWeek),
+        weeksUntilTaper: Math.max(0, taperStart - currentWeek),
+      },
+    };
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+/**
+ * Scale a periodized cycle's endurance targets to the given week. For each
+ * endurance set with a stored peak, distance_meters = peak × curve(week). Idempotent
+ * per week via training_cycles.last_synced_week. No-op (beyond the marker) for
+ * cycles with no peak anchors (i.e. non-triathlon cycles).
+ */
+async function syncPeriodizedTargets(
+  cycleId: number,
+  slots: TrainingCycleWithSlots["slots"],
+  currentWeek: number,
+  durationWeeks: number,
+  goal: TrainingGoal,
+): Promise<void> {
+  const programIds = slots
+    .map((s) => s.programId)
+    .filter((id): id is number => id != null);
+
+  if (programIds.length > 0) {
+    const peakSets = await db
+      .select({ id: programSets.id, peak: programSets.peakDistanceMeters })
+      .from(programSets)
+      .innerJoin(programExercises, eq(programSets.programExerciseId, programExercises.id))
+      .where(
+        and(
+          inArray(programExercises.programId, programIds),
+          isNotNull(programSets.peakDistanceMeters),
+        ),
+      );
+
+    if (peakSets.length > 0) {
+      const { multiplier } = periodizedLoad(currentWeek, durationWeeks, goal);
+      await Promise.all(
+        peakSets.map((ps) =>
+          db
+            .update(programSets)
+            .set({ distanceMeters: scaledDistance(ps.peak!, multiplier) })
+            .where(eq(programSets.id, ps.id)),
+        ),
+      );
+    }
+  }
+
+  await db
+    .update(trainingCycles)
+    .set({ lastSyncedWeek: currentWeek })
+    .where(eq(trainingCycles.id, cycleId));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

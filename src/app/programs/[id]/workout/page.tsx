@@ -40,7 +40,8 @@ export default async function WorkoutSessionPage({ params }: Props) {
     name: pe.exercise.name,
     exerciseId: pe.exercise.id,
     isTimed: pe.exercise.isTimed,
-    isRunning: pe.exercise.name === "Running",
+    isRunning: pe.exercise.name === "Running" || pe.exercise.discipline != null,
+    discipline: pe.exercise.discipline,
     sets: pe.programSets,
   }));
 

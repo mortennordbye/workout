@@ -6,6 +6,7 @@ import {
   getSummaryStats,
   getTopProgressingExercises,
   getCardioMetrics,
+  getTriathlonMetrics,
   getHeatmapData,
   getMovementPatternBalance,
   getReadinessPerformance,
@@ -40,6 +41,7 @@ export default async function MetricsPage() {
     progressResult,
     cyclesResult,
     cardioResult,
+    triathlonResult,
     heatmapResult,
     movementResult,
     readinessResult,
@@ -52,6 +54,7 @@ export default async function MetricsPage() {
     topExercise ? getExerciseProgress(topExercise.exerciseId) : Promise.resolve(null),
     getMetricsCycles(),
     getCardioMetrics(),
+    getTriathlonMetrics(),
     getHeatmapData(),
     getMovementPatternBalance(),
     getReadinessPerformance(),
@@ -72,6 +75,7 @@ export default async function MetricsPage() {
       profileWeightKg={userRow?.weightKg ?? null}
       cycles={cyclesResult.success ? cyclesResult.data : []}
       cardioMetrics={cardioResult.success ? cardioResult.data : null}
+      triathlonMetrics={triathlonResult.success ? triathlonResult.data : null}
       heatmapData={heatmapResult.success ? heatmapResult.data : []}
       movementPatternData={movementResult.success ? movementResult.data : []}
       readinessData={readinessResult.success ? readinessResult.data : []}

@@ -70,7 +70,8 @@ export default async function WorkoutNewSetPage({ params }: Props) {
         nextSetNumber={nextSetNumber}
         lastSet={lastSet}
         isTimed={pe.exercise.isTimed}
-        isRunning={pe.exercise.name === "Running"}
+        isRunning={pe.exercise.name === "Running" || pe.exercise.discipline != null}
+        discipline={pe.exercise.discipline}
         isWorkout={true}
       />
     </div>

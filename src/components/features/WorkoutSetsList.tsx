@@ -9,7 +9,8 @@ import type { SetSuggestionDisplay } from "@/components/features/WorkoutSetsClie
 import { usePendingQueue } from "@/contexts/pending-queue-context";
 import { useToast } from "@/contexts/toast-context";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
-import { formatDistanceKm, formatPace, formatTime } from "@/lib/utils/format";
+import { formatEnduranceDistance, formatEndurancePace, formatTime } from "@/lib/utils/format";
+import { disciplineConfig, type Discipline } from "@/lib/utils/discipline";
 import { haptics } from "@/lib/utils/haptics";
 import { computeMapping, toFlatItems } from "@/lib/utils/set-mapping";
 import type { FlatItem, RestFlatItem, SetFlatItem } from "@/lib/utils/set-mapping";
@@ -45,6 +46,7 @@ type WorkoutSetsListProps = {
   isWorkout?: boolean;
   isTimed?: boolean;
   isRunning?: boolean;
+  discipline?: Discipline | null;
   exerciseId?: number;
   sessionId?: number;
   onDeleteSet?: (setId: number) => void;
@@ -68,6 +70,7 @@ export function WorkoutSetsList({
   isWorkout = false,
   isTimed = false,
   isRunning = false,
+  discipline = null,
   exerciseId,
   sessionId,
   onDeleteSet,
@@ -705,6 +708,7 @@ export function WorkoutSetsList({
                     isWorkout={isWorkout}
                     isTimed={isTimed}
                     isRunning={isRunning}
+                    discipline={discipline}
                     isCompleted={activeCompletedSets.has(item.set.id)}
                     programId={programId}
                     programExerciseId={programExerciseId}
@@ -857,6 +861,7 @@ export function WorkoutSetsList({
           <LogRunModal
             open={true}
             onClose={() => setPendingRunSetId(null)}
+            discipline={discipline}
             onConfirm={(dist, dur, rpe, incline, hrZone) => confirmRunLog(pendingRunSetId, dist, dur, rpe, incline, hrZone)}
             targetDistanceMeters={workoutSession?.overrides[pendingRunSetId]?.distanceMeters ?? runSet?.distanceMeters}
             targetDurationSeconds={workoutSession?.overrides[pendingRunSetId]?.durationSeconds ?? runSet?.durationSeconds}
@@ -1000,6 +1005,7 @@ function SortableSetRow({
   isWorkout,
   isTimed,
   isRunning,
+  discipline,
   isCompleted,
   programId,
   programExerciseId,
@@ -1022,6 +1028,7 @@ function SortableSetRow({
   isWorkout: boolean;
   isTimed: boolean;
   isRunning: boolean;
+  discipline: Discipline | null;
   isCompleted: boolean;
   programId: number;
   programExerciseId: number;
@@ -1046,6 +1053,7 @@ function SortableSetRow({
   } = useSortable({ id, disabled: !isEditing });
 
   const router = useRouter();
+  const cfg = disciplineConfig(discipline);
 
   const setEditHref = isWorkout
     ? `/programs/${programId}/workout/exercises/${programExerciseId}/sets/${set.id}`
@@ -1124,18 +1132,18 @@ function SortableSetRow({
           <div>
             {set.distanceMeters ? (
               <p className="text-lg font-medium">
-                {formatDistanceKm(set.distanceMeters)}
+                {formatEnduranceDistance(cfg.inputUnit, set.distanceMeters)}
               </p>
             ) : (
               <p className="text-lg font-medium text-muted-foreground">
-                {totalSets > 1 ? `Interval ${setNumber}` : "Run"}
+                {totalSets > 1 ? `Interval ${setNumber}` : cfg.label}
               </p>
             )}
             {set.durationSeconds != null && (
               <p className="text-sm text-muted-foreground">
                 {formatTime(set.durationSeconds)}
                 {set.distanceMeters != null && set.distanceMeters > 0 && set.durationSeconds > 0
-                  ? ` · ${formatPace(set.durationSeconds, set.distanceMeters)}`
+                  ? ` · ${formatEndurancePace(cfg.paceFormatter, set.durationSeconds, set.distanceMeters)}`
                   : ""}
               </p>
             )}
@@ -1183,7 +1191,7 @@ function SortableSetRow({
             suggestion.suggestedDistanceMeters !== undefined;
           const lastValue = isRunning
             ? suggestion.basedOnDistanceMeters != null
-              ? formatDistanceKm(suggestion.basedOnDistanceMeters)
+              ? formatEnduranceDistance(cfg.inputUnit, suggestion.basedOnDistanceMeters)
               : ""
             : isTimed
             ? suggestion.basedOnDurationSeconds != null
@@ -1310,7 +1318,7 @@ function SortableSetRow({
                     }}
                     className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-xs font-semibold active:opacity-60 transition-opacity"
                   >
-                    ↑ {formatDistanceKm(suggestion.suggestedDistanceMeters!)}
+                    ↑ {formatEnduranceDistance(cfg.inputUnit, suggestion.suggestedDistanceMeters!)}
                   </button>
                 )}
                 {suggestion.readinessModulated && (

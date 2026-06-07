@@ -336,7 +336,7 @@ export function CycleCalendarClient({ cycles, completedDates, programsMap }: Pro
                     <div className="divide-y divide-border">
                       {sheetProgram.programExercises.map((pe) => {
                         const summary = pe.exercise.category === "cardio"
-                          ? buildRunSetSummary(pe.programSets)
+                          ? buildRunSetSummary(pe.programSets, pe.exercise.discipline)
                           : buildSetSummary(pe.programSets, pe.exercise.isTimed);
                         return (
                           <div key={pe.id} className="px-4 py-3">

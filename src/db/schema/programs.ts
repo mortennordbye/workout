@@ -69,6 +69,9 @@ export const programSets = pgTable("program_sets", {
   durationSeconds: integer("duration_seconds"),
   // For running/cardio sets (meters)
   distanceMeters: integer("distance_meters"),
+  // Periodized endurance: the peak (race-prep) distance this set ramps toward.
+  // Null = not periodized. The active cycle scales distanceMeters from this each week.
+  peakDistanceMeters: integer("peak_distance_meters"),
   // For running: treadmill incline (whole percent, 0-30)
   inclinePercent: integer("incline_percent"),
   // For running: target heart rate zone (1-5)

@@ -31,7 +31,8 @@ export default async function ProgramDetailPage({ params, searchParams }: Props)
     id: pe.id,
     name: pe.exercise.name,
     isTimed: pe.exercise.isTimed,
-    isRunning: pe.exercise.name === "Running",
+    isRunning: pe.exercise.name === "Running" || pe.exercise.discipline != null,
+    discipline: pe.exercise.discipline,
     sets: pe.programSets,
   }));
 

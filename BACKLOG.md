@@ -18,6 +18,30 @@ When you finish an item, delete it. When you add an item, write enough that some
 
 ## New features — additive
 
+### In-workout periodization phase note
+- **What:** The cycle detail page shows the current phase + week ("Build · Week 7 of 24 · Peak in 9 wks"), but the in-workout overview header does not. Showing it there would require the workout page to resolve which active periodized cycle a program belongs to and compute the week — cross-cutting plumbing not yet added.
+- **Why deferred:** The phase is already visible on the cycle page, and the workout shows the correctly-synced targets. The header note is polish, not function.
+- **Unblocked by:** A helper that maps a programId → active cycle + current week, passed into `WorkoutSessionClient`.
+- **Touchpoints:** `src/app/programs/[id]/workout/page.tsx`, `src/components/features/WorkoutSessionClient.tsx`, `src/lib/actions/training-cycles.ts` (`getCyclePeriodization`).
+
+### Periodize time-based (indoor/trainer) endurance sets
+- **What:** The periodization weekly sync scales `distance_meters` from a stored `peak_distance_meters`. If a user switches an endurance set to Time mode, its `duration_seconds` is not periodized (no peak-duration anchor).
+- **Why deferred:** The generator only emits distance-based endurance; time mode is a manual per-set override. Scaling duration needs a `peak_duration_seconds` anchor + sync branch.
+- **Unblocked by:** Add `peak_duration_seconds` to `program_sets` and extend `syncPeriodizedTargets`.
+- **Touchpoints:** `src/db/schema/programs.ts`, `src/lib/actions/training-cycles.ts` (`syncPeriodizedTargets`), `src/lib/utils/periodization.ts`.
+
+### Persist endurance PRs to `exercise_prs`
+- **What:** Swim/bike/run pace and distance bests are computed on the fly in `getTriathlonMetrics`, but never written to the `exercise_prs` table — so they don't appear in the PR feed (`/more/prs`) or trigger the in-workout PR badge. PR detection in `logWorkoutSet` early-returns on `weightKg <= 0`, which is every endurance set.
+- **Why deferred:** Reading metrics on demand is sufficient for the first iteration; persisting needs new `prType`s and detection logic.
+- **Unblocked by:** Adding `pace`/`distance` `prType`s + detection branches.
+- **Touchpoints:** `src/db/schema/exercise-prs.ts`, `src/lib/actions/workout-sets.ts` (PR detection), `src/lib/actions/metrics.ts` (`getTriathlonMetrics`).
+
+### Sport-specific endurance fields (pool length, bike power/cadence, swim stroke)
+- **What:** The set editor captures distance/duration/incline/HR-zone only. Triathletes often want pool length, swim stroke, or bike power/cadence. The schema has no columns for these.
+- **Why deferred:** Not needed to log and track the three disciplines; add when a concrete need appears.
+- **Unblocked by:** A request for one of these specific metrics.
+- **Touchpoints:** `src/db/schema/workout-sets.ts`, `src/components/features/SetEditView.tsx`, `src/components/features/LogRunModal.tsx`.
+
 ### Link make-up sessions back to the missed cycle slot
 - **What:** When a user taps "Make up" on a missed workout, the resulting session is logged with today's date — history won't say "this was Monday's push." A proper fix adds an `intendedDate` column (or `cycle_slot_id` FK) to `workout_sessions` so the original missed date is preserved.
 - **Why deferred:** Cosmetic for history; doesn't affect correctness of cycle progression. Wait until users actually ask for accurate history attribution.

@@ -44,6 +44,7 @@ export default async function WorkoutExerciseSetsPage({ params }: Props) {
       isWorkout={true}
       exerciseCategory={pe.exercise.category ?? undefined}
       exerciseIsTimed={pe.exercise.isTimed}
+      exerciseDiscipline={pe.exercise.discipline}
       suggestions={suggestions}
       overloadIncrementKg={pe.overloadIncrementKg != null ? Number(pe.overloadIncrementKg) : null}
       overloadIncrementReps={Number(pe.overloadIncrementReps ?? 0)}

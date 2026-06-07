@@ -73,6 +73,10 @@ export const movementPatternEnum = [
   "cardio",
 ] as const;
 
+// Triathlon discipline. Null for every non-triathlon exercise (all strength,
+// flexibility, and generic cardio) — those keep their existing behavior.
+export const disciplineEnum = ["swim", "bike", "run"] as const;
+
 export const exercises = pgTable("exercises", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -84,4 +88,5 @@ export const exercises = pgTable("exercises", {
   muscleGroup: text("muscle_group", { enum: muscleGroupEnum }),
   equipment: text("equipment", { enum: equipmentEnum }),
   movementPattern: text("movement_pattern", { enum: movementPatternEnum }),
+  discipline: text("discipline", { enum: disciplineEnum }),
 });
