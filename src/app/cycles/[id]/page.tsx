@@ -9,6 +9,7 @@ import { DeleteCycleButton, RestartCycleButton, StartCycleButton } from "@/compo
 import { CycleScheduleBuilder } from "@/components/features/CycleScheduleBuilder";
 import { getCyclePeriodization, getTrainingCycleWithSlots } from "@/lib/actions/training-cycles";
 import { getPrograms } from "@/lib/actions/programs";
+import { formatPeriodizationSummary } from "@/lib/utils/periodization";
 import { requireSession } from "@/lib/utils/session";
 import { ChevronLeftIcon } from "lucide-react";
 import Link from "next/link";
@@ -38,26 +39,9 @@ export default async function CycleDetailPage({
   const programs = programsResult.success ? programsResult.data : [];
   const periodization = periodizationResult.success ? periodizationResult.data : null;
 
-  let periodizationHeadline = "";
-  let periodizationNote = "";
-  if (periodization) {
-    const pct = Math.round(periodization.multiplier * 100);
-    const deload = periodization.isDeload && periodization.goal === "build" ? " · deload" : "";
-    periodizationHeadline = `${periodization.phaseLabel}${deload} · Week ${periodization.currentWeek} of ${periodization.totalWeeks}`;
-    if (periodization.goal === "maintain") {
-      periodizationNote = "Endurance held steady; strength at maintenance.";
-    } else if (periodization.weeksUntilPeak > 0) {
-      const wk = periodization.weeksUntilPeak === 1 ? "wk" : "wks";
-      periodizationNote = `Peak in ${periodization.weeksUntilPeak} ${wk} · this week ~${pct}% of peak volume.`;
-    } else if (periodization.weeksUntilTaper > 0) {
-      const wk = periodization.weeksUntilTaper === 1 ? "wk" : "wks";
-      periodizationNote = `At peak · taper in ${periodization.weeksUntilTaper} ${wk}.`;
-    } else if (periodization.phase === "taper") {
-      periodizationNote = "Tapering into race week - easing volume to arrive fresh.";
-    } else {
-      periodizationNote = "Peak block - race-prep volume.";
-    }
-  }
+  const { headline: periodizationHeadline, note: periodizationNote } = periodization
+    ? formatPeriodizationSummary(periodization)
+    : { headline: "", note: "" };
 
   const scheduleLabel =
     cycle.scheduleType === "day_of_week" ? "Day of week" : "Rotation";

@@ -18,12 +18,6 @@ When you finish an item, delete it. When you add an item, write enough that some
 
 ## New features — additive
 
-### In-workout periodization phase note
-- **What:** The cycle detail page shows the current phase + week ("Build · Week 7 of 24 · Peak in 9 wks"), but the in-workout overview header does not. Showing it there would require the workout page to resolve which active periodized cycle a program belongs to and compute the week — cross-cutting plumbing not yet added.
-- **Why deferred:** The phase is already visible on the cycle page, and the workout shows the correctly-synced targets. The header note is polish, not function.
-- **Unblocked by:** A helper that maps a programId → active cycle + current week, passed into `WorkoutSessionClient`.
-- **Touchpoints:** `src/app/programs/[id]/workout/page.tsx`, `src/components/features/WorkoutSessionClient.tsx`, `src/lib/actions/training-cycles.ts` (`getCyclePeriodization`).
-
 ### Periodize time-based (indoor/trainer) endurance sets
 - **What:** The periodization weekly sync scales `distance_meters` from a stored `peak_distance_meters`. If a user switches an endurance set to Time mode, its `duration_seconds` is not periodized (no peak-duration anchor).
 - **Why deferred:** The generator only emits distance-based endurance; time mode is a manual per-set override. Scaling duration needs a `peak_duration_seconds` anchor + sync branch.

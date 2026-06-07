@@ -62,6 +62,7 @@ type Props = {
   exercises: Exercise[];
   lastSession?: LastSession | null;
   insight?: WorkoutInsight | null;
+  periodization?: { headline: string; note: string } | null;
 };
 
 export function WorkoutSessionClient({
@@ -70,6 +71,7 @@ export function WorkoutSessionClient({
   exercises: initial,
   lastSession = null,
   insight = null,
+  periodization = null,
 }: Props) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
@@ -167,6 +169,14 @@ export function WorkoutSessionClient({
         <p className="text-sm text-muted-foreground">{programName}</p>
         <p className="text-xs text-muted-foreground/60 tabular-nums">{formatTime(elapsed)}</p>
       </div>
+
+      {/* Periodization phase note — only for programs in an active periodized cycle */}
+      {periodization && (
+        <div className="px-4 pb-3 shrink-0 flex flex-col items-center gap-0.5 text-center">
+          <p className="text-xs font-semibold text-primary">{periodization.headline}</p>
+          <p className="text-[10px] text-muted-foreground">{periodization.note}</p>
+        </div>
+      )}
 
       {/* Last session note */}
       {lastSession && !noteDismissed && (lastSession.notes || lastSession.feeling) && (

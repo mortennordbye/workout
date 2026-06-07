@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatPeriodizationSummary,
   periodizedLoad,
   phaseLayout,
+  type PeriodizationSummaryInput,
   type TrainingGoal,
 } from "@/lib/utils/periodization";
 
@@ -77,5 +79,58 @@ describe("periodizedLoad — bounds", () => {
   it("clamps out-of-range weeks", () => {
     expect(periodizedLoad(0, 12, "build").week).toBe(1);
     expect(periodizedLoad(99, 12, "build").week).toBe(12);
+  });
+});
+
+describe("formatPeriodizationSummary", () => {
+  // Build a summary input from the canonical curve so the phrasing tests track
+  // the real load function rather than hand-picked numbers.
+  const summary = (week: number, totalWeeks: number, goal: TrainingGoal) => {
+    const load = periodizedLoad(week, totalWeeks, goal);
+    const { rampWeeks, peakWeeks } = phaseLayout(totalWeeks);
+    const input: PeriodizationSummaryInput = {
+      goal,
+      phase: load.phase,
+      phaseLabel: load.phase.charAt(0).toUpperCase() + load.phase.slice(1),
+      currentWeek: load.week,
+      totalWeeks,
+      multiplier: load.multiplier,
+      isDeload: load.isDeload,
+      weeksUntilPeak: Math.max(0, rampWeeks + 1 - load.week),
+      weeksUntilTaper: Math.max(0, rampWeeks + peakWeeks + 1 - load.week),
+    };
+    return formatPeriodizationSummary(input);
+  };
+
+  it("describes a ramping build week with weeks-until-peak and percent", () => {
+    const { headline, note } = summary(1, 24, "build");
+    expect(headline).toBe("Base · Week 1 of 24");
+    expect(note).toBe("Peak in 19 wks · this week ~60% of peak volume.");
+  });
+
+  it("flags deload weeks in the headline", () => {
+    const { headline } = summary(4, 24, "build");
+    expect(headline).toContain("· deload");
+  });
+
+  it("singularizes the week unit when peak is one week away", () => {
+    const { note } = summary(19, 24, "build"); // rampWeeks=19 → peak at 20
+    expect(note).toBe("Peak in 1 wk · this week ~100% of peak volume.");
+  });
+
+  it("announces taper countdown once at peak", () => {
+    const { note } = summary(20, 24, "build");
+    expect(note).toBe("At peak · taper in 2 wks.");
+  });
+
+  it("describes the taper phase", () => {
+    const { note } = summary(24, 24, "build");
+    expect(note).toBe("Tapering into race week - easing volume to arrive fresh.");
+  });
+
+  it("holds steady for maintain goal", () => {
+    const { headline, note } = summary(5, 24, "maintain");
+    expect(headline).toBe("Maintain · Week 5 of 24");
+    expect(note).toBe("Endurance held steady; strength at maintenance.");
   });
 });

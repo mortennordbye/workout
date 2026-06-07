@@ -140,3 +140,44 @@ const PHASE_LABELS: Record<TrainingPhase, string> = {
 export function phaseLabel(phase: TrainingPhase): string {
   return PHASE_LABELS[phase];
 }
+
+/** Fields needed to phrase a periodization summary (subset of CyclePeriodization). */
+export type PeriodizationSummaryInput = {
+  goal: TrainingGoal;
+  phase: TrainingPhase;
+  phaseLabel: string;
+  currentWeek: number;
+  totalWeeks: number;
+  multiplier: number;
+  isDeload: boolean;
+  weeksUntilPeak: number;
+  weeksUntilTaper: number;
+};
+
+/**
+ * Human phrasing for a periodization state — shared by the cycle detail page and
+ * the in-workout header so both read identically. Pure (no DB, no JSX).
+ */
+export function formatPeriodizationSummary(
+  p: PeriodizationSummaryInput,
+): { headline: string; note: string } {
+  const pct = Math.round(p.multiplier * 100);
+  const deload = p.isDeload && p.goal === "build" ? " · deload" : "";
+  const headline = `${p.phaseLabel}${deload} · Week ${p.currentWeek} of ${p.totalWeeks}`;
+
+  let note: string;
+  if (p.goal === "maintain") {
+    note = "Endurance held steady; strength at maintenance.";
+  } else if (p.weeksUntilPeak > 0) {
+    const wk = p.weeksUntilPeak === 1 ? "wk" : "wks";
+    note = `Peak in ${p.weeksUntilPeak} ${wk} · this week ~${pct}% of peak volume.`;
+  } else if (p.weeksUntilTaper > 0) {
+    const wk = p.weeksUntilTaper === 1 ? "wk" : "wks";
+    note = `At peak · taper in ${p.weeksUntilTaper} ${wk}.`;
+  } else if (p.phase === "taper") {
+    note = "Tapering into race week - easing volume to arrive fresh.";
+  } else {
+    note = "Peak block - race-prep volume.";
+  }
+  return { headline, note };
+}

@@ -325,6 +325,35 @@ export async function getCyclePeriodization(
 }
 
 /**
+ * Periodization for the active cycle a given program belongs to — for the
+ * in-workout header. Returns null when the program isn't part of an active
+ * (periodized) cycle. Scoped to the session user via the cycle's userId.
+ */
+export async function getProgramPeriodization(
+  programId: number,
+): Promise<ActionResult<CyclePeriodization | null>> {
+  const auth = await requireSession();
+  try {
+    const [slot] = await db
+      .select({ cycleId: trainingCycleSlots.trainingCycleId })
+      .from(trainingCycleSlots)
+      .innerJoin(trainingCycles, eq(trainingCycleSlots.trainingCycleId, trainingCycles.id))
+      .where(
+        and(
+          eq(trainingCycleSlots.programId, programId),
+          eq(trainingCycles.userId, auth.user.id),
+          eq(trainingCycles.status, "active"),
+        ),
+      )
+      .limit(1);
+    if (!slot) return { success: true, data: null };
+    return getCyclePeriodization(slot.cycleId);
+  } catch (err) {
+    return { success: false, error: String(err) };
+  }
+}
+
+/**
  * Scale a periodized cycle's endurance targets to the given week. For each
  * endurance set with a stored peak, distance_meters = peak × curve(week). Idempotent
  * per week via training_cycles.last_synced_week. No-op (beyond the marker) for
