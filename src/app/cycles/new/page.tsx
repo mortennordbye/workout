@@ -10,7 +10,7 @@ import Link from "next/link";
 
 export default function NewCyclePage() {
   return (
-    <div className="h-[100dvh] bg-background flex flex-col overflow-y-auto pb-nav-safe">
+    <div className="h-[100dvh] bg-background flex flex-col overflow-y-auto">
       {/* Header */}
       <div className="flex items-center px-4 pt-6 pb-2 shrink-0">
         <Link
@@ -25,7 +25,7 @@ export default function NewCyclePage() {
         <h1 className="text-3xl font-bold tracking-tight">New Cycle</h1>
       </div>
 
-      <div className="px-4" style={{ minHeight: "calc(100dvh + var(--kb-height, 0px))" }}>
+      <div className="px-4 pb-nav-safe" style={{ minHeight: "calc(100dvh + var(--kb-height, 0px))" }}>
         <CreateCycleForm />
       </div>
     </div>

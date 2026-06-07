@@ -187,7 +187,7 @@ export function SettingsClient() {
       </div>
       <h1 className="text-3xl font-bold tracking-tight px-4 pt-2 pb-0 shrink-0">Settings</h1>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-6 pb-nav-safe-lg flex flex-col gap-6">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-6 flex flex-col gap-6">
 
         {/* ── Appearance ─────────────────────────────── */}
         <div>
@@ -396,7 +396,7 @@ export function SettingsClient() {
           </div>
         </div>
 
-        <div aria-hidden="true" style={{ height: "var(--kb-height, 0px)" }} />
+        <div aria-hidden="true" className="pb-nav-safe-lg" style={{ height: "var(--kb-height, 0px)" }} />
       </div>
     </div>
   );

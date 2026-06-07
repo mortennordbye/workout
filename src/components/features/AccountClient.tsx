@@ -257,7 +257,7 @@ export function AccountClient({ name, email, role, profile: initialProfile, show
 
   return (
     <>
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-2 pb-nav-safe-lg flex flex-col gap-6">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pt-2 flex flex-col gap-6">
 
         {/* Profile */}
         <div>
@@ -398,7 +398,7 @@ export function AccountClient({ name, email, role, profile: initialProfile, show
           </div>
         </div>
 
-        <div aria-hidden="true" style={{ height: "var(--kb-height, 0px)" }} />
+        <div aria-hidden="true" className="pb-nav-safe-lg" style={{ height: "var(--kb-height, 0px)" }} />
       </div>
 
       {/* Change Password Sheet */}

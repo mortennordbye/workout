@@ -51,7 +51,7 @@ export function TriathlonPlanForm() {
   };
 
   return (
-    <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
+    <div className="h-[100dvh] pb-nav-safe bg-background flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center px-4 pt-6 pb-4 shrink-0">
         <Link href="/cycles" className="flex items-center gap-0.5 text-primary active:opacity-70 -ml-1 min-h-[44px]">
@@ -68,7 +68,7 @@ export function TriathlonPlanForm() {
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 space-y-6 pb-nav-safe">
+      <div className="flex-1 overflow-y-auto px-4 space-y-6 pb-4">
         {/* Goal */}
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Goal</p>

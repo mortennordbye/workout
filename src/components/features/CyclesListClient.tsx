@@ -1,5 +1,6 @@
 "use client";
 
+import { BottomSheet } from "@/components/ui/BottomSheet";
 import { deleteTrainingCycle, deleteManyTrainingCycles } from "@/lib/actions/training-cycles";
 import type { TrainingCycle } from "@/types/workout";
 import { Check, PlusIcon } from "lucide-react";
@@ -99,6 +100,7 @@ export function CyclesListClient({ cycles: initial }: Props) {
   const [bulkDeleteError, setBulkDeleteError] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [showAddSheet, setShowAddSheet] = useState(false);
 
   useEffect(() => { setCycles(initial); }, [initial]);
 
@@ -253,12 +255,14 @@ export function CyclesListClient({ cycles: initial }: Props) {
               >
                 Edit
               </button>
-              <Link
-                href="/cycles/new"
+              <button
+                type="button"
+                onClick={() => setShowAddSheet(true)}
+                aria-label="New cycle"
                 className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground active:opacity-80 transition-opacity"
               >
                 <PlusIcon className="w-5 h-5" />
-              </Link>
+              </button>
             </>
           )}
         </div>
@@ -306,7 +310,7 @@ export function CyclesListClient({ cycles: initial }: Props) {
         <p className="text-sm text-destructive px-4 pb-2 shrink-0">{bulkDeleteError}</p>
       )}
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-4 pt-4 pb-nav-safe">
+      <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-4 pt-4">
         {/* Active */}
         {active.length > 0 && (
           <div>
@@ -360,26 +364,54 @@ export function CyclesListClient({ cycles: initial }: Props) {
             <p className="text-muted-foreground text-sm">
               No cycles yet. Create your first training block.
             </p>
-            <Link
-              href="/cycles/new"
+            <button
+              type="button"
+              onClick={() => setShowAddSheet(true)}
               className="flex items-center gap-2 rounded-full border-2 border-primary px-6 py-3 text-primary font-semibold text-sm active:bg-primary/20 transition-colors"
             >
               <PlusIcon className="w-4 h-4" />
               New Cycle
-            </Link>
+            </button>
           </div>
         )}
 
-        {/* Subtle triathlon plan generator entry */}
-        {!isEditing && (
-          <Link
-            href="/cycles/triathlon"
-            className="text-center text-xs text-muted-foreground py-2 active:opacity-60 transition-opacity"
-          >
-            Generate a triathlon plan →
-          </Link>
-        )}
+        {/* Spacer so the last row clears the fixed bottom nav (flex scroll
+            containers ignore their own padding-bottom on iOS WebKit). */}
+        <div aria-hidden className="shrink-0 pb-nav-safe" />
       </div>
+
+      {/* New-cycle action sheet — blank cycle or the triathlon plan generator */}
+      <BottomSheet open={showAddSheet} onClose={() => setShowAddSheet(false)}>
+        <div className="w-full px-4 pb-8 space-y-2">
+          <div className="bg-card rounded-2xl overflow-hidden divide-y divide-border">
+            <Link
+              href="/cycles/new"
+              onClick={() => setShowAddSheet(false)}
+              className="flex flex-col items-center justify-center py-4 active:bg-muted/50 transition-colors"
+            >
+              <span className="text-base font-medium">New cycle</span>
+              <span className="text-xs text-muted-foreground">Build a custom weekly schedule</span>
+            </Link>
+            <Link
+              href="/cycles/triathlon"
+              onClick={() => setShowAddSheet(false)}
+              className="flex flex-col items-center justify-center py-4 active:bg-muted/50 transition-colors"
+            >
+              <span className="text-base font-medium">Triathlon plan</span>
+              <span className="text-xs text-muted-foreground">Swim · bike · run + strength, periodized</span>
+            </Link>
+          </div>
+          <div className="bg-card rounded-2xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowAddSheet(false)}
+              className="w-full flex items-center justify-center py-4 text-base font-semibold text-primary active:bg-muted/50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </BottomSheet>
     </div>
   );
 }
