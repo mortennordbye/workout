@@ -8,14 +8,6 @@ When you finish an item, delete it. When you add an item, write enough that some
 
 ---
 
-## Improvements — incremental polish
-
-### Drop the legacy `users.goal` column
-- **What:** `parseUserGoals` falls back to legacy single-value `goal` field. Read-only — nothing writes it any more. Once we're confident the new `goals` JSON array is populated for all active users, the column + fallback can go.
-- **Why deferred:** Want a migration window first.
-- **Unblocked by:** Confirming via DB query that all active users have non-null `goals`.
-- **Touchpoints:** `src/db/schema/users.ts:22`, `parseUserGoals`, `workout-sets.ts:719`, `ai-generate.ts:252`.
-
 ## New features — additive
 
 ### Sport-specific endurance fields (pool length, bike power/cadence, swim stroke)
@@ -41,7 +33,6 @@ When you finish an item, delete it. When you add an item, write enough that some
 - **Why deferred:** Vanishingly rare in practice; the previous modulo-counter version had the inverse limitation (double-counted, arguably more wrong).
 - **Unblocked by:** Concrete report of a power user hitting it.
 - **Touchpoints:** `src/lib/utils/cycle-position.ts` (`walkRotation`), tests in `src/__tests__/cycle-position.test.ts`.
-
 
 ## Smart-progression UX (deferred long-term)
 

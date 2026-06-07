@@ -32,6 +32,7 @@ import {
     paceSecondsPerMeter,
     type Discipline,
 } from "@/lib/utils/discipline";
+import { parseUserGoals } from "@/lib/utils/goals";
 import { requireSession } from "@/lib/utils/session";
 import {
     logWorkoutSetSchema,
@@ -1020,7 +1021,7 @@ export async function getProgressiveSuggestions(
     // Step 2: fetch user profile and current session readiness in parallel
     const [userProfile, activeSession] = await Promise.all([
       db
-        .select({ experienceLevel: users.experienceLevel, goal: users.goal })
+        .select({ experienceLevel: users.experienceLevel, goals: users.goals })
         .from(users)
         .where(eq(users.id, userId))
         .limit(1)
@@ -1041,6 +1042,16 @@ export async function getProgressiveSuggestions(
     ]);
 
     const readiness = activeSession?.readiness ?? null;
+
+    // buildSuggestion only special-cases an "endurance" goal (smaller increments);
+    // derive it from the user's goals array (endurance wins, else the first goal).
+    const userGoals = parseUserGoals(userProfile?.goals);
+    const profile = userProfile
+      ? {
+          experienceLevel: userProfile.experienceLevel,
+          goal: userGoals.includes("endurance") ? "endurance" : (userGoals[0] ?? null),
+        }
+      : null;
 
     // Step 3: fetch history, excluding Tired sessions
     // NULL feeling (pre-feature sessions) is kept via IS DISTINCT FROM.
@@ -1107,7 +1118,7 @@ export async function getProgressiveSuggestions(
         movementPattern: ps.movementPattern,
         exerciseName: ps.exerciseName,
       };
-      const suggestion = buildSuggestion(rows, psData, userProfile, readiness);
+      const suggestion = buildSuggestion(rows, psData, profile, readiness);
       if (suggestion) {
         suggestions[ps.programSetId] = suggestion;
       }

@@ -37,7 +37,7 @@ export default async function AiSetupPage() {
     birthYear: user?.birthYear ?? null,
     heightCm: user?.heightCm ?? null,
     weightKg: user?.weightKg ?? null,
-    goals: parseUserGoals(user?.goals, user?.goal),
+    goals: parseUserGoals(user?.goals),
     experienceLevel: user?.experienceLevel ?? null,
   };
 

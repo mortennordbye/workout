@@ -225,6 +225,13 @@
       "when": 1780852279322,
       "tag": "0031_simple_doctor_faustus",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1780853105656,
+      "tag": "0032_strange_orphan",
+      "breakpoints": true
     }
   ]
 }
