@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildRunSetSummary,
   buildSetSummary,
   formatEnduranceDistance,
   formatEndurancePace,
@@ -179,6 +180,29 @@ describe("buildSetSummary", () => {
     expect(result).not.toContain("kg");
     expect(result).toContain("00:30");
     expect(result).toContain("01:00");
+  });
+});
+
+describe("buildRunSetSummary", () => {
+  it("renders run units by default (null discipline)", () => {
+    const set = makeSet({ distanceMeters: 5000, durationSeconds: 1500 });
+    expect(buildRunSetSummary([set])).toBe("5 km · 25:00 · 5:00 /km");
+  });
+
+  it("renders swim distance in meters and /100m pace", () => {
+    const set = makeSet({ distanceMeters: 1500, durationSeconds: 1800 });
+    // 1500 m ≥ 1 km so distance shows as km, but pace uses the swim formatter
+    expect(buildRunSetSummary([set], "swim")).toBe("1.5 km · 30:00 · 2:00 /100m");
+  });
+
+  it("renders bike speed in km/h", () => {
+    const set = makeSet({ distanceMeters: 40000, durationSeconds: 5400 });
+    expect(buildRunSetSummary([set], "bike")).toBe("40 km · 90:00 · 26.7 km/h");
+  });
+
+  it("falls back to the discipline label when a set has no distance/duration", () => {
+    const set = makeSet({ distanceMeters: null, durationSeconds: null });
+    expect(buildRunSetSummary([set], "swim")).toBe("Swim");
   });
 });
 

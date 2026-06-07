@@ -37,6 +37,15 @@ export const trainingCycles = pgTable("training_cycles", {
   })
     .default("day_of_week")
     .notNull(),
+  // Periodization goal for triathlon-style cycles. "build" ramps endurance load
+  // to a peak then tapers; "maintain" holds it flat. Strength stays maintenance
+  // either way. Non-triathlon cycles default to "build" and carry no peak anchors.
+  goal: text("goal", { enum: ["build", "maintain"] })
+    .default("build")
+    .notNull(),
+  // Last cycle-week whose endurance targets were synced from the periodization
+  // curve. Lets the weekly sync run once per week, idempotently. Null = unsynced.
+  lastSyncedWeek: integer("last_synced_week"),
   startDate: date("start_date"),
   status: text("status", { enum: ["draft", "active", "completed"] })
     .default("draft")

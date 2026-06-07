@@ -6,6 +6,7 @@ import { BottomSheet } from "@/components/ui/BottomSheet";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import type { ExerciseInsight, WorkoutInsight } from "@/lib/actions/workout-sets";
 import { formatTime } from "@/lib/utils/format";
+import type { Discipline } from "@/lib/utils/discipline";
 import {
     removeExerciseFromProgram,
     reorderProgramExercises,
@@ -23,6 +24,8 @@ type Exercise = {
   name: string;
   sets: ProgramSet[];
   isTimed?: boolean;
+  isRunning?: boolean;
+  discipline?: Discipline | null;
 };
 
 type LastSession = {

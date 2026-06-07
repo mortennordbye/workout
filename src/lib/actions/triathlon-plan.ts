@@ -23,6 +23,7 @@ import { z } from "zod";
 const generateTriathlonPlanSchema = z.object({
   weeks: z.number().int().min(1).max(52),
   restDay: z.number().int().min(1).max(7).optional(),
+  goal: z.enum(["build", "maintain"]).default("build"),
 });
 
 // Canonical exercises the plan references. Endurance ones are new (discipline-tagged);
@@ -94,6 +95,7 @@ export async function generateTriathlonPlan(
           name: plan.cycleName,
           durationWeeks: plan.durationWeeks,
           scheduleType: "day_of_week",
+          goal: plan.goal,
           status: "draft",
         })
         .returning({ id: trainingCycles.id });
@@ -169,6 +171,7 @@ async function insertPlanExercise(
       weightKg: s.weightKg != null ? String(s.weightKg) : null,
       durationSeconds: s.durationSeconds ?? null,
       distanceMeters: s.distanceMeters ?? null,
+      peakDistanceMeters: s.peakDistanceMeters ?? null,
       restTimeSeconds: s.restTimeSeconds,
       setType: "working",
     })),

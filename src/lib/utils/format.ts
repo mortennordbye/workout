@@ -1,3 +1,4 @@
+import { disciplineConfig, type Discipline } from "@/lib/utils/discipline";
 import type { ProgramSet } from "@/types/workout";
 
 /** Normalize a locale decimal separator (comma) to a period. */
@@ -130,16 +131,20 @@ export function formatEnduranceDistance(inputUnit: "m" | "km", meters: number): 
  * Build a run set summary for the exercise list row.
  * e.g. "5 km · 25:00 · 5:00 /km" or "1 km; 1 km; 1 km; ..." for intervals
  */
-export function buildRunSetSummary(sets: ProgramSet[]): string {
+export function buildRunSetSummary(
+  sets: ProgramSet[],
+  discipline: Discipline | null = null,
+): string {
   if (sets.length === 0) return "";
+  const cfg = disciplineConfig(discipline);
   const tokens = sets.map((s) => {
     const parts: string[] = [];
-    if (s.distanceMeters) parts.push(formatDistanceKm(s.distanceMeters));
+    if (s.distanceMeters) parts.push(formatEnduranceDistance(cfg.inputUnit, s.distanceMeters));
     if (s.durationSeconds) parts.push(formatTime(s.durationSeconds));
     if (s.distanceMeters && s.durationSeconds) {
-      parts.push(formatPace(s.durationSeconds, s.distanceMeters));
+      parts.push(formatEndurancePace(cfg.paceFormatter, s.durationSeconds, s.distanceMeters));
     }
-    return parts.join(" · ") || "Run";
+    return parts.join(" · ") || cfg.label;
   });
   return tokens.length > 3
     ? tokens.slice(0, 3).join("; ") + "; ..."

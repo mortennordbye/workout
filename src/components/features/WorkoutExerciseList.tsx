@@ -3,6 +3,7 @@
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { logWorkoutSet } from "@/lib/actions/workout-sets";
 import { buildRunSetSummary, buildSetSummary } from "@/lib/utils/format";
+import type { Discipline } from "@/lib/utils/discipline";
 import type { ProgramSet } from "@/types/workout";
 import {
   DndContext,
@@ -31,6 +32,7 @@ type Exercise = {
   sets: ProgramSet[];
   isTimed?: boolean;
   isRunning?: boolean;
+  discipline?: Discipline | null;
 };
 
 type Props = {
@@ -146,7 +148,7 @@ export function WorkoutExerciseList({
             isCompleted={isExerciseCompleted(exercise)}
             summary={
               exercise.isRunning
-                ? buildRunSetSummary(exercise.sets)
+                ? buildRunSetSummary(exercise.sets, exercise.discipline)
                 : buildSetSummary(
                     exercise.sets.map((s) => {
                       const ov = workoutSession?.overrides[s.id];

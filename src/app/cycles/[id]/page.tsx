@@ -7,7 +7,7 @@
 import { CycleCompletionBanner } from "@/components/features/CycleCompletionBanner";
 import { DeleteCycleButton, RestartCycleButton, StartCycleButton } from "@/components/features/CycleDetailClient";
 import { CycleScheduleBuilder } from "@/components/features/CycleScheduleBuilder";
-import { getTrainingCycleWithSlots } from "@/lib/actions/training-cycles";
+import { getCyclePeriodization, getTrainingCycleWithSlots } from "@/lib/actions/training-cycles";
 import { getPrograms } from "@/lib/actions/programs";
 import { requireSession } from "@/lib/utils/session";
 import { ChevronLeftIcon } from "lucide-react";
@@ -26,15 +26,38 @@ export default async function CycleDetailPage({
   if (isNaN(cycleId)) notFound();
 
   await requireSession();
-  const [cycleResult, programsResult] = await Promise.all([
+  const [cycleResult, programsResult, periodizationResult] = await Promise.all([
     getTrainingCycleWithSlots(cycleId),
     getPrograms(),
+    getCyclePeriodization(cycleId),
   ]);
 
   if (!cycleResult.success) notFound();
 
   const cycle = cycleResult.data;
   const programs = programsResult.success ? programsResult.data : [];
+  const periodization = periodizationResult.success ? periodizationResult.data : null;
+
+  let periodizationHeadline = "";
+  let periodizationNote = "";
+  if (periodization) {
+    const pct = Math.round(periodization.multiplier * 100);
+    const deload = periodization.isDeload && periodization.goal === "build" ? " · deload" : "";
+    periodizationHeadline = `${periodization.phaseLabel}${deload} · Week ${periodization.currentWeek} of ${periodization.totalWeeks}`;
+    if (periodization.goal === "maintain") {
+      periodizationNote = "Endurance held steady; strength at maintenance.";
+    } else if (periodization.weeksUntilPeak > 0) {
+      const wk = periodization.weeksUntilPeak === 1 ? "wk" : "wks";
+      periodizationNote = `Peak in ${periodization.weeksUntilPeak} ${wk} · this week ~${pct}% of peak volume.`;
+    } else if (periodization.weeksUntilTaper > 0) {
+      const wk = periodization.weeksUntilTaper === 1 ? "wk" : "wks";
+      periodizationNote = `At peak · taper in ${periodization.weeksUntilTaper} ${wk}.`;
+    } else if (periodization.phase === "taper") {
+      periodizationNote = "Tapering into race week - easing volume to arrive fresh.";
+    } else {
+      periodizationNote = "Peak block - race-prep volume.";
+    }
+  }
 
   const scheduleLabel =
     cycle.scheduleType === "day_of_week" ? "Day of week" : "Rotation";
@@ -79,6 +102,19 @@ export default async function CycleDetailPage({
             {cycle.status}
           </span>
         </div>
+
+        {/* Periodization summary (triathlon cycles) */}
+        {periodization && (
+          <div className="rounded-2xl bg-primary/10 px-4 py-3.5">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-primary">{periodizationHeadline}</p>
+              <span className="text-xs font-semibold text-primary">
+                {Math.round(periodization.multiplier * 100)}%
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">{periodizationNote}</p>
+          </div>
+        )}
 
         {/* Completion banner */}
         {cycle.status === "completed" && (

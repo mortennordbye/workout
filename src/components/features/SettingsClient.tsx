@@ -50,6 +50,23 @@ function RowDescription({ children }: { children: React.ReactNode }) {
   return <p className="text-xs text-muted-foreground mb-3">{children}</p>;
 }
 
+function Switch({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative h-7 w-12 shrink-0 rounded-full transition-colors active:scale-95 ${checked ? "bg-primary" : "bg-muted-foreground/30"}`}
+    >
+      <span
+        className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : ""}`}
+      />
+    </button>
+  );
+}
+
 function NotificationsRow() {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
 
@@ -157,6 +174,7 @@ export function SettingsClient() {
     defaultIncrementKg, setDefaultIncrementKg,
     defaultIncrementReps, setDefaultIncrementReps,
     uiScale, setUiScale,
+    triathlonEnabled, setTriathlonEnabled,
   } = useTheme();
   const colorInputRef = useRef<HTMLInputElement>(null);
 
@@ -346,6 +364,22 @@ export function SettingsClient() {
               </div>
             </Row>
 
+          </div>
+        </div>
+
+        {/* ── Training ───────────────────────────────── */}
+        <div>
+          <SectionLabel>Training</SectionLabel>
+          <div className="rounded-2xl bg-card overflow-hidden">
+            <Row last>
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <RowLabel>Triathlon mode</RowLabel>
+                  <p className="text-xs text-muted-foreground">Show the swim/bike/run plan generator and triathlon stats. Off by default.</p>
+                </div>
+                <Switch checked={triathlonEnabled} onChange={setTriathlonEnabled} label="Triathlon mode" />
+              </div>
+            </Row>
           </div>
         </div>
 

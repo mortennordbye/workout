@@ -27,6 +27,7 @@ import {
   type WeightEntry,
 } from "@/lib/actions/profile";
 import { BottomSheet } from "@/components/ui/BottomSheet";
+import { useTheme } from "@/components/ui/theme-provider";
 import { estimate1RM } from "@/lib/utils/progression";
 import {
   formatEnduranceDistance,
@@ -1560,6 +1561,7 @@ export function MetricsClient({
   readinessData,
   weeklyMuscleVolume,
 }: Props) {
+  const { triathlonEnabled } = useTheme();
   const [activeTab, setActiveTab] = useState<Tab>("alltime");
   const [selectedId, setSelectedId] = useState<number | null>(initialExerciseId);
   const [progressData, setProgressData] = useState<ExerciseProgress[]>(initialProgress);
@@ -1645,7 +1647,8 @@ export function MetricsClient({
             <WeeklyChart data={weekly} />
 
             {/* ── Triathlon (swim/bike/run) ──────────────────────────── */}
-            {triathlonMetrics && triathlonMetrics.disciplines.length > 0 && (
+            {/* Shown when there's discipline data, or when Triathlon mode is opted in via Settings. */}
+            {triathlonMetrics && (triathlonMetrics.disciplines.length > 0 || triathlonEnabled) && (
               <TriathlonSection data={triathlonMetrics} />
             )}
 

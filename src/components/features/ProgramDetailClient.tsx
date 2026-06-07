@@ -7,6 +7,7 @@ import {
   updateProgram,
 } from "@/lib/actions/programs";
 import { buildRunSetSummary, buildSetSummary } from "@/lib/utils/format";
+import type { Discipline } from "@/lib/utils/discipline";
 import type { ProgramSet } from "@/types/workout";
 import {
   DndContext,
@@ -37,6 +38,7 @@ type ProgramExItem = {
   name: string;
   isTimed: boolean;
   isRunning?: boolean;
+  discipline?: Discipline | null;
   sets: ProgramSet[];
 };
 
@@ -85,7 +87,7 @@ function SortableExerciseRow({
   } = useSortable({ id: exercise.id, disabled: !isEditing });
 
   const summary = exercise.isRunning
-    ? buildRunSetSummary(exercise.sets)
+    ? buildRunSetSummary(exercise.sets, exercise.discipline)
     : buildSetSummary(exercise.sets, exercise.isTimed);
 
   return (

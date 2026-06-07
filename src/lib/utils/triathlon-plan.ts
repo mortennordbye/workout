@@ -1,14 +1,16 @@
 /**
  * Triathlon plan generator — pure blueprint builder (no DB access, fully testable).
  *
- * Produces a single progressive weekly template (7 day-of-week slots) that mixes
- * swim / bike / run with two maintenance strength days. The training-cycle model
- * repeats this one weekly template across `durationWeeks`; week-to-week volume
- * ramp is handled by the app's existing time/distance progression engine, which
- * is why each endurance exercise carries a progressionMode + increment.
- *
- * See BACKLOG.md for the deferred "true periodization (phase blocks + taper)".
+ * Produces one weekly template (7 day-of-week slots) mixing swim / bike / run
+ * with two maintenance strength days. The distances picked are the *peak*
+ * (race-prep) week; each endurance set stores that peak so the active cycle's
+ * periodization (see periodization.ts) can scale the week-to-week volume —
+ * Base → Build → Peak → Taper for "build", flat for "maintain". Endurance uses
+ * `manual` progression because the periodization curve, not reactive
+ * +increment suggestions, drives the load. Strength stays maintenance.
  */
+
+import { periodizedLoad, scaledDistance, type TrainingGoal } from "@/lib/utils/periodization";
 
 export type PlanProgressionMode = "manual" | "distance";
 
@@ -16,6 +18,8 @@ export type PlanSet = {
   targetReps?: number;
   weightKg?: number;
   distanceMeters?: number;
+  /** Peak (race-prep) distance this endurance set ramps toward. */
+  peakDistanceMeters?: number;
   durationSeconds?: number;
   restTimeSeconds: number;
 };
@@ -41,6 +45,7 @@ export type PlanDay = {
 export type PlanBlueprint = {
   cycleName: string;
   durationWeeks: number;
+  goal: TrainingGoal;
   days: PlanDay[];
 };
 
@@ -49,9 +54,11 @@ export type BuildTriathlonPlanParams = {
   weeks: number;
   /** 1 = Monday … 7 = Sunday. The session on this day becomes a rest day. */
   restDay?: number;
+  /** "build" ramps to a race peak then tapers; "maintain" holds flat. Default "build". */
+  goal?: TrainingGoal;
 };
 
-const ALLOWED_WEEKS = [4, 6, 8, 10, 12, 16];
+const ALLOWED_WEEKS = [4, 6, 8, 10, 12, 16, 24, 36, 52];
 
 /** Snap an arbitrary week count to the nearest cycle-supported value. */
 export function snapWeeks(weeks: number): number {
@@ -64,29 +71,32 @@ function strengthSet(): PlanSet {
   return { targetReps: 5, weightKg: 0, restTimeSeconds: 120 };
 }
 
-function enduranceSet(distanceMeters: number): PlanSet {
-  return { distanceMeters, restTimeSeconds: 0 };
-}
-
 function strengthExercise(name: string): PlanExercise {
   return { name, progressionMode: "manual", overloadIncrementReps: 0, sets: [strengthSet(), strengthSet(), strengthSet()] };
 }
 
-function enduranceExercise(name: string, distanceMeters: number, incrementMeters: number): PlanExercise {
-  return {
-    name,
-    progressionMode: "distance",
-    overloadIncrementReps: incrementMeters,
-    sets: [enduranceSet(distanceMeters)],
-  };
-}
-
 /**
- * Build a balanced Triathlon base week. Two strength days (Mon/Fri) keep muscle
- * mass; Saturday is a bike→run brick (one session, two exercises).
+ * Build a balanced Triathlon week. The `peakMeters` is the race-prep volume; the
+ * stored `distanceMeters` is the week-1 prescription (scaled by the periodization
+ * curve) and `peakDistanceMeters` is the anchor the active cycle ramps toward.
+ * Two strength days (Mon/Fri) keep muscle; Saturday is a bike→run brick.
  */
-export function buildTriathlonPlan({ weeks, restDay }: BuildTriathlonPlanParams): PlanBlueprint {
+export function buildTriathlonPlan({ weeks, restDay, goal = "build" }: BuildTriathlonPlanParams): PlanBlueprint {
   const durationWeeks = snapWeeks(weeks);
+  const week1Multiplier = periodizedLoad(1, durationWeeks, goal).multiplier;
+
+  const endurance = (name: string, peakMeters: number): PlanExercise => ({
+    name,
+    progressionMode: "manual",
+    overloadIncrementReps: 0,
+    sets: [
+      {
+        distanceMeters: scaledDistance(peakMeters, week1Multiplier),
+        peakDistanceMeters: peakMeters,
+        restTimeSeconds: 0,
+      },
+    ],
+  });
 
   const days: PlanDay[] = [
     {
@@ -97,17 +107,17 @@ export function buildTriathlonPlan({ weeks, restDay }: BuildTriathlonPlanParams)
     {
       dayOfWeek: 2,
       label: "Run — Tempo",
-      exercises: [enduranceExercise("Run", 5000, 500)],
+      exercises: [endurance("Run", 5000)],
     },
     {
       dayOfWeek: 3,
       label: "Swim — Endurance",
-      exercises: [enduranceExercise("Swim", 1500, 100)],
+      exercises: [endurance("Swim", 1500)],
     },
     {
       dayOfWeek: 4,
       label: "Bike — Endurance",
-      exercises: [enduranceExercise("Bike", 40000, 2000)],
+      exercises: [endurance("Bike", 40000)],
     },
     {
       dayOfWeek: 5,
@@ -116,18 +126,18 @@ export function buildTriathlonPlan({ weeks, restDay }: BuildTriathlonPlanParams)
         strengthExercise("Deadlift"),
         strengthExercise("Overhead Press"),
         strengthExercise("Pull-up"),
-        enduranceExercise("Swim", 1000, 100),
+        endurance("Swim", 1000),
       ],
     },
     {
       dayOfWeek: 6,
       label: "Long Bike + Brick Run",
-      exercises: [enduranceExercise("Bike", 90000, 5000), enduranceExercise("Run", 5000, 500)],
+      exercises: [endurance("Bike", 90000), endurance("Run", 5000)],
     },
     {
       dayOfWeek: 7,
       label: "Long Run",
-      exercises: [enduranceExercise("Run", 15000, 1000)],
+      exercises: [endurance("Run", 15000)],
     },
   ];
 
@@ -139,7 +149,8 @@ export function buildTriathlonPlan({ weeks, restDay }: BuildTriathlonPlanParams)
     }
   }
 
-  return { cycleName: `Triathlon Base — ${durationWeeks} wk`, durationWeeks, days };
+  const goalLabel = goal === "maintain" ? "Maintain" : "Build";
+  return { cycleName: `Triathlon ${goalLabel} — ${durationWeeks} wk`, durationWeeks, goal, days };
 }
 
 /** Distinct exercises referenced by a blueprint, in first-seen order. */

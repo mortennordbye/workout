@@ -6,7 +6,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-const WEEK_PRESETS = [8, 12, 16];
+// Duration presets stored as whole weeks (the cycle/progression engine works in
+// weeks) but labelled in months — Ironman builds commonly run 6–12 months.
+const DURATION_PRESETS = [
+  { weeks: 8, label: "2 mo" },
+  { weeks: 12, label: "3 mo" },
+  { weeks: 16, label: "4 mo" },
+  { weeks: 24, label: "6 mo" },
+  { weeks: 36, label: "9 mo" },
+  { weeks: 52, label: "12 mo" },
+];
 const DAYS = [
   { value: 1, label: "Mon" },
   { value: 2, label: "Tue" },
@@ -19,6 +28,7 @@ const DAYS = [
 
 export function TriathlonPlanForm() {
   const router = useRouter();
+  const [goal, setGoal] = useState<"build" | "maintain">("build");
   const [weeks, setWeeks] = useState(12);
   const [restDay, setRestDay] = useState<number | null>(1);
   const [saving, setSaving] = useState(false);
@@ -29,6 +39,7 @@ export function TriathlonPlanForm() {
     setError(null);
     const result = await generateTriathlonPlan({
       weeks,
+      goal,
       ...(restDay != null ? { restDay } : {}),
     });
     if (result.success) {
@@ -52,28 +63,55 @@ export function TriathlonPlanForm() {
       <div className="px-4 pb-4 shrink-0">
         <h1 className="text-3xl font-bold tracking-tight">Triathlon plan</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Generates a weekly swim/bike/run template with two strength days to keep muscle. Volume ramps each
-          week via progression. You can edit every session afterward.
+          A weekly swim/bike/run template with two strength days to keep muscle. Endurance volume is periodized
+          across the block; strength stays at maintenance. You can edit every session afterward.
         </p>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 space-y-6 pb-nav-safe">
-        {/* Duration */}
+        {/* Goal */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Duration</p>
-          <div className="flex gap-2">
-            {WEEK_PRESETS.map((w) => (
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Goal</p>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { value: "build", label: "Build to race", hint: "Ramp to a peak, then taper" },
+              { value: "maintain", label: "Maintain", hint: "Hold fitness, flat load" },
+            ] as const).map((g) => (
               <button
-                key={w}
-                onClick={() => setWeeks(w)}
-                className={`flex-1 h-12 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
-                  weeks === w ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                key={g.value}
+                onClick={() => setGoal(g.value)}
+                className={`h-auto py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex flex-col items-center gap-0.5 ${
+                  goal === g.value ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
                 }`}
               >
-                {w} weeks
+                <span>{g.label}</span>
+                <span className={`text-[11px] font-normal ${goal === g.value ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{g.hint}</span>
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Duration */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Duration</p>
+          <div className="grid grid-cols-3 gap-2">
+            {DURATION_PRESETS.map((d) => (
+              <button
+                key={d.weeks}
+                onClick={() => setWeeks(d.weeks)}
+                className={`h-12 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+                  weeks === d.weeks ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            {weeks} weeks · {goal === "maintain"
+              ? "endurance held steady week to week."
+              : "endurance ramps Base → Build → Peak, then tapers into race week."}
+          </p>
         </div>
 
         {/* Rest day */}

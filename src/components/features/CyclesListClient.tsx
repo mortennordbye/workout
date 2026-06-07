@@ -1,5 +1,6 @@
 "use client";
 
+import { useTheme } from "@/components/ui/theme-provider";
 import { deleteTrainingCycle, deleteManyTrainingCycles } from "@/lib/actions/training-cycles";
 import type { TrainingCycle } from "@/types/workout";
 import { Check, PlusIcon } from "lucide-react";
@@ -91,6 +92,7 @@ type Props = { cycles: TrainingCycle[] };
 
 export function CyclesListClient({ cycles: initial }: Props) {
   const router = useRouter();
+  const { triathlonEnabled } = useTheme();
   const [cycles, setCycles] = useState(initial);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -307,8 +309,8 @@ export function CyclesListClient({ cycles: initial }: Props) {
       )}
 
       <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-4 pt-4 pb-nav-safe">
-        {/* Triathlon plan generator entry */}
-        {!isEditing && (
+        {/* Triathlon plan generator entry — opt-in via Settings → Training */}
+        {!isEditing && triathlonEnabled && (
           <Link
             href="/cycles/triathlon"
             className="rounded-2xl bg-primary/10 px-4 py-3.5 flex items-center justify-between active:opacity-70 transition-opacity"

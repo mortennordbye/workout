@@ -11,8 +11,15 @@ describe("snapWeeks", () => {
     expect(snapWeeks(13)).toBe(12);
     expect(snapWeeks(11)).toBe(10); // exact tie (10 vs 12) resolves to the lower
     expect(snapWeeks(5)).toBe(4);
-    expect(snapWeeks(100)).toBe(16);
     expect(snapWeeks(1)).toBe(4);
+  });
+
+  it("supports long Ironman builds up to 12 months", () => {
+    expect(snapWeeks(52)).toBe(52); // 12 months
+    expect(snapWeeks(36)).toBe(36); // 9 months
+    expect(snapWeeks(24)).toBe(24); // 6 months
+    expect(snapWeeks(50)).toBe(52);
+    expect(snapWeeks(100)).toBe(52); // clamps to the longest supported block
   });
 });
 
@@ -29,16 +36,28 @@ describe("buildTriathlonPlan", () => {
     expect(plan.cycleName).toContain("8 wk");
   });
 
-  it("tags endurance exercises with distance progression and an increment", () => {
-    const plan = buildTriathlonPlan({ weeks: 12 });
-    const enduranceExercises = plan.days
+  it("peak-anchors endurance sets and scales week 1 below peak for a build", () => {
+    const plan = buildTriathlonPlan({ weeks: 12, goal: "build" });
+    const enduranceSets = plan.days
       .flatMap((d) => d.exercises)
-      .filter((e) => e.progressionMode === "distance");
-    expect(enduranceExercises.length).toBeGreaterThan(0);
-    for (const e of enduranceExercises) {
-      expect(e.overloadIncrementReps).toBeGreaterThan(0);
-      expect(e.sets.every((s) => s.distanceMeters && s.distanceMeters > 0)).toBe(true);
+      .filter((e) => e.sets.some((s) => s.peakDistanceMeters))
+      .flatMap((e) => e.sets);
+    expect(enduranceSets.length).toBeGreaterThan(0);
+    for (const s of enduranceSets) {
+      expect(s.peakDistanceMeters!).toBeGreaterThan(0);
+      expect(s.distanceMeters!).toBeGreaterThan(0);
+      // Week 1 of a build starts below peak.
+      expect(s.distanceMeters!).toBeLessThan(s.peakDistanceMeters!);
     }
+  });
+
+  it("maintain anchors week 1 at the peak (flat)", () => {
+    const plan = buildTriathlonPlan({ weeks: 12, goal: "maintain" });
+    expect(plan.goal).toBe("maintain");
+    const swim = plan.days
+      .flatMap((d) => d.exercises)
+      .find((e) => e.name === "Swim")!;
+    expect(swim.sets[0].distanceMeters).toBe(swim.sets[0].peakDistanceMeters);
   });
 
   it("includes two strength days to maintain muscle", () => {
