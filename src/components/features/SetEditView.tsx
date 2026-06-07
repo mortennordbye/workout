@@ -126,13 +126,23 @@ export function SetEditView({
     const noteValue = trimmedNote.length > 0 ? trimmedNote : null;
 
     if (isRunning) {
+      // A periodized set carries a peak anchor the active cycle ramps weekly.
+      // When its mode is switched we convert the anchor so the new mode's target
+      // periodizes (distance↔time); ordinary sets get no anchor.
+      const isPeriodized = set.peakDistanceMeters != null || set.peakDurationSeconds != null;
       if (isWorkout) {
         // During a workout: only update the duration target override (distance target is program-level)
         workoutSession?.setOverride(set.id, { targetReps: 0, weightKg: 0, durationSeconds: duration > 0 ? duration : undefined, notes: noteValue });
       } else if (runMode === "distance") {
-        await updateProgramSet({ id: set.id, distanceMeters, durationSeconds: duration > 0 ? duration : undefined, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined, setType });
+        // Convert a time-periodized set back to distance: anchor the entered distance, clear the time anchor.
+        const anchor = isPeriodized && set.peakDistanceMeters == null
+          ? { peakDistanceMeters: distanceMeters, peakDurationSeconds: null }
+          : {};
+        await updateProgramSet({ id: set.id, distanceMeters, durationSeconds: duration > 0 ? duration : undefined, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined, setType, ...anchor });
       } else {
-        await updateProgramSet({ id: set.id, distanceMeters: null, durationSeconds: duration, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined, setType });
+        // Time mode: anchor the entered duration as the peak (and drop the distance anchor) for periodized sets.
+        const anchor = isPeriodized ? { peakDurationSeconds: duration, peakDistanceMeters: null } : {};
+        await updateProgramSet({ id: set.id, distanceMeters: null, durationSeconds: duration, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined, setType, ...anchor });
       }
     } else if (isWorkout) {
       // During a workout, changes apply to the active session only — never write back to the program

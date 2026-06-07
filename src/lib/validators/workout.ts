@@ -191,6 +191,10 @@ export const updateProgramSetSchema = addProgramSetSchema
     // Allow explicit null to clear these fields (e.g., switching run mode from distance to time)
     distanceMeters: z.number().int().min(0).nullable().optional(),
     durationSeconds: z.number().int().min(0).nullable().optional(),
+    // Periodization anchors — converted between distance/time when a periodized
+    // endurance set's mode is switched. Null clears the anchor.
+    peakDistanceMeters: z.number().int().min(0).nullable().optional(),
+    peakDurationSeconds: z.number().int().min(0).nullable().optional(),
   });
 
 export const removeExerciseFromProgramSchema = z.object({

@@ -3,6 +3,7 @@ import {
   formatPeriodizationSummary,
   periodizedLoad,
   phaseLayout,
+  scaledDuration,
   type PeriodizationSummaryInput,
   type TrainingGoal,
 } from "@/lib/utils/periodization";
@@ -132,5 +133,24 @@ describe("formatPeriodizationSummary", () => {
     const { headline, note } = summary(5, 24, "maintain");
     expect(headline).toBe("Maintain · Week 5 of 24");
     expect(note).toBe("Endurance held steady; strength at maintenance.");
+  });
+});
+
+describe("scaledDuration", () => {
+  it("scales a peak duration by the multiplier, rounded to 30 s", () => {
+    // 3600 s peak at 60% = 2160 → already a 30 s multiple
+    expect(scaledDuration(3600, 0.6)).toBe(2160);
+    // 3600 at 100% = peak
+    expect(scaledDuration(3600, 1)).toBe(3600);
+  });
+
+  it("rounds to the nearest 30 s step", () => {
+    // 3600 * 0.61 = 2196 → nearest 30 = 2190
+    expect(scaledDuration(3600, 0.61)).toBe(2190);
+  });
+
+  it("never goes below 30 s", () => {
+    expect(scaledDuration(60, 0.1)).toBe(30);
+    expect(scaledDuration(3600, 0)).toBe(30);
   });
 });

@@ -218,6 +218,13 @@
       "when": 1780850066795,
       "tag": "0030_rapid_moondragon",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1780852279322,
+      "tag": "0031_simple_doctor_faustus",
+      "breakpoints": true
     }
   ]
 }

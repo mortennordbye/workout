@@ -18,12 +18,6 @@ When you finish an item, delete it. When you add an item, write enough that some
 
 ## New features — additive
 
-### Periodize time-based (indoor/trainer) endurance sets
-- **What:** The periodization weekly sync scales `distance_meters` from a stored `peak_distance_meters`. If a user switches an endurance set to Time mode, its `duration_seconds` is not periodized (no peak-duration anchor).
-- **Why deferred:** The generator only emits distance-based endurance; time mode is a manual per-set override. Scaling duration needs a `peak_duration_seconds` anchor + sync branch.
-- **Unblocked by:** Add `peak_duration_seconds` to `program_sets` and extend `syncPeriodizedTargets`.
-- **Touchpoints:** `src/db/schema/programs.ts`, `src/lib/actions/training-cycles.ts` (`syncPeriodizedTargets`), `src/lib/utils/periodization.ts`.
-
 ### Sport-specific endurance fields (pool length, bike power/cadence, swim stroke)
 - **What:** The set editor captures distance/duration/incline/HR-zone only. Triathletes often want pool length, swim stroke, or bike power/cadence. The schema has no columns for these.
 - **Why deferred:** Not needed to log and track the three disciplines; add when a concrete need appears.

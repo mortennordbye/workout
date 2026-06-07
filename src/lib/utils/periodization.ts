@@ -129,6 +129,15 @@ export function scaledDistance(peakMeters: number, multiplier: number): number {
   return Math.max(100, Math.round((peakMeters * multiplier) / 100) * 100);
 }
 
+/**
+ * Apply a week's load multiplier to a peak duration, rounded to a clean 30 s
+ * step (min 30 s). The time-mode analogue of scaledDistance, used by the weekly
+ * sync when an endurance set is periodized by duration instead of distance.
+ */
+export function scaledDuration(peakSeconds: number, multiplier: number): number {
+  return Math.max(30, Math.round((peakSeconds * multiplier) / 30) * 30);
+}
+
 const PHASE_LABELS: Record<TrainingPhase, string> = {
   base: "Base",
   build: "Build",

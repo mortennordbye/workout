@@ -13,6 +13,7 @@ import {
   phaseLabel,
   phaseLayout,
   scaledDistance,
+  scaledDuration,
   type TrainingGoal,
   type TrainingPhase,
 } from "@/lib/utils/periodization";
@@ -39,7 +40,7 @@ import {
   resolveRotation,
   toDateStr,
 } from "@/lib/utils/cycle-position";
-import { and, asc, eq, gte, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNotNull, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -355,9 +356,10 @@ export async function getProgramPeriodization(
 
 /**
  * Scale a periodized cycle's endurance targets to the given week. For each
- * endurance set with a stored peak, distance_meters = peak × curve(week). Idempotent
- * per week via training_cycles.last_synced_week. No-op (beyond the marker) for
- * cycles with no peak anchors (i.e. non-triathlon cycles).
+ * endurance set with a stored peak, distance_meters = peak × curve(week) and/or
+ * duration_seconds = peak × curve(week) (time mode). Idempotent per week via
+ * training_cycles.last_synced_week. No-op (beyond the marker) for cycles with no
+ * peak anchors (i.e. non-triathlon cycles).
  */
 async function syncPeriodizedTargets(
   cycleId: number,
@@ -372,25 +374,32 @@ async function syncPeriodizedTargets(
 
   if (programIds.length > 0) {
     const peakSets = await db
-      .select({ id: programSets.id, peak: programSets.peakDistanceMeters })
+      .select({
+        id: programSets.id,
+        peakDistance: programSets.peakDistanceMeters,
+        peakDuration: programSets.peakDurationSeconds,
+      })
       .from(programSets)
       .innerJoin(programExercises, eq(programSets.programExerciseId, programExercises.id))
       .where(
         and(
           inArray(programExercises.programId, programIds),
-          isNotNull(programSets.peakDistanceMeters),
+          or(
+            isNotNull(programSets.peakDistanceMeters),
+            isNotNull(programSets.peakDurationSeconds),
+          ),
         ),
       );
 
     if (peakSets.length > 0) {
       const { multiplier } = periodizedLoad(currentWeek, durationWeeks, goal);
       await Promise.all(
-        peakSets.map((ps) =>
-          db
-            .update(programSets)
-            .set({ distanceMeters: scaledDistance(ps.peak!, multiplier) })
-            .where(eq(programSets.id, ps.id)),
-        ),
+        peakSets.map((ps) => {
+          const update: { distanceMeters?: number; durationSeconds?: number } = {};
+          if (ps.peakDistance != null) update.distanceMeters = scaledDistance(ps.peakDistance, multiplier);
+          if (ps.peakDuration != null) update.durationSeconds = scaledDuration(ps.peakDuration, multiplier);
+          return db.update(programSets).set(update).where(eq(programSets.id, ps.id));
+        }),
       );
     }
   }
