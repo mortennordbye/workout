@@ -1,4 +1,5 @@
 import { AiSetupClient } from "@/components/features/AiSetupClient";
+import { env } from "@/lib/env";
 import { getAllExercises } from "@/lib/actions/exercises";
 import { getAiRateLimitStatus } from "@/lib/actions/ai-generate";
 import { parseUserGoals } from "@/lib/utils/goals";
@@ -56,6 +57,8 @@ export default async function AiSetupPage() {
   const prs = Array.from(prMap.values());
   const existingProgramNames = userPrograms.map((p) => p.name);
 
+  const mcpEndpoint = `${env.BETTER_AUTH_URL.replace(/\/$/, "")}/api/mcp`;
+
   return (
     <div className="h-[100dvh] bg-background overflow-y-auto">
       <div
@@ -79,6 +82,7 @@ export default async function AiSetupPage() {
           dailyLimit={dailyLimit}
           prs={prs}
           existingProgramNames={existingProgramNames}
+          mcpEndpoint={mcpEndpoint}
         />
       </div>
     </div>

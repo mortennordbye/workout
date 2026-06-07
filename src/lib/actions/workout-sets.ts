@@ -988,6 +988,17 @@ export async function getProgressiveSuggestions(
   const auth = await requireSession();
   const userId = auth.user.id;
   try {
+    // Ownership gate: never read a program's blueprint for a program the caller
+    // doesn't own. Without this, any programId leaks another user's plan.
+    const [owned] = await db
+      .select({ id: programs.id })
+      .from(programs)
+      .where(and(eq(programs.id, programId), eq(programs.userId, userId)))
+      .limit(1);
+    if (!owned) {
+      return { success: true, data: {} };
+    }
+
     // Step 1: get all program sets for this program with exercise metadata
     const programData = await db
       .select({

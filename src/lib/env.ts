@@ -61,6 +61,18 @@ function loadEnv(): Env {
     );
   }
 
+  if (parsed.data.NODE_ENV === "production") {
+    // A known/placeholder signing secret means anyone can forge sessions. Refuse
+    // to boot rather than ship a publicly-known secret.
+    const secret = parsed.data.BETTER_AUTH_SECRET;
+    if (secret === "build-time-placeholder-secret" || secret.includes("replace-me")) {
+      throw new Error(
+        "[env] BETTER_AUTH_SECRET is still a placeholder in production. " +
+          "Generate a real one with `openssl rand -base64 32` and set it.",
+      );
+    }
+  }
+
   if (
     parsed.data.NODE_ENV === "production" &&
     !parsed.data.NEXT_PRIVATE_SERVER_ACTIONS_ENCRYPTION_KEY

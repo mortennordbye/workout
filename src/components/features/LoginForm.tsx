@@ -31,7 +31,14 @@ function LoginFormContent() {
       return;
     }
 
-    const from = searchParams.get("from") ?? "/";
+    // Only follow same-origin relative paths. Anything else (an absolute URL,
+    // protocol-relative "//evil.com", or "/\evil.com") is an open-redirect /
+    // phishing pivot and is discarded in favour of the home page.
+    const raw = searchParams.get("from") ?? "/";
+    const from =
+      raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/\\")
+        ? raw
+        : "/";
     window.location.href = from;
   }
 
