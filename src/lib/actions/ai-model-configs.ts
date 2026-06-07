@@ -3,7 +3,7 @@
 import { db } from "@/db";
 import { aiModelConfigs } from "@/db/schema/ai-model-configs";
 import { env } from "@/lib/env";
-import { requireSession } from "@/lib/utils/session";
+import { ForbiddenError, requireAdmin, requireSession } from "@/lib/utils/session";
 import { asc, eq } from "drizzle-orm";
 
 type ActionResult<T = undefined> =
@@ -21,18 +21,20 @@ export async function listAiModelConfigs(): Promise<ActionResult<typeof aiModelC
 }
 
 export async function setAiModelEnabled(id: number, enabled: boolean): Promise<ActionResult> {
-  await requireSession();
   try {
+    await requireAdmin();
     await db.update(aiModelConfigs).set({ enabled }).where(eq(aiModelConfigs.id, id));
     return { success: true, data: undefined };
   } catch (err) {
-    return { success: false, error: String(err) };
+    if (err instanceof ForbiddenError) return { success: false, error: err.message };
+    console.error("[setAiModelEnabled] failed", err);
+    return { success: false, error: "Failed to update model." };
   }
 }
 
 export async function moveAiModel(id: number, direction: "up" | "down"): Promise<ActionResult> {
-  await requireSession();
   try {
+    await requireAdmin();
     const rows = await db.select().from(aiModelConfigs).orderBy(asc(aiModelConfigs.priority));
     const idx = rows.findIndex((r) => r.id === id);
     if (idx === -1) return { success: false, error: "Model not found." };
@@ -45,12 +47,19 @@ export async function moveAiModel(id: number, direction: "up" | "down"): Promise
     await db.update(aiModelConfigs).set({ priority: a.priority }).where(eq(aiModelConfigs.id, b.id));
     return { success: true, data: undefined };
   } catch (err) {
-    return { success: false, error: String(err) };
+    if (err instanceof ForbiddenError) return { success: false, error: err.message };
+    console.error("[moveAiModel] failed", err);
+    return { success: false, error: "Failed to reorder models." };
   }
 }
 
 export async function testAiModel(modelId: string): Promise<ActionResult<{ latencyMs: number }>> {
-  await requireSession();
+  try {
+    await requireAdmin();
+  } catch (err) {
+    if (err instanceof ForbiddenError) return { success: false, error: err.message };
+    throw err;
+  }
 
   const row = await db
     .select({ provider: aiModelConfigs.provider })
@@ -121,24 +130,28 @@ export async function testAiModel(modelId: string): Promise<ActionResult<{ laten
 }
 
 export async function addAiModel(modelId: string, label: string, provider = "openrouter"): Promise<ActionResult> {
-  await requireSession();
   if (!modelId.trim() || !label.trim()) return { success: false, error: "Model ID and label are required." };
   try {
+    await requireAdmin();
     const rows = await db.select({ priority: aiModelConfigs.priority }).from(aiModelConfigs).orderBy(asc(aiModelConfigs.priority));
     const maxPriority = rows.length > 0 ? Math.max(...rows.map((r) => r.priority)) : 0;
     await db.insert(aiModelConfigs).values({ modelId: modelId.trim(), label: label.trim(), provider, priority: maxPriority + 1 });
     return { success: true, data: undefined };
   } catch (err) {
-    return { success: false, error: String(err) };
+    if (err instanceof ForbiddenError) return { success: false, error: err.message };
+    console.error("[addAiModel] failed", err);
+    return { success: false, error: "Failed to add model." };
   }
 }
 
 export async function deleteAiModel(id: number): Promise<ActionResult> {
-  await requireSession();
   try {
+    await requireAdmin();
     await db.delete(aiModelConfigs).where(eq(aiModelConfigs.id, id));
     return { success: true, data: undefined };
   } catch (err) {
-    return { success: false, error: String(err) };
+    if (err instanceof ForbiddenError) return { success: false, error: err.message };
+    console.error("[deleteAiModel] failed", err);
+    return { success: false, error: "Failed to delete model." };
   }
 }

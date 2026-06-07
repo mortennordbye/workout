@@ -1,7 +1,20 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/api/auth", "/api/health", "/api/ready"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/signup",
+  "/api/auth",
+  "/api/health",
+  "/api/ready",
+  // MCP server: clients authenticate with an OAuth Bearer token (not the
+  // session cookie), so skip the cookie check here — withMcpAuth enforces auth
+  // inside the route. The .well-known routes serve OAuth discovery metadata and
+  // must be reachable by unauthenticated MCP clients.
+  "/api/mcp",
+  "/.well-known/oauth-authorization-server",
+  "/.well-known/oauth-protected-resource",
+];
 
 // Static PWA assets that must be publicly accessible (e.g. iOS home-screen icon fetch)
 const PUBLIC_FILES = [

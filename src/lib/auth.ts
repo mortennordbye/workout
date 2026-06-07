@@ -1,9 +1,17 @@
 import { db } from "@/db";
-import { accounts, sessions, users, verifications } from "@/db/schema";
+import {
+  accounts,
+  oauthAccessTokens,
+  oauthApplications,
+  oauthConsents,
+  sessions,
+  users,
+  verifications,
+} from "@/db/schema";
 import { env, trustedOrigins } from "@/lib/env";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { admin } from "better-auth/plugins";
+import { admin, mcp } from "better-auth/plugins";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -13,6 +21,9 @@ export const auth = betterAuth({
       session: sessions,
       account: accounts,
       verification: verifications,
+      oauthApplication: oauthApplications,
+      oauthAccessToken: oauthAccessTokens,
+      oauthConsent: oauthConsents,
     },
   }),
   emailAndPassword: {
@@ -33,6 +44,13 @@ export const auth = betterAuth({
     admin({
       defaultRole: "user",
       adminRole: ["admin"],
+    }),
+    // OAuth provider for the MCP server (src/app/api/[transport]). MCP clients
+    // run the OAuth flow against this app; unauthenticated MCP calls are sent to
+    // the login page. Adds the oauth_application / oauth_access_token /
+    // oauth_consent tables (see src/db/schema/auth.ts).
+    mcp({
+      loginPage: "/login",
     }),
   ],
   secret: env.BETTER_AUTH_SECRET,

@@ -1,5 +1,6 @@
 "use client";
 
+import { McpConnectCard } from "@/components/features/McpConnectCard";
 import { generateWorkoutPlan } from "@/lib/actions/ai-generate";
 import { importProgram } from "@/lib/actions/programs";
 import { importCycle } from "@/lib/actions/training-cycles";
@@ -115,9 +116,10 @@ type Props = {
   dailyLimit: number;
   prs: PrData[];
   existingProgramNames: string[];
+  mcpEndpoint: string;
 };
 
-export function AiSetupClient({ exercises, userProfile, generationsToday, dailyLimit, prs, existingProgramNames }: Props) {
+export function AiSetupClient({ exercises, userProfile, generationsToday, dailyLimit, prs, existingProgramNames, mcpEndpoint }: Props) {
   const router = useRouter();
 
   // Manual flow state
@@ -208,7 +210,7 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
   }, [autoStatus]);
 
   const AUTO_BUSY = autoStatus === "asking" || autoStatus === "importing";
-  const [showManual, setShowManual] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   function handleCopyPrompt() {
     navigator.clipboard.writeText(buildManualClipboardPrompt(userProfile, exercises, prs, existingProgramNames, { daysPerWeek, equipment, cycleDurationWeeks }));
@@ -598,20 +600,24 @@ export function AiSetupClient({ exercises, userProfile, generationsToday, dailyL
         </div>
       )}
 
-      {/* Manual toggle */}
+      {/* Power-user options umbrella — hidden by default */}
       <button
         type="button"
-        onClick={() => setShowManual((v) => !v)}
+        onClick={() => setShowAdvanced((v) => !v)}
         className="flex items-center justify-center gap-2 text-xs text-muted-foreground active:opacity-70 py-1"
       >
-        <span>or do it manually</span>
+        <span>Power-user options</span>
         <ChevronDown
-          className={`w-3.5 h-3.5 transition-transform duration-200 ${showManual ? "rotate-180" : ""}`}
+          className={`w-3.5 h-3.5 transition-transform duration-200 ${showAdvanced ? "rotate-180" : ""}`}
         />
       </button>
 
-      {showManual && (
+      {showAdvanced && (
         <>
+          {/* Connect an AI assistant over MCP */}
+          <McpConnectCard endpoint={mcpEndpoint} />
+
+          {/* Manual: copy a prompt for your own AI, paste the response back */}
           {/* Step 1 */}
           <div className="flex flex-col gap-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">

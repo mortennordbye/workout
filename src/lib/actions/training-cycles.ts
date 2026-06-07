@@ -630,6 +630,19 @@ export async function upsertCycleSlot(
       return { success: false, error: "Cycle not found" };
     }
 
+    // If assigning a program to the slot, verify the caller owns it — otherwise
+    // a user could attach (and surface) another user's program in their cycle.
+    if (rest.programId != null) {
+      const [prog] = await db
+        .select({ userId: programs.userId })
+        .from(programs)
+        .where(eq(programs.id, rest.programId))
+        .limit(1);
+      if (!prog || prog.userId !== auth.user.id) {
+        return { success: false, error: "Program not found" };
+      }
+    }
+
     // Find existing slot to upsert
     let existingSlot = null;
     if (dayOfWeek !== undefined) {

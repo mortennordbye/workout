@@ -89,11 +89,11 @@ export async function deleteCustomExercise(id: number): Promise<ActionResult<und
   const auth = await requireSession();
   try {
     const existing = await db.query.exercises.findFirst({
-      where: (ex, { eq, and, or, isNull }) =>
+      where: (ex, { eq, and }) =>
         and(
           eq(ex.id, id),
           eq(ex.isCustom, true),
-          or(eq(ex.userId, auth.user.id), isNull(ex.userId)),
+          eq(ex.userId, auth.user.id),
         ),
     });
     if (!existing) {
@@ -103,7 +103,7 @@ export async function deleteCustomExercise(id: number): Promise<ActionResult<und
       and(
         eq(exercises.id, id),
         eq(exercises.isCustom, true),
-        or(eq(exercises.userId, auth.user.id), isNull(exercises.userId)),
+        eq(exercises.userId, auth.user.id),
       ),
     );
     return { success: true, data: undefined };
