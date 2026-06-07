@@ -16,6 +16,8 @@ import {
   type RpeTrendPoint,
   type SummaryStats,
   type TopProgressingExercise,
+  type TriathlonMetrics,
+  type DisciplineMetric,
   type WeeklyMetric,
   type WeeklyMuscleVolume,
 } from "@/lib/actions/metrics";
@@ -26,7 +28,12 @@ import {
 } from "@/lib/actions/profile";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { estimate1RM } from "@/lib/utils/progression";
-import { sanitizeDecimalInput } from "@/lib/utils/format";
+import {
+  formatEnduranceDistance,
+  formatEndurancePace,
+  formatDuration,
+  sanitizeDecimalInput,
+} from "@/lib/utils/format";
 import { Activity, ChevronLeft, ChevronRight, Plus, TrendingUp, Trash2, Zap } from "lucide-react";
 import Link from "next/link";
 import { useState, useTransition } from "react";
@@ -955,6 +962,84 @@ function CardioSection({ data }: { data: CardioMetrics }) {
   );
 }
 
+// ── Triathlon Section ───────────────────────────────────────────────────────
+
+function DisciplineCard({ d }: { d: DisciplineMetric }) {
+  const maxDist = Math.max(...d.weekly.map((w) => w.distanceM), 1);
+
+  return (
+    <div className="rounded-2xl bg-muted p-4 space-y-3">
+      <SectionLabel>{d.label}</SectionLabel>
+
+      <div className="grid grid-cols-3 gap-2">
+        <div className="rounded-xl bg-background/50 p-3 flex flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Distance</span>
+          <span className="text-lg font-bold tabular-nums">{formatEnduranceDistance(d.inputUnit, d.totalDistanceM)}</span>
+        </div>
+        <div className="rounded-xl bg-background/50 p-3 flex flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Time</span>
+          <span className="text-lg font-bold tabular-nums">{formatDuration(Math.round(d.totalDurationS / 60))}</span>
+        </div>
+        <div className="rounded-xl bg-background/50 p-3 flex flex-col gap-1">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Sessions</span>
+          <span className="text-lg font-bold tabular-nums">{d.totalSessions}</span>
+        </div>
+      </div>
+
+      {/* Weekly distance — last 8 weeks */}
+      <div className="flex items-end gap-1 h-16">
+        {d.weekly.map((week) => {
+          const pct = maxDist > 0 ? (week.distanceM / maxDist) * 100 : 0;
+          return (
+            <div key={week.weekStart} className="flex-1 flex flex-col items-center justify-end gap-1">
+              <div className="w-full relative flex flex-col justify-end" style={{ height: "48px" }}>
+                {week.distanceM > 0 && (
+                  <div className="w-full bg-primary/80 rounded-t-sm" style={{ height: `${Math.max(pct, 4)}%` }} />
+                )}
+              </div>
+              <span className="text-[9px] text-muted-foreground leading-none">{formatWeekLabel(week.weekStart)}</span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Best pace/speed per bracket */}
+      {d.paceRecords.length > 0 && (
+        <div className="divide-y divide-border -mx-1">
+          {d.paceRecords.map((pr) => (
+            <div key={pr.label} className="flex items-center gap-3 px-1 py-2 min-h-[40px]">
+              <span className="text-sm font-semibold w-16 flex-none">{pr.label}</span>
+              <span className="flex-1 text-sm font-medium">
+                {formatEndurancePace(d.paceFormatter, pr.bestDurationS, pr.bestDistanceM)}
+              </span>
+              <span className="text-xs text-muted-foreground flex-none">{formatDateShort(pr.date)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TriathlonSection({ data }: { data: TriathlonMetrics }) {
+  if (data.disciplines.length === 0) {
+    return (
+      <div className="rounded-2xl bg-muted p-4 space-y-2">
+        <SectionLabel>Triathlon</SectionLabel>
+        <p className="text-sm text-muted-foreground">No swim, bike, or run sessions logged yet.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-4">
+      <SectionLabel>Triathlon</SectionLabel>
+      {data.disciplines.map((d) => (
+        <DisciplineCard key={d.discipline} d={d} />
+      ))}
+    </div>
+  );
+}
+
 // ── Year Heatmap ───────────────────────────────────────────────────────────
 
 function YearHeatmapSection({ data }: { data: HeatmapDay[] }) {
@@ -1449,6 +1534,7 @@ type Props = {
   profileWeightKg: number | null;
   cycles: CyclePickerItem[];
   cardioMetrics: CardioMetrics | null;
+  triathlonMetrics: TriathlonMetrics | null;
   heatmapData: HeatmapDay[];
   movementPatternData: MovementPatternBalance[];
   readinessData: ReadinessPerformancePoint[];
@@ -1468,6 +1554,7 @@ export function MetricsClient({
   profileWeightKg,
   cycles,
   cardioMetrics,
+  triathlonMetrics,
   heatmapData,
   movementPatternData,
   readinessData,
@@ -1556,6 +1643,11 @@ export function MetricsClient({
 
             {/* ── Volume & Frequency ─────────────────────────────────── */}
             <WeeklyChart data={weekly} />
+
+            {/* ── Triathlon (swim/bike/run) ──────────────────────────── */}
+            {triathlonMetrics && triathlonMetrics.disciplines.length > 0 && (
+              <TriathlonSection data={triathlonMetrics} />
+            )}
 
             {/* ── Cardio ─────────────────────────────────────────────── */}
             {cardioMetrics && <CardioSection data={cardioMetrics} />}

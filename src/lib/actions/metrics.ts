@@ -4,6 +4,12 @@ import { and, asc, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { exercisePrs, exercises, trainingCycles, workoutSessions, workoutSets } from "@/db/schema";
 import { requireSession } from "@/lib/utils/session";
+import {
+  DISCIPLINES,
+  DISCIPLINE_CONFIG,
+  type Discipline,
+  type PaceFormatter,
+} from "@/lib/utils/discipline";
 import { ActionResult } from "@/types/workout";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -807,6 +813,155 @@ export async function getCardioMetrics(): Promise<ActionResult<CardioMetrics>> {
   } catch (err) {
     console.error("[getCardioMetrics] failed", err);
     return { success: false, error: "Failed to load cardio metrics" };
+  }
+}
+
+// ── Triathlon (per-discipline) metrics ──────────────────────────────────────
+
+export type DisciplinePaceRecord = {
+  label: string;
+  /** Actual set values that produced the best pace/speed, for rendering. */
+  bestDurationS: number;
+  bestDistanceM: number;
+  date: string;
+};
+
+export type DisciplineMetric = {
+  discipline: Discipline;
+  label: string;
+  /** How the UI should render pace/speed for this discipline. */
+  paceFormatter: PaceFormatter;
+  /** "m" for swim, "km" otherwise — drives distance display. */
+  inputUnit: "m" | "km";
+  totalDistanceM: number;
+  totalDurationS: number;
+  totalSessions: number;
+  weekly: WeeklyCardioMetric[];
+  paceRecords: DisciplinePaceRecord[];
+};
+
+export type TriathlonMetrics = {
+  /** Only disciplines that have logged data, in swim → bike → run order. */
+  disciplines: DisciplineMetric[];
+};
+
+/**
+ * Per-discipline swim/bike/run breakdown. Unlike getCardioMetrics (which lumps
+ * all cardio together), this groups by exercises.discipline so a triathlete sees
+ * each sport on its own terms with its own pace/speed unit and PR brackets.
+ */
+export async function getTriathlonMetrics(): Promise<ActionResult<TriathlonMetrics>> {
+  const auth = await requireSession();
+  const userId = auth.user.id;
+  try {
+    const rows = await db
+      .select({
+        discipline: exercises.discipline,
+        distanceMeters: workoutSets.distanceMeters,
+        durationSeconds: workoutSets.durationSeconds,
+        sessionDate: workoutSessions.date,
+        sessionStartTime: workoutSessions.startTime,
+      })
+      .from(workoutSets)
+      .innerJoin(workoutSessions, eq(workoutSets.sessionId, workoutSessions.id))
+      .innerJoin(exercises, eq(workoutSets.exerciseId, exercises.id))
+      .where(
+        and(
+          eq(workoutSessions.userId, userId),
+          eq(workoutSessions.isCompleted, true),
+          isNotNull(exercises.discipline),
+        ),
+      )
+      .orderBy(asc(workoutSessions.date));
+
+    // Accumulators keyed by discipline
+    const acc = new Map<
+      Discipline,
+      {
+        totalDistanceM: number;
+        totalDurationS: number;
+        sessions: Set<string>;
+        weekly: Map<string, { distanceM: number; sessions: Set<string> }>;
+        bestByBracket: Map<string, { durationS: number; distanceM: number; date: string; pace: number }>;
+      }
+    >();
+
+    for (const r of rows) {
+      const d = r.discipline as Discipline | null;
+      if (d == null) continue;
+      const dist = Number(r.distanceMeters ?? 0);
+      const dur = Number(r.durationSeconds ?? 0);
+
+      const a =
+        acc.get(d) ??
+        {
+          totalDistanceM: 0,
+          totalDurationS: 0,
+          sessions: new Set<string>(),
+          weekly: new Map<string, { distanceM: number; sessions: Set<string> }>(),
+          bestByBracket: new Map<string, { durationS: number; distanceM: number; date: string; pace: number }>(),
+        };
+
+      a.totalDistanceM += dist;
+      a.totalDurationS += dur;
+      const sKey = `${r.sessionDate}`;
+      a.sessions.add(sKey);
+
+      const weekKey = r.sessionStartTime
+        ? snapToMonday(new Date(r.sessionStartTime))
+        : snapToMonday(new Date(r.sessionDate + "T00:00:00"));
+      const wk = a.weekly.get(weekKey) ?? { distanceM: 0, sessions: new Set<string>() };
+      wk.distanceM += dist;
+      wk.sessions.add(sKey);
+      a.weekly.set(weekKey, wk);
+
+      // Best pace/speed per bracket — lower seconds-per-meter is always better.
+      if (dist > 0 && dur > 0) {
+        const pace = dur / dist; // seconds per meter (unit-agnostic; lower is faster)
+        for (const bracket of DISCIPLINE_CONFIG[d].paceBrackets) {
+          if (dist >= bracket.min && dist <= bracket.max) {
+            const existing = a.bestByBracket.get(bracket.label);
+            if (!existing || pace < existing.pace) {
+              a.bestByBracket.set(bracket.label, { durationS: dur, distanceM: dist, date: r.sessionDate, pace });
+            }
+          }
+        }
+      }
+
+      acc.set(d, a);
+    }
+
+    const disciplines: DisciplineMetric[] = DISCIPLINES.filter((d) => acc.has(d)).map((d) => {
+      const a = acc.get(d)!;
+      const cfg = DISCIPLINE_CONFIG[d];
+      const weeklyRaw: WeeklyCardioMetric[] = Array.from(a.weekly.entries()).map(([weekStart, v]) => ({
+        weekStart,
+        distanceM: v.distanceM,
+        sessionCount: v.sessions.size,
+      }));
+      const paceRecords: DisciplinePaceRecord[] = cfg.paceBrackets
+        .filter((b) => a.bestByBracket.has(b.label))
+        .map((b) => {
+          const best = a.bestByBracket.get(b.label)!;
+          return { label: b.label, bestDurationS: best.durationS, bestDistanceM: best.distanceM, date: best.date };
+        });
+      return {
+        discipline: d,
+        label: cfg.label,
+        paceFormatter: cfg.paceFormatter,
+        inputUnit: cfg.inputUnit,
+        totalDistanceM: a.totalDistanceM,
+        totalDurationS: a.totalDurationS,
+        totalSessions: a.sessions.size,
+        weekly: fillWeeklyCardioGaps(weeklyRaw),
+        paceRecords,
+      };
+    });
+
+    return { success: true, data: { disciplines } };
+  } catch (err) {
+    console.error("[getTriathlonMetrics] failed", err);
+    return { success: false, error: "Failed to load triathlon metrics" };
   }
 }
 
