@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSetSummary,
+  formatEnduranceDistance,
+  formatEndurancePace,
+  formatSpeedKmh,
+  formatSwimPace,
   formatTime,
   normalizeDecimal,
   restToken,
@@ -22,6 +26,36 @@ function makeSet(overrides: Partial<ProgramSet> = {}): ProgramSet {
     ...overrides,
   } as ProgramSet;
 }
+
+describe("endurance pace/distance formatters", () => {
+  it("formats swim pace as /100m", () => {
+    expect(formatSwimPace(90, 100)).toBe("1:30 /100m");
+    // 1500m in 30:00 → 2:00 /100m
+    expect(formatSwimPace(1800, 1500)).toBe("2:00 /100m");
+  });
+
+  it("formats speed as km/h", () => {
+    expect(formatSpeedKmh(3600, 40000)).toBe("40.0 km/h");
+    expect(formatSpeedKmh(1800, 15000)).toBe("30.0 km/h");
+  });
+
+  it("dispatches by formatter, run keeps /km", () => {
+    expect(formatEndurancePace("perKm", 300, 1000)).toBe("5:00 /km");
+    expect(formatEndurancePace("per100m", 90, 100)).toBe("1:30 /100m");
+    expect(formatEndurancePace("kmh", 3600, 40000)).toBe("40.0 km/h");
+  });
+
+  it("returns empty string when distance or duration missing", () => {
+    expect(formatEndurancePace("perKm", 0, 1000)).toBe("");
+    expect(formatEndurancePace("kmh", 3600, 0)).toBe("");
+  });
+
+  it("formats distance with meters for swim under 1km", () => {
+    expect(formatEnduranceDistance("m", 750)).toBe("750 m");
+    expect(formatEnduranceDistance("m", 1500)).toBe("1.5 km");
+    expect(formatEnduranceDistance("km", 5000)).toBe("5 km");
+  });
+});
 
 describe("formatTime", () => {
   it("formats seconds only", () => {

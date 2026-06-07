@@ -307,6 +307,20 @@ export function CyclesListClient({ cycles: initial }: Props) {
       )}
 
       <div className="flex-1 overflow-y-auto flex flex-col gap-6 px-4 pt-4 pb-nav-safe">
+        {/* Triathlon plan generator entry */}
+        {!isEditing && (
+          <Link
+            href="/cycles/triathlon"
+            className="rounded-2xl bg-primary/10 px-4 py-3.5 flex items-center justify-between active:opacity-70 transition-opacity"
+          >
+            <div>
+              <p className="text-sm font-semibold text-primary">Generate a triathlon plan</p>
+              <p className="text-xs text-muted-foreground">Swim · bike · run + strength, ramped weekly</p>
+            </div>
+            <span className="text-primary text-lg">→</span>
+          </Link>
+        )}
+
         {/* Active */}
         {active.length > 0 && (
           <div>

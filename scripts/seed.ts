@@ -170,7 +170,11 @@ const EXERCISES = [
 
   // ── Cardio / Warm-up ───────────────────────────────────────────────────────
   { name: "Warm Up",               category: "cardio",   isCustom: false, isTimed: true, bodyArea: "full_body",  muscleGroup: "full_body",  equipment: "bodyweight", movementPattern: "cardio" },
-  { name: "Running",               category: "cardio",   isCustom: false,               bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Running",               category: "cardio",   isCustom: false,               bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio", discipline: "run" },
+  // Triathlon disciplines — distance/pace logging, used by the triathlon plan generator
+  { name: "Swim",                  category: "cardio",   isCustom: false,               bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio", discipline: "swim" },
+  { name: "Bike",                  category: "cardio",   isCustom: false,               bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio", discipline: "bike" },
+  { name: "Run",                   category: "cardio",   isCustom: false,               bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio", discipline: "run" },
   { name: "Walking",               category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
   { name: "Sprint",                category: "cardio",   isCustom: false,               bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
   { name: "High Knees",            category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },

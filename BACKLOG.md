@@ -18,6 +18,24 @@ When you finish an item, delete it. When you add an item, write enough that some
 
 ## New features — additive
 
+### True triathlon periodization (phase blocks + taper)
+- **What:** The triathlon plan generator emits one progressive weekly template that the training-cycle model repeats across `durationWeeks`; volume ramps via the existing `time`/`distance` progression engine. It does **not** express distinct per-week phase blocks (base/build/peak) or a real taper (volume *down* in the final weeks) — the `time`/`distance` progression modes only ramp up and never deload.
+- **Why deferred:** The training-cycle schema stores a single set of weekly slots, not per-week sessions. A proper taper/phased plan needs either per-week program scheduling (schema change) or a taper-aware progression mode. Out of scope for the first iteration.
+- **Unblocked by:** Per-week program scheduling on `training_cycles`, or a new taper progression mode.
+- **Touchpoints:** `src/lib/utils/triathlon-plan.ts`, `src/db/schema/training-cycles.ts`, `src/lib/utils/progression.ts`.
+
+### Persist endurance PRs to `exercise_prs`
+- **What:** Swim/bike/run pace and distance bests are computed on the fly in `getTriathlonMetrics`, but never written to the `exercise_prs` table — so they don't appear in the PR feed (`/more/prs`) or trigger the in-workout PR badge. PR detection in `logWorkoutSet` early-returns on `weightKg <= 0`, which is every endurance set.
+- **Why deferred:** Reading metrics on demand is sufficient for the first iteration; persisting needs new `prType`s and detection logic.
+- **Unblocked by:** Adding `pace`/`distance` `prType`s + detection branches.
+- **Touchpoints:** `src/db/schema/exercise-prs.ts`, `src/lib/actions/workout-sets.ts` (PR detection), `src/lib/actions/metrics.ts` (`getTriathlonMetrics`).
+
+### Sport-specific endurance fields (pool length, bike power/cadence, swim stroke)
+- **What:** The set editor captures distance/duration/incline/HR-zone only. Triathletes often want pool length, swim stroke, or bike power/cadence. The schema has no columns for these.
+- **Why deferred:** Not needed to log and track the three disciplines; add when a concrete need appears.
+- **Unblocked by:** A request for one of these specific metrics.
+- **Touchpoints:** `src/db/schema/workout-sets.ts`, `src/components/features/SetEditView.tsx`, `src/components/features/LogRunModal.tsx`.
+
 ### Link make-up sessions back to the missed cycle slot
 - **What:** When a user taps "Make up" on a missed workout, the resulting session is logged with today's date — history won't say "this was Monday's push." A proper fix adds an `intendedDate` column (or `cycle_slot_id` FK) to `workout_sessions` so the original missed date is preserved.
 - **Why deferred:** Cosmetic for history; doesn't affect correctness of cycle progression. Wait until users actually ask for accurate history attribution.
