@@ -9,6 +9,7 @@ import {
 } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { sanitizeDecimalInput } from "@/lib/utils/format";
+import type { Discipline } from "@/lib/utils/discipline";
 import type { ProgramSet } from "@/types/workout";
 import { ChevronLeftIcon, Plus } from "lucide-react";
 import Link from "next/link";
@@ -44,6 +45,7 @@ type Props = {
   isWorkout?: boolean;
   exerciseCategory?: string;
   exerciseIsTimed?: boolean;
+  exerciseDiscipline?: Discipline | null;
   suggestions?: Record<number, SetSuggestion>;
   overloadIncrementKg?: number | null;
   overloadIncrementReps?: number;
@@ -60,6 +62,7 @@ export function WorkoutSetsClient({
   isWorkout = false,
   exerciseCategory,
   exerciseIsTimed = false,
+  exerciseDiscipline = null,
   suggestions,
   overloadIncrementKg: initialIncrement = null,
   overloadIncrementReps: initialIncrementReps = 0,
@@ -109,7 +112,7 @@ export function WorkoutSetsClient({
     };
   });
 
-  const isRunning = exerciseCategory === "cardio" && !exerciseIsTimed;
+  const isRunning = (exerciseCategory === "cardio" && !exerciseIsTimed) || exerciseDiscipline != null;
 
   function applySuggestion(setId: number, suggestedWeightKg: number, adjustedReps?: number, durationSeconds?: number, distanceMeters?: number) {
     if (!workoutSession) return;
@@ -275,6 +278,7 @@ export function WorkoutSetsClient({
             isWorkout={isWorkout}
             isTimed={exerciseIsTimed && !isRunning}
             isRunning={isRunning}
+            discipline={exerciseDiscipline}
             exerciseId={exerciseId}
             sessionId={workoutSession?.sessionId ?? undefined}
             onDeleteSet={handleDeleteSet}

@@ -39,6 +39,7 @@ export default async function ProgramExerciseDetailPage({ params, searchParams }
       exerciseName={pe.exercise.name}
       exerciseCategory={pe.exercise.category ?? ""}
       exerciseIsTimed={pe.exercise.isTimed}
+      exerciseDiscipline={pe.exercise.discipline}
       sets={pe.programSets}
       isWorkout={false}
       initialEditing={edit === "true"}
