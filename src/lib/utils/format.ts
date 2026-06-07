@@ -69,6 +69,44 @@ export function formatPace(durationSeconds: number, distanceMeters: number): str
 }
 
 /**
+ * Format swim pace as "M:SS /100m". distanceMeters must be > 0.
+ */
+export function formatSwimPace(durationSeconds: number, distanceMeters: number): string {
+  const per100 = (durationSeconds / distanceMeters) * 100;
+  const m = Math.floor(per100 / 60);
+  const s = Math.round(per100 % 60).toString().padStart(2, "0");
+  return `${m}:${s} /100m`;
+}
+
+/**
+ * Format average speed as "XX.X km/h". distanceMeters and durationSeconds must be > 0.
+ */
+export function formatSpeedKmh(durationSeconds: number, distanceMeters: number): string {
+  const kmh = (distanceMeters / 1000) / (durationSeconds / 3600);
+  return `${kmh.toFixed(1)} km/h`;
+}
+
+/**
+ * Format pace/speed for a triathlon discipline. Returns "" when distance or
+ * duration is missing. Run (and any null discipline) keeps the /km format.
+ */
+export function formatEndurancePace(
+  formatter: "per100m" | "kmh" | "perKm",
+  durationSeconds: number,
+  distanceMeters: number,
+): string {
+  if (distanceMeters <= 0 || durationSeconds <= 0) return "";
+  switch (formatter) {
+    case "per100m":
+      return formatSwimPace(durationSeconds, distanceMeters);
+    case "kmh":
+      return formatSpeedKmh(durationSeconds, distanceMeters);
+    case "perKm":
+      return formatPace(durationSeconds, distanceMeters);
+  }
+}
+
+/**
  * Format a distance in meters as a human-readable km string.
  * < 1km → "0.8 km", whole km → "5 km", fractional → "5.3 km"
  */
@@ -77,6 +115,15 @@ export function formatDistanceKm(meters: number): string {
   if (km < 1) return `${km.toFixed(1)} km`;
   if (km % 1 === 0) return `${km} km`;
   return `${km.toFixed(1)} km`;
+}
+
+/**
+ * Format a distance for an endurance discipline. Swim (meter input) shows
+ * meters under 1 km ("750 m"), everything else uses km.
+ */
+export function formatEnduranceDistance(inputUnit: "m" | "km", meters: number): string {
+  if (inputUnit === "m" && meters < 1000) return `${meters} m`;
+  return formatDistanceKm(meters);
 }
 
 /**
