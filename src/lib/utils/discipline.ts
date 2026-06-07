@@ -1,7 +1,7 @@
 /**
  * Triathlon discipline config — single source of truth for swim / bike / run.
  *
- * Shared by the set editor, the log modal, the metrics action, and the Ironman
+ * Shared by the set editor, the log modal, the metrics action, and the triathlon
  * plan generator so per-sport units, distance presets, and pace/PR brackets are
  * defined exactly once.
  *
