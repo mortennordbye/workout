@@ -29,6 +29,7 @@ const DAYS = [
 export function TriathlonPlanForm() {
   const router = useRouter();
   const [goal, setGoal] = useState<"build" | "maintain">("build");
+  const [level, setLevel] = useState<"novice" | "intermediate" | "advanced">("intermediate");
   const [weeks, setWeeks] = useState(12);
   const [restDay, setRestDay] = useState<number | null>(1);
   const [saving, setSaving] = useState(false);
@@ -40,6 +41,7 @@ export function TriathlonPlanForm() {
     const result = await generateTriathlonPlan({
       weeks,
       goal,
+      level,
       ...(restDay != null ? { restDay } : {}),
     });
     if (result.success) {
@@ -89,6 +91,32 @@ export function TriathlonPlanForm() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Level */}
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Experience</p>
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { value: "novice", label: "Novice", hint: "First Ironman" },
+              { value: "intermediate", label: "Intermediate", hint: "Done a few" },
+              { value: "advanced", label: "Advanced", hint: "Competitive" },
+            ] as const).map((l) => (
+              <button
+                key={l.value}
+                onClick={() => setLevel(l.value)}
+                className={`h-auto py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 flex flex-col items-center gap-0.5 ${
+                  level === l.value ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                }`}
+              >
+                <span>{l.label}</span>
+                <span className={`text-[11px] font-normal ${level === l.value ? "text-primary-foreground/80" : "text-muted-foreground"}`}>{l.hint}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            Scales peak swim/bike/run volumes and how often a recovery week lands.
+          </p>
         </div>
 
         {/* Duration */}

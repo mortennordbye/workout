@@ -32,7 +32,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, GripVertical, Minus, Play, Plus } from "lucide-react";
+import { Check, GripVertical, Minus, Play, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -364,12 +364,15 @@ export function WorkoutSetsList({
         if (setData) {
           const ov = workoutSession?.overrides[setData.id];
           const tr = ov?.targetReps ?? setData.targetReps ?? 0;
+          // Failed set: keep the target as the goal, log the (lower) reps achieved.
+          const failed = ov?.isFailed ?? false;
+          const achieved = failed ? (ov?.actualReps ?? 0) : tr;
           const result = await logWithRetry({
             sessionId,
             exerciseId,
             setNumber: setIndex + 1,
             targetReps: tr > 0 ? tr : undefined,
-            actualReps: tr,
+            actualReps: achieved,
             weightKg: ov?.weightKg ?? Number(setData.weightKg ?? 0),
             durationSeconds: ov?.durationSeconds ?? setData.durationSeconds ?? undefined,
             distanceMeters: ov?.distanceMeters ?? setData.distanceMeters ?? undefined,
@@ -377,6 +380,7 @@ export function WorkoutSetsList({
             restTimeSeconds: restSeconds,
             notes: ov?.notes ?? null,
             isCompleted: true,
+            isFailed: failed,
           });
           // Only celebrate when an existing record was beaten (previousValue defined).
           // First-time baselines are stored silently — no celebration.
@@ -490,32 +494,41 @@ export function WorkoutSetsList({
     return () => clearInterval(interval);
   }, []);
 
-  // Recalculate timers from stored timestamps when app returns to foreground
+  // Recompute rest timers from stored end timestamps when the app returns to the
+  // foreground. iOS suspends the tick interval (and can evict React state) while
+  // backgrounded, and `visibilitychange` alone is unreliable for standalone PWAs
+  // — so we also listen to pageshow/focus, and rebuild each timer straight from
+  // restTimerEnds (restoring entries that were dropped, not just adjusting live
+  // ones). Existing non-anchored entries (e.g. pre-completed 0s) are left intact.
   useEffect(() => {
     if (!isWorkout) return;
-    const handleVisible = () => {
-      if (document.visibilityState !== 'visible') return;
+    const resync = () => {
       const session = workoutSessionRef.current;
       if (!session) return;
       const now = Date.now();
       setRestTimers((timers) => {
         const newTimers = new Map(timers);
         let changed = false;
-        timers.forEach((remaining, id) => {
-          const endMs = session.restTimerEnds[id];
-          if (endMs && remaining > 0) {
-            const actual = Math.max(0, Math.ceil((endMs - now) / 1000));
-            if (actual !== remaining) {
-              newTimers.set(id, actual);
-              changed = true;
-            }
+        Object.entries(session.restTimerEnds).forEach(([id, endMs]) => {
+          const setId = Number(id);
+          const actual = Math.max(0, Math.ceil((Number(endMs) - now) / 1000));
+          if (newTimers.get(setId) !== actual) {
+            newTimers.set(setId, actual);
+            changed = true;
           }
         });
         return changed ? newTimers : timers;
       });
     };
-    document.addEventListener('visibilitychange', handleVisible);
-    return () => document.removeEventListener('visibilitychange', handleVisible);
+    const onVisible = () => { if (document.visibilityState === 'visible') resync(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', resync);
+    window.addEventListener('focus', resync);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', resync);
+      window.removeEventListener('focus', resync);
+    };
   }, [isWorkout]);
 
   // ── Exercise timer countdown ─────────────────────────────────────────────────
@@ -544,18 +557,26 @@ export function WorkoutSetsList({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exerciseTimer?.remaining, exerciseTimer?.setId]);
 
-  // Recalculate exercise timer when app returns to foreground
+  // Recalculate exercise timer when the app returns to the foreground. Same iOS
+  // caveat as the rest timer — visibilitychange isn't enough on standalone PWAs,
+  // so pageshow/focus are wired up too.
   useEffect(() => {
-    const handleVisible = () => {
-      if (document.visibilityState !== 'visible') return;
+    const resync = () => {
       setExerciseTimer((prev) => {
         if (!prev) return null;
         const remaining = Math.max(0, Math.ceil((prev.endsAt - Date.now()) / 1000));
         return { ...prev, remaining };
       });
     };
-    document.addEventListener('visibilitychange', handleVisible);
-    return () => document.removeEventListener('visibilitychange', handleVisible);
+    const onVisible = () => { if (document.visibilityState === 'visible') resync(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', resync);
+    window.addEventListener('focus', resync);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', resync);
+      window.removeEventListener('focus', resync);
+    };
   }, []);
 
   function startExerciseTimer(setId: number, durationSeconds: number) {
@@ -736,6 +757,7 @@ export function WorkoutSetsList({
                     onApplyRepSuggestion={handleApplyRepSuggestion}
                     overrideDurationSeconds={isWorkout ? workoutSession?.overrides[item.set.id]?.durationSeconds : undefined}
                     overrideNotes={isWorkout ? workoutSession?.overrides[item.set.id]?.notes ?? null : null}
+                    failed={isWorkout ? (workoutSession?.overrides[item.set.id]?.isFailed ?? false) : false}
                     hasPR={prSetIds.has(item.set.id)}
                   />
                   {isEditing && flatItems[index + 1]?.type !== "rest" && (
@@ -1033,6 +1055,7 @@ function SortableSetRow({
   onApplyRepSuggestion,
   overrideDurationSeconds,
   overrideNotes,
+  failed,
   hasPR,
 }: {
   id: string;
@@ -1056,6 +1079,7 @@ function SortableSetRow({
   onApplyRepSuggestion?: (setId: number, reps: number) => void;
   overrideDurationSeconds?: number;
   overrideNotes?: string | null;
+  failed?: boolean;
   hasPR?: boolean;
 }) {
   const {
@@ -1117,12 +1141,18 @@ function SortableSetRow({
           onClick={handlePlayClick}
           className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-150 border-2 active:scale-90 ${
             isCompleted
-              ? "bg-primary border-primary"
+              ? failed
+                ? "bg-destructive border-destructive"
+                : "bg-primary border-primary"
               : "border-primary bg-transparent"
           }`}
         >
           {isCompleted ? (
-            <Check className="w-4 h-4 text-primary-foreground" />
+            failed ? (
+              <X className="w-4 h-4 text-destructive-foreground" />
+            ) : (
+              <Check className="w-4 h-4 text-primary-foreground" />
+            )
           ) : (
             <Play className="w-3 h-3 text-primary fill-primary" />
           )}

@@ -43,6 +43,13 @@ export const trainingCycles = pgTable("training_cycles", {
   goal: text("goal", { enum: ["build", "maintain"] })
     .default("build")
     .notNull(),
+  // Athlete experience level for triathlon cycles. Scales the peak endurance
+  // volumes baked into each set at generation time, and the deload cadence the
+  // weekly sync reproduces (novice recovers every 3rd week, others every 4th).
+  // Null for non-triathlon cycles (no periodized peak anchors).
+  athleteLevel: text("athlete_level", {
+    enum: ["novice", "intermediate", "advanced"],
+  }),
   // Last cycle-week whose endurance targets were synced from the periodization
   // curve. Lets the weekly sync run once per week, idempotently. Null = unsynced.
   lastSyncedWeek: integer("last_synced_week"),

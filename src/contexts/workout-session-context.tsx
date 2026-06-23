@@ -10,6 +10,10 @@ type SetOverride = {
   distanceMeters?: number;
   /** Free-text per-set note captured in SetEditView; flushed on logWorkoutSet. */
   notes?: string | null;
+  /** Set was attempted but not completed at target — logs isFailed + a lower actualReps. */
+  isFailed?: boolean;
+  /** Reps actually achieved on a failed set (0..target). Only meaningful when isFailed. */
+  actualReps?: number;
 };
 
 const STORAGE_KEY = "activeWorkout";

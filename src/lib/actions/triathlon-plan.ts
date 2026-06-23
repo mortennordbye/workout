@@ -24,6 +24,7 @@ const generateTriathlonPlanSchema = z.object({
   weeks: z.number().int().min(1).max(52),
   restDay: z.number().int().min(1).max(7).optional(),
   goal: z.enum(["build", "maintain"]).default("build"),
+  level: z.enum(["novice", "intermediate", "advanced"]).default("intermediate"),
 });
 
 // Canonical exercises the plan references. Endurance ones are new (discipline-tagged);
@@ -96,6 +97,7 @@ export async function generateTriathlonPlan(
           durationWeeks: plan.durationWeeks,
           scheduleType: "day_of_week",
           goal: plan.goal,
+          athleteLevel: plan.level,
           status: "draft",
         })
         .returning({ id: trainingCycles.id });

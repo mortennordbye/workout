@@ -34,6 +34,24 @@ When you finish an item, delete it. When you add an item, write enough that some
 - **Unblocked by:** Concrete report of a power user hitting it.
 - **Touchpoints:** `src/lib/utils/cycle-position.ts` (`walkRotation`), tests in `src/__tests__/cycle-position.test.ts`.
 
+### Autoregulation + intensity distribution for triathlon plans
+- **What:** The Ironman research brief prescribes two layers we did *not* build: (1) **autoregulation** — trigger an automatic deload from wearable signals (suppressed HRV, elevated resting HR, aerobic decoupling >5%), and "drop, don't cram" handling of missed sessions; (2) **80/20 polarized intensity** — enforce that ~80% of session time sits below VT1 and isolate hard work, rather than only labelling sessions ("Run — Tempo"). We implemented the *structural* layer instead: level-scaled peak volumes + a periodization curve provably within the uncoupled-ACWR ≤1.30 band.
+- **Why deferred:** Both need data the app doesn't capture. Autoregulation needs a wearable-data pipeline (HRV/RHR/pace-HR) — there is none. Polarized enforcement needs per-set HR/power *zones*; we log distance/duration only. Out of scope for a plan *generator*.
+- **Unblocked by:** (1) Ingesting wearable/HR data (Apple Health / Garmin / Strava) into a per-session store. (2) Adding HR/power-zone capture to the set editor (note the existing "Sport-specific endurance fields" entry above covers the schema gap).
+- **Touchpoints:** `src/lib/utils/periodization.ts` (curve already exposes `uncoupledAcwr` for a guardrail), `src/lib/actions/training-cycles.ts` (`syncPeriodizedTargets` is where an autoregulated override would hook in), `src/db/schema/workout-sets.ts` (zone columns).
+
+### iOS backgrounding — residual gaps after the resume-hardening pass
+- **What:** A Jun 2026 pass made the rest/exercise timers and completed-set toggles re-sync on resume (visibilitychange + pageshow + focus; rest timers rebuild from `restTimerEnds`, completed sets re-pull from the server). Two gaps remain: (1) the **exercise (timed-set) countdown** isn't persisted, so a *cold* eviction mid-timed-set loses it entirely (only warm resume recovers it); (2) **unsaved SetEditView edits** (typed but not Saved) live only in React state and are lost on eviction — only Saved overrides persist to localStorage.
+- **Why deferred:** (1) timed sets are short and rarely span a long background; persisting `endsAt` to the context/localStorage is extra surface for an edge case. (2) auto-persisting drafts on each keystroke is a bigger change; the explicit Save is the documented contract.
+- **Unblocked by:** A real iOS device repro showing either gap bites in practice. Then: persist the exercise timer's `endsAt` alongside `restTimerEnds` and rehydrate on mount; and/or debounce-persist SetEditView field state to a draft key cleared on Save/navigation.
+- **Touchpoints:** `src/components/features/WorkoutSetsList.tsx` (exercise timer state + resync effects), `src/contexts/workout-session-context.tsx` (persistence keys), `src/components/features/SetEditView.tsx` (draft state).
+
+### Surface failed sets in history & metrics
+- **What:** `workout_sets.is_failed` is now logged (explicit failed-set flag, Jun 2026) and shown in-workout (red ✕). History rows and the metrics/PR views don't yet read it — a failed set currently just shows its low `actualReps`. A dedicated "failed" badge in `/history` and exclusion/annotation in PR/volume math would make it explicit.
+- **Why deferred:** The flag is captured and progression already reacts to `actualReps < targetReps`; surfacing it in history/metrics is additive polish.
+- **Unblocked by:** Wanting failed sets visually distinct in history. Add `isFailed` to the history query + `HistoryRow`, render a badge, and decide whether failed sets count toward volume.
+- **Touchpoints:** `src/lib/actions/workout-sets.ts` (history query ~line 711), `src/components/features/` history/metrics components, `src/lib/utils/progression.ts` (optional: treat `isFailed` as a hard fail).
+
 ## Smart-progression UX (deferred long-term)
 
 ### Skip suggestion compute for completed sets

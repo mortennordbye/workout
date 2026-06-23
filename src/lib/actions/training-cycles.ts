@@ -9,11 +9,13 @@
 import { db } from "@/db";
 import { programExercises, programSets, programs, trainingCycleSlots, trainingCycles, workoutSessions } from "@/db/schema";
 import {
+  deloadCadenceForLevel,
   periodizedLoad,
   phaseLabel,
   phaseLayout,
   scaledDistance,
   scaledDuration,
+  type AthleteLevel,
   type TrainingGoal,
   type TrainingPhase,
 } from "@/lib/utils/periodization";
@@ -163,7 +165,7 @@ export async function getActiveCycleForUser(): Promise<ActionResult<ActiveCycleI
     // stored peak via the curve (Base→Build→Peak→Taper, or flat for "maintain").
     // No-op for non-triathlon cycles (no peak_distance_meters anchors).
     if (cycle.lastSyncedWeek !== currentWeek) {
-      await syncPeriodizedTargets(cycle.id, slots, currentWeek, cycle.durationWeeks, cycle.goal);
+      await syncPeriodizedTargets(cycle.id, slots, currentWeek, cycle.durationWeeks, cycle.goal, cycle.athleteLevel);
     }
     const slotById = new Map<number, TrainingCycleSlotWithProgram>(
       slots.map((s) => [s.id, s]),
@@ -301,7 +303,7 @@ export async function getCyclePeriodization(
       currentWeek = totalWeeks;
     }
 
-    const load = periodizedLoad(currentWeek, totalWeeks, cycle.goal);
+    const load = periodizedLoad(currentWeek, totalWeeks, cycle.goal, deloadCadenceForLevel(cycle.athleteLevel));
     const { rampWeeks, peakWeeks } = phaseLayout(totalWeeks);
     const peakStart = rampWeeks + 1;
     const taperStart = rampWeeks + peakWeeks + 1;
@@ -367,6 +369,7 @@ async function syncPeriodizedTargets(
   currentWeek: number,
   durationWeeks: number,
   goal: TrainingGoal,
+  athleteLevel: AthleteLevel | null,
 ): Promise<void> {
   const programIds = slots
     .map((s) => s.programId)
@@ -392,7 +395,7 @@ async function syncPeriodizedTargets(
       );
 
     if (peakSets.length > 0) {
-      const { multiplier } = periodizedLoad(currentWeek, durationWeeks, goal);
+      const { multiplier } = periodizedLoad(currentWeek, durationWeeks, goal, deloadCadenceForLevel(athleteLevel));
       await Promise.all(
         peakSets.map((ps) => {
           const update: { distanceMeters?: number; durationSeconds?: number } = {};

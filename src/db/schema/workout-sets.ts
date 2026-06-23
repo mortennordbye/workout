@@ -63,6 +63,9 @@ export const workoutSets = pgTable("workout_sets", {
   // Free-text per-set note: "left shoulder twinged", "added belt", "felt easy"
   notes: text("notes"),
   isCompleted: boolean("is_completed").default(true).notNull(),
+  // Set was attempted but the target reps weren't reached (an explicit failure,
+  // distinct from actualReps < targetReps which can also mean a planned back-off).
+  isFailed: boolean("is_failed").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (t) => [
   index("idx_wsets_session").on(t.sessionId),

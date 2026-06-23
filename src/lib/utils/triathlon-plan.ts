@@ -10,7 +10,13 @@
  * +increment suggestions, drives the load. Strength stays maintenance.
  */
 
-import { periodizedLoad, scaledDistance, type TrainingGoal } from "@/lib/utils/periodization";
+import {
+  deloadCadenceForLevel,
+  periodizedLoad,
+  scaledDistance,
+  type AthleteLevel,
+  type TrainingGoal,
+} from "@/lib/utils/periodization";
 
 export type PlanProgressionMode = "manual" | "distance";
 
@@ -46,6 +52,7 @@ export type PlanBlueprint = {
   cycleName: string;
   durationWeeks: number;
   goal: TrainingGoal;
+  level: AthleteLevel;
   days: PlanDay[];
 };
 
@@ -56,9 +63,43 @@ export type BuildTriathlonPlanParams = {
   restDay?: number;
   /** "build" ramps to a race peak then tapers; "maintain" holds flat. Default "build". */
   goal?: TrainingGoal;
+  /** Experience tier — scales peak volumes and deload cadence. Default "intermediate". */
+  level?: AthleteLevel;
 };
 
 const ALLOWED_WEEKS = [4, 6, 8, 10, 12, 16, 24, 36, 52];
+
+/** Peak (race-prep) per-session distances in meters for each endurance slot. */
+type PeakVolumes = {
+  swimLong: number;
+  swimShort: number;
+  bikeMid: number;
+  bikeLong: number;
+  runTempo: number;
+  runBrick: number;
+  runLong: number;
+};
+
+/**
+ * Ironman-distance peak volumes per athlete tier. Anchored to the longest-session
+ * biological ceilings from the research brief — run ≤ ~30 km, bike ≤ ~180 km,
+ * swim ≤ ~4.2 km — since long-session durability, not single-week mileage, is
+ * what carries an age-grouper through 140.6. Weekly totals land a touch under the
+ * high end of published ranges because this is a fixed two-swim / two-ride /
+ * three-run week with no double days; the periodization curve scales every figure
+ * below these toward race week. The brick run is held short (15–30 min) by design.
+ */
+const PEAK_VOLUMES: Record<AthleteLevel, PeakVolumes> = {
+  novice:       { swimLong: 3000, swimShort: 1500, bikeMid: 40000, bikeLong: 90000,  runTempo: 6000,  runBrick: 3000, runLong: 18000 },
+  intermediate: { swimLong: 3800, swimShort: 2000, bikeMid: 50000, bikeLong: 130000, runTempo: 8000,  runBrick: 4000, runLong: 26000 },
+  advanced:     { swimLong: 4200, swimShort: 2500, bikeMid: 60000, bikeLong: 160000, runTempo: 10000, runBrick: 5000, runLong: 30000 },
+};
+
+const LEVEL_LABELS: Record<AthleteLevel, string> = {
+  novice: "Novice",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
+};
 
 /** Snap an arbitrary week count to the nearest cycle-supported value. */
 export function snapWeeks(weeks: number): number {
@@ -81,9 +122,10 @@ function strengthExercise(name: string): PlanExercise {
  * curve) and `peakDistanceMeters` is the anchor the active cycle ramps toward.
  * Two strength days (Mon/Fri) keep muscle; Saturday is a bike→run brick.
  */
-export function buildTriathlonPlan({ weeks, restDay, goal = "build" }: BuildTriathlonPlanParams): PlanBlueprint {
+export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "intermediate" }: BuildTriathlonPlanParams): PlanBlueprint {
   const durationWeeks = snapWeeks(weeks);
-  const week1Multiplier = periodizedLoad(1, durationWeeks, goal).multiplier;
+  const week1Multiplier = periodizedLoad(1, durationWeeks, goal, deloadCadenceForLevel(level)).multiplier;
+  const v = PEAK_VOLUMES[level];
 
   const endurance = (name: string, peakMeters: number): PlanExercise => ({
     name,
@@ -107,17 +149,17 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build" }: BuildTria
     {
       dayOfWeek: 2,
       label: "Run — Tempo",
-      exercises: [endurance("Run", 5000)],
+      exercises: [endurance("Run", v.runTempo)],
     },
     {
       dayOfWeek: 3,
       label: "Swim — Endurance",
-      exercises: [endurance("Swim", 1500)],
+      exercises: [endurance("Swim", v.swimLong)],
     },
     {
       dayOfWeek: 4,
       label: "Bike — Endurance",
-      exercises: [endurance("Bike", 40000)],
+      exercises: [endurance("Bike", v.bikeMid)],
     },
     {
       dayOfWeek: 5,
@@ -126,18 +168,18 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build" }: BuildTria
         strengthExercise("Deadlift"),
         strengthExercise("Overhead Press"),
         strengthExercise("Pull-up"),
-        endurance("Swim", 1000),
+        endurance("Swim", v.swimShort),
       ],
     },
     {
       dayOfWeek: 6,
       label: "Long Bike + Brick Run",
-      exercises: [endurance("Bike", 90000), endurance("Run", 5000)],
+      exercises: [endurance("Bike", v.bikeLong), endurance("Run", v.runBrick)],
     },
     {
       dayOfWeek: 7,
       label: "Long Run",
-      exercises: [endurance("Run", 15000)],
+      exercises: [endurance("Run", v.runLong)],
     },
   ];
 
@@ -150,7 +192,13 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build" }: BuildTria
   }
 
   const goalLabel = goal === "maintain" ? "Maintain" : "Build";
-  return { cycleName: `Triathlon ${goalLabel} — ${durationWeeks} wk`, durationWeeks, goal, days };
+  return {
+    cycleName: `Triathlon ${goalLabel} · ${LEVEL_LABELS[level]} — ${durationWeeks} wk`,
+    durationWeeks,
+    goal,
+    level,
+    days,
+  };
 }
 
 /** Distinct exercises referenced by a blueprint, in first-seen order. */

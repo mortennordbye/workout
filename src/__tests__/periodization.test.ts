@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  deloadCadenceForLevel,
   formatPeriodizationSummary,
   periodizedLoad,
   phaseLayout,
   scaledDuration,
+  uncoupledAcwr,
   type PeriodizationSummaryInput,
   type TrainingGoal,
 } from "@/lib/utils/periodization";
@@ -44,8 +46,8 @@ describe("periodizedLoad — build (24-week block)", () => {
 
   it("tapers down into race week", () => {
     expect(load(22).phase).toBe("taper");
-    expect(load(22).multiplier).toBe(0.8);
-    expect(load(24)).toMatchObject({ phase: "taper", multiplier: 0.45 });
+    expect(load(22).multiplier).toBe(0.6);
+    expect(load(24)).toMatchObject({ phase: "taper", multiplier: 0.35 });
     // strictly decreasing across the taper
     expect(load(22).multiplier).toBeGreaterThan(load(23).multiplier);
     expect(load(23).multiplier).toBeGreaterThan(load(24).multiplier);
@@ -72,7 +74,48 @@ describe("periodizedLoad — short block (4 weeks)", () => {
     const g: TrainingGoal = "build";
     expect(periodizedLoad(1, 4, g).multiplier).toBe(0.6);
     expect(periodizedLoad(3, 4, g).phase).toBe("peak");
-    expect(periodizedLoad(4, 4, g)).toMatchObject({ phase: "taper", multiplier: 0.45 });
+    expect(periodizedLoad(4, 4, g)).toMatchObject({ phase: "taper", multiplier: 0.35 });
+  });
+});
+
+describe("deloadCadenceForLevel", () => {
+  it("recovers novices every 3rd week and others every 4th", () => {
+    expect(deloadCadenceForLevel("novice")).toBe(3);
+    expect(deloadCadenceForLevel("intermediate")).toBe(4);
+    expect(deloadCadenceForLevel("advanced")).toBe(4);
+    expect(deloadCadenceForLevel(null)).toBe(4);
+    expect(deloadCadenceForLevel(undefined)).toBe(4);
+  });
+
+  it("shifts where deload weeks land in the ramp", () => {
+    const novice = (w: number) => periodizedLoad(w, 24, "build", 3);
+    const adv = (w: number) => periodizedLoad(w, 24, "build", 4);
+    // Novice deloads at week 3 (not 4); advanced deloads at week 4 (not 3).
+    expect(novice(3).isDeload).toBe(true);
+    expect(novice(4).isDeload).toBe(false);
+    expect(adv(3).isDeload).toBe(false);
+    expect(adv(4).isDeload).toBe(true);
+  });
+});
+
+describe("uncoupledAcwr — injury-risk guardrail", () => {
+  it("returns 1 for the first week and excludes the current week from the denominator", () => {
+    const acwr = uncoupledAcwr([0.5, 0.6, 0.7]);
+    expect(acwr[0]).toBe(1);
+    expect(acwr[1]).toBeCloseTo(0.6 / 0.5, 5); // chronic = mean of weeks before it
+    expect(acwr[2]).toBeCloseTo(0.7 / ((0.5 + 0.6) / 2), 5);
+  });
+
+  it("keeps every generated build curve under the 1.30 ceiling, including out of deloads", () => {
+    for (const weeks of [12, 16, 24, 36, 52]) {
+      for (const cadence of [3, 4]) {
+        const loads = Array.from({ length: weeks }, (_, i) =>
+          periodizedLoad(i + 1, weeks, "build", cadence).multiplier,
+        );
+        const max = Math.max(...uncoupledAcwr(loads));
+        expect(max, `weeks=${weeks} cadence=${cadence}`).toBeLessThanOrEqual(1.3);
+      }
+    }
   });
 });
 

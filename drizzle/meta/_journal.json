@@ -239,6 +239,20 @@
       "when": 1780857193404,
       "tag": "0033_mature_echo",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1782231222279,
+      "tag": "0034_chilly_gorilla_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1782233635958,
+      "tag": "0035_clumsy_tyger_tiger",
+      "breakpoints": true
     }
   ]
 }

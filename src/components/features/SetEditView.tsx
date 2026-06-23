@@ -73,6 +73,11 @@ export function SetEditView({
     (set.setType as SetType | undefined) ?? "working",
   );
   const [notes, setNotes] = useState<string>(override?.notes ?? "");
+  // Workout-mode only: mark a set as failed (target not reached). The reps field
+  // then captures the reps actually achieved (0 is allowed), while the program
+  // target is preserved so the set logs actualReps < targetReps.
+  const [failed, setFailed] = useState<boolean>(override?.isFailed ?? false);
+  const repsMin = isWorkout ? 0 : 1;
   const [duration, setDuration] = useState(override?.durationSeconds ?? Number(set.durationSeconds ?? 0));
   const [distanceMeters, setDistanceMeters] = useState(set.distanceMeters ?? cfg.defaultDistanceM);
   const [distanceStr, setDistanceStr] = useState(metersToInput(set.distanceMeters ?? cfg.defaultDistanceM));
@@ -148,6 +153,9 @@ export function SetEditView({
       // During a workout, changes apply to the active session only — never write back to the program
       if (isTimed) {
         workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight, durationSeconds: duration, notes: noteValue });
+      } else if (failed) {
+        // Failed: keep the program target as the goal, record the achieved reps.
+        workoutSession?.setOverride(set.id, { targetReps: set.targetReps ?? reps, weightKg: weight, notes: noteValue, isFailed: true, actualReps: reps });
       } else {
         workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight, notes: noteValue });
       }
@@ -390,7 +398,7 @@ export function SetEditView({
               onClick={() => { setRepsStr(String(reps)); setShowRepsPicker(true); }}
               className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
             >
-              <span className="text-base font-medium">Reps</span>
+              <span className="text-base font-medium">{failed ? "Reps done" : "Reps"}</span>
               <span className="text-base text-muted-foreground">{reps}</span>
             </button>
 
@@ -402,6 +410,27 @@ export function SetEditView({
               <span className="text-base font-medium">Weight (kg)</span>
               <span className="text-base text-muted-foreground">{weight}</span>
             </button>
+
+            {/* Mark-as-failed — workout mode only. Keeps the target as the goal
+                and logs the (lower) reps actually achieved. */}
+            {isWorkout && (
+              <button
+                onClick={() => {
+                  const next = !failed;
+                  setFailed(next);
+                  // Entering failed mode: default achieved reps to 0 so a wiped
+                  // set is the common one-tap case; leaving it restores the target.
+                  if (next) { setReps(0); setRepsStr("0"); }
+                  else { const t = set.targetReps ?? 10; setReps(t); setRepsStr(String(t)); }
+                }}
+                className={`w-full flex items-center justify-between py-4 border-b border-border transition-colors active:bg-muted/70 ${failed ? "text-destructive" : "hover:bg-muted/50"}`}
+              >
+                <span className="text-base font-medium">Mark set as failed</span>
+                <span className={`flex items-center justify-center w-6 h-6 rounded-full border-2 ${failed ? "bg-destructive border-destructive text-destructive-foreground" : "border-muted-foreground/40"}`}>
+                  {failed && <span className="text-xs leading-none">✕</span>}
+                </span>
+              </button>
+            )}
           </>
         )}
 
@@ -493,9 +522,9 @@ export function SetEditView({
                 onChange={(e) => {
                   const val = e.target.value.replace(/\D/g, "");
                   setRepsStr(val);
-                  setReps(Math.max(1, parseInt(val) || 1));
+                  setReps(Math.max(repsMin, parseInt(val) || repsMin));
                 }}
-                onBlur={() => { const n = Math.max(1, parseInt(repsStr) || 1); setReps(n); setRepsStr(String(n)); }}
+                onBlur={() => { const n = Math.max(repsMin, parseInt(repsStr) || repsMin); setReps(n); setRepsStr(String(n)); }}
                 className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
               />
             </div>

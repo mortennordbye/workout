@@ -15,6 +15,9 @@
 
 export type TrainingGoal = "build" | "maintain";
 
+/** Ironman experience tier — drives peak volumes (see triathlon-plan) and deload cadence. */
+export type AthleteLevel = "novice" | "intermediate" | "advanced";
+
 export type TrainingPhase = "base" | "build" | "peak" | "taper" | "maintain";
 
 export type WeekLoad = {
@@ -28,17 +31,33 @@ export type WeekLoad = {
 };
 
 // ── Tunables ────────────────────────────────────────────────────────────────
+// Values follow the Ironman-specific curve in the research brief: a gentle ramp
+// floor, ~25% deload dips, and an exponential taper to ~0.35 of peak on race
+// week. The ramp start is held at 0.60 (not the brief's 0.50): on the steepest
+// supported block (12 wk) a 0.50 start makes the post-deload week rebound to an
+// uncoupled ACWR of ~1.37 — above the brief's own 1.30 lowest-risk ceiling. At
+// 0.60 the worst case across all block lengths/cadences is ~1.28 (asserted in
+// periodization.test.ts), so the safety invariant wins over the exact floor.
 /** Multiplier at the very first ramp week. */
 const RAMP_START = 0.6;
-/** Recovery-week volume relative to that week's ramp value. */
-const DELOAD_FACTOR = 0.65;
-/** Deload cadence (every Nth ramp week). */
+/** Recovery-week volume relative to that week's ramp value (~25% reduction). */
+const DELOAD_FACTOR = 0.75;
+/** Default deload cadence (every Nth ramp week) — see deloadCadenceForLevel. */
 const DELOAD_EVERY = 4;
 /** Taper volume on the first vs final (race) taper week. */
-const TAPER_START = 0.8;
-const TAPER_END = 0.45;
+const TAPER_START = 0.6;
+const TAPER_END = 0.35;
 /** Never prescribe below this fraction of peak. */
 const MIN_MULTIPLIER = 0.3;
+
+/**
+ * Deload cadence for an athlete tier. Novices (and the over-50 cohort the brief
+ * groups with them) recover every 3rd ramp week; intermediate/advanced sustain a
+ * 4-week mesocycle. Null (non-triathlon cycle, or legacy row) → the 4-week default.
+ */
+export function deloadCadenceForLevel(level: AthleteLevel | null | undefined): number {
+  return level === "novice" ? 3 : DELOAD_EVERY;
+}
 
 function clamp(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, v));
@@ -74,6 +93,7 @@ export function periodizedLoad(
   week: number,
   totalWeeks: number,
   goal: TrainingGoal,
+  deloadEvery: number = DELOAD_EVERY,
 ): WeekLoad {
   const weeks = Math.max(1, Math.floor(totalWeeks));
   const w = clamp(Math.floor(week), 1, weeks);
@@ -110,7 +130,7 @@ export function periodizedLoad(
   const phase: TrainingPhase = w <= Math.ceil(rampWeeks / 2) ? "base" : "build";
 
   // Deload every Nth ramp week (never week 1, never the final ramp week before peak).
-  const isDeload = w % DELOAD_EVERY === 0 && w !== rampWeeks;
+  const isDeload = w % deloadEvery === 0 && w !== rampWeeks;
   if (isDeload) multiplier *= DELOAD_FACTOR;
 
   return {
@@ -127,6 +147,23 @@ export function periodizedLoad(
  */
 export function scaledDistance(peakMeters: number, multiplier: number): number {
   return Math.max(100, Math.round((peakMeters * multiplier) / 100) * 100);
+}
+
+/**
+ * Uncoupled acute:chronic workload ratio for a sequence of weekly loads. Each
+ * week's acute load is divided by the mean of the *preceding* (up to 3) weeks —
+ * the current week is deliberately excluded from the denominator to avoid the
+ * mathematical coupling that dampens real spikes in the conventional formula.
+ * Week 1 (no history) returns 1. Used to verify a generated ramp never spikes
+ * load past the ~1.30 injury-risk ceiling, including coming out of a deload.
+ */
+export function uncoupledAcwr(weeklyLoads: number[]): number[] {
+  return weeklyLoads.map((load, i) => {
+    const priors = weeklyLoads.slice(Math.max(0, i - 3), i);
+    if (priors.length === 0) return 1;
+    const chronic = priors.reduce((a, b) => a + b, 0) / priors.length;
+    return chronic > 0 ? load / chronic : 0;
+  });
 }
 
 /**

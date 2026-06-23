@@ -148,6 +148,7 @@ export async function logWorkoutSet(
       restTimeSeconds,
       notes,
       isCompleted,
+      isFailed,
     } = validation.data;
 
     // Verify the session belongs to the authenticated user
@@ -199,6 +200,7 @@ export async function logWorkoutSet(
         restTimeSeconds,
         notes,
         isCompleted,
+        isFailed,
       })
       .returning();
 

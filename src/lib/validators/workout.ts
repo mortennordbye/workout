@@ -93,6 +93,7 @@ export const logWorkoutSetSchema = z.object({
     .nullable()
     .optional(),
   isCompleted: z.boolean().default(true),
+  isFailed: z.boolean().default(false),
 });
 
 /**

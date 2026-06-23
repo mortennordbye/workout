@@ -28,13 +28,27 @@ export function WorkoutSessionInitializer({ programId }: { programId: number }) 
   useEffect(() => {
     if (sessionId == null || !hydrateCompletedSetIds) return;
     let ignore = false;
-    void (async () => {
+    const pull = async () => {
       const result = await getActiveSessionCompletedProgramSetIds(sessionId);
       if (ignore || !result.success) return;
       hydrateCompletedSetIds(new Set(result.data));
-    })();
+    };
+    void pull();
+    // Re-pull whenever the app returns to the foreground. After a long iOS
+    // background the JS context can be evicted, leaving completedSetIds empty
+    // until this fires — without it the workout looks reset even though the DB
+    // still holds the rows. pageshow/focus cover standalone-PWA cases where
+    // visibilitychange doesn't fire.
+    const onVisible = () => { if (document.visibilityState === 'visible') void pull(); };
+    const onResume = () => { void pull(); };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('pageshow', onResume);
+    window.addEventListener('focus', onResume);
     return () => {
       ignore = true;
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('pageshow', onResume);
+      window.removeEventListener('focus', onResume);
     };
   }, [sessionId, hydrateCompletedSetIds]);
 

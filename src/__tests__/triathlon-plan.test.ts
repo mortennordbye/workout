@@ -87,4 +87,35 @@ describe("buildTriathlonPlan", () => {
     expect(names).toContain("Bike");
     expect(names).toContain("Run");
   });
+
+  // peakDistanceMeters is the authored race-prep peak (the curve scales
+  // distanceMeters below it); it reflects the level table directly.
+  const longRunPeak = (level: "novice" | "intermediate" | "advanced") => {
+    const plan = buildTriathlonPlan({ weeks: 24, level });
+    const sun = plan.days.find((d) => d.dayOfWeek === 7)!; // Long Run
+    return sun.exercises[0].sets[0].peakDistanceMeters!;
+  };
+  const longBikePeak = (level: "novice" | "intermediate" | "advanced") => {
+    const plan = buildTriathlonPlan({ weeks: 24, level });
+    const sat = plan.days.find((d) => d.dayOfWeek === 6)!; // Long Bike + Brick
+    return sat.exercises.find((e) => e.name === "Bike")!.sets[0].peakDistanceMeters!;
+  };
+
+  it("scales peak volumes up with athlete level", () => {
+    expect(longRunPeak("novice")).toBeLessThan(longRunPeak("intermediate"));
+    expect(longRunPeak("intermediate")).toBeLessThan(longRunPeak("advanced"));
+    expect(longBikePeak("novice")).toBeLessThan(longBikePeak("intermediate"));
+    expect(longBikePeak("intermediate")).toBeLessThan(longBikePeak("advanced"));
+  });
+
+  it("respects the long-session biological ceilings even at advanced", () => {
+    // Run ≤ ~30 km, bike ≤ ~180 km — the durability ceilings from the brief.
+    expect(longRunPeak("advanced")).toBeLessThanOrEqual(30000);
+    expect(longBikePeak("advanced")).toBeLessThanOrEqual(180000);
+  });
+
+  it("defaults to the intermediate level and records it on the blueprint", () => {
+    expect(buildTriathlonPlan({ weeks: 24 }).level).toBe("intermediate");
+    expect(buildTriathlonPlan({ weeks: 24, level: "advanced" }).level).toBe("advanced");
+  });
 });
