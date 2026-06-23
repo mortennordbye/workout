@@ -143,6 +143,23 @@ type ProgramSet = typeof programSets.$inferSelect;
 
 ---
 
+## 🤖 MCP Server
+
+The app exposes a **Model Context Protocol** endpoint so MCP clients (Claude Desktop/Code, etc.) can read and write your programs, training cycles, and profile/weight on your behalf.
+
+- **Endpoint:** `http://localhost:3000/api/mcp` (Streamable HTTP)
+- **Auth:** OAuth via Better Auth's `mcp` plugin. The client runs the OAuth flow against your normal login; the access token is scoped to your user. Discovery metadata lives at `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource`.
+- **Scope:** read + write for **programs** (incl. exercises/sets), **training cycles** (incl. slots), and **profile/weight**. `userId` is always taken from the token — never a tool argument — so a client can only ever touch its own data.
+
+**Connect a client** — point it at the endpoint URL and complete the browser OAuth prompt. With the Claude Code CLI:
+```bash
+claude mcp add --transport http logeverylift http://localhost:3000/api/mcp
+```
+
+**Tools** (~13): `list_programs`, `get_program`, `create_program`, `update_program`, `delete_program`, `edit_program_exercise`; `list_training_cycles`, `get_training_cycle`, `manage_training_cycle`, `edit_cycle_slot`; `get_profile`, `update_profile`, `manage_weight`. Tool code lives in `src/lib/mcp/tools/`; the route is `src/app/api/[transport]/route.ts`.
+
+> **Adding npm deps for the dev container:** `node_modules` is an anonymous Docker volume baked from the image, so a host-only `pnpm add` won't reach the running container. After changing dependencies, rebuild: `docker-compose build app && docker-compose up -d --force-recreate --renew-anon-volumes app` (or `./scripts/dev.sh --clean`).
+
 ## 📦 Deployment
 
 ### Production

@@ -5,7 +5,7 @@
  * that the Better Auth Drizzle adapter expects.
  */
 
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { users } from "./users";
 
 export const sessions = pgTable("session", {
@@ -49,3 +49,69 @@ export const verifications = pgTable("verification", {
   createdAt: timestamp("created_at"),
   updatedAt: timestamp("updated_at"),
 });
+
+// -------------------------------------------------------------------
+// OAuth provider tables (Better Auth `mcp`/OIDC plugin).
+// Backs the OAuth flow MCP clients use to authenticate against the
+// MCP server at /api/[transport]. Column shapes are dictated by Better
+// Auth — generated via `@better-auth/cli generate`; do not rename.
+// -------------------------------------------------------------------
+export const oauthApplications = pgTable(
+  "oauth_application",
+  {
+    id: text("id").primaryKey(),
+    name: text("name"),
+    icon: text("icon"),
+    metadata: text("metadata"),
+    clientId: text("client_id").unique(),
+    clientSecret: text("client_secret"),
+    redirectUrls: text("redirect_urls"),
+    type: text("type"),
+    disabled: boolean("disabled").default(false),
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at"),
+    updatedAt: timestamp("updated_at"),
+  },
+  (t) => [index("oauth_application_user_id_idx").on(t.userId)],
+);
+
+export const oauthAccessTokens = pgTable(
+  "oauth_access_token",
+  {
+    id: text("id").primaryKey(),
+    accessToken: text("access_token").unique(),
+    refreshToken: text("refresh_token").unique(),
+    accessTokenExpiresAt: timestamp("access_token_expires_at"),
+    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+    clientId: text("client_id").references(() => oauthApplications.clientId, {
+      onDelete: "cascade",
+    }),
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+    scopes: text("scopes"),
+    createdAt: timestamp("created_at"),
+    updatedAt: timestamp("updated_at"),
+  },
+  (t) => [
+    index("oauth_access_token_client_id_idx").on(t.clientId),
+    index("oauth_access_token_user_id_idx").on(t.userId),
+  ],
+);
+
+export const oauthConsents = pgTable(
+  "oauth_consent",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").references(() => oauthApplications.clientId, {
+      onDelete: "cascade",
+    }),
+    userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+    scopes: text("scopes"),
+    createdAt: timestamp("created_at"),
+    updatedAt: timestamp("updated_at"),
+    consentGiven: boolean("consent_given"),
+  },
+  (t) => [
+    index("oauth_consent_client_id_idx").on(t.clientId),
+    index("oauth_consent_user_id_idx").on(t.userId),
+  ],
+);
