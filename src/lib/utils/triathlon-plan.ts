@@ -27,6 +27,8 @@ export type PlanSet = {
   /** Peak (race-prep) distance this endurance set ramps toward. */
   peakDistanceMeters?: number;
   durationSeconds?: number;
+  /** Target HR zone (1–5) — drives the polarized 80/20 intensity prescription. */
+  targetHeartRateZone?: number;
   restTimeSeconds: number;
 };
 
@@ -127,7 +129,12 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
   const week1Multiplier = periodizedLoad(1, durationWeeks, goal, deloadCadenceForLevel(level)).multiplier;
   const v = PEAK_VOLUMES[level];
 
-  const endurance = (name: string, peakMeters: number): PlanExercise => ({
+  // Polarized 80/20: nearly all endurance volume sits at easy aerobic Z2, with a
+  // single weekly hard session (the tempo run) at threshold Z4 — keeping the
+  // athlete out of the Z3 "grey zone" the research brief warns against.
+  const Z2_ENDURANCE = 2;
+  const Z4_THRESHOLD = 4;
+  const endurance = (name: string, peakMeters: number, zone: number): PlanExercise => ({
     name,
     progressionMode: "manual",
     overloadIncrementReps: 0,
@@ -135,6 +142,7 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
       {
         distanceMeters: scaledDistance(peakMeters, week1Multiplier),
         peakDistanceMeters: peakMeters,
+        targetHeartRateZone: zone,
         restTimeSeconds: 0,
       },
     ],
@@ -149,17 +157,17 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
     {
       dayOfWeek: 2,
       label: "Run — Tempo",
-      exercises: [endurance("Run", v.runTempo)],
+      exercises: [endurance("Run", v.runTempo, Z4_THRESHOLD)],
     },
     {
       dayOfWeek: 3,
       label: "Swim — Endurance",
-      exercises: [endurance("Swim", v.swimLong)],
+      exercises: [endurance("Swim", v.swimLong, Z2_ENDURANCE)],
     },
     {
       dayOfWeek: 4,
       label: "Bike — Endurance",
-      exercises: [endurance("Bike", v.bikeMid)],
+      exercises: [endurance("Bike", v.bikeMid, Z2_ENDURANCE)],
     },
     {
       dayOfWeek: 5,
@@ -168,18 +176,18 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
         strengthExercise("Deadlift"),
         strengthExercise("Overhead Press"),
         strengthExercise("Pull-up"),
-        endurance("Swim", v.swimShort),
+        endurance("Swim", v.swimShort, Z2_ENDURANCE),
       ],
     },
     {
       dayOfWeek: 6,
       label: "Long Bike + Brick Run",
-      exercises: [endurance("Bike", v.bikeLong), endurance("Run", v.runBrick)],
+      exercises: [endurance("Bike", v.bikeLong, Z2_ENDURANCE), endurance("Run", v.runBrick, Z2_ENDURANCE)],
     },
     {
       dayOfWeek: 7,
       label: "Long Run",
-      exercises: [endurance("Run", v.runLong)],
+      exercises: [endurance("Run", v.runLong, Z2_ENDURANCE)],
     },
   ];
 

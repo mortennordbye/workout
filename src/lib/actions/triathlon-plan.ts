@@ -174,6 +174,7 @@ async function insertPlanExercise(
       durationSeconds: s.durationSeconds ?? null,
       distanceMeters: s.distanceMeters ?? null,
       peakDistanceMeters: s.peakDistanceMeters ?? null,
+      targetHeartRateZone: s.targetHeartRateZone ?? null,
       restTimeSeconds: s.restTimeSeconds,
       setType: "working",
     })),

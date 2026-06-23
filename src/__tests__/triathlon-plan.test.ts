@@ -114,6 +114,27 @@ describe("buildTriathlonPlan", () => {
     expect(longBikePeak("advanced")).toBeLessThanOrEqual(180000);
   });
 
+  it("prescribes a polarized 80/20 zone split — one hard Z4 session, the rest easy Z2", () => {
+    const plan = buildTriathlonPlan({ weeks: 24 });
+    const enduranceSets = plan.days
+      .flatMap((d) => d.exercises)
+      .filter((e) => e.sets.some((s) => s.peakDistanceMeters != null))
+      .flatMap((e) => e.sets);
+    const zones = enduranceSets.map((s) => s.targetHeartRateZone);
+    // Every endurance set carries a target zone.
+    expect(zones.every((z) => z === 2 || z === 4)).toBe(true);
+    // The tempo run is the single hard (Z4) session; everything else is easy Z2.
+    expect(zones.filter((z) => z === 4)).toHaveLength(1);
+    const easyShare = zones.filter((z) => z === 2).length / zones.length;
+    expect(easyShare).toBeGreaterThanOrEqual(0.8);
+    // Strength sets stay unzoned.
+    const strengthSets = plan.days
+      .flatMap((d) => d.exercises)
+      .filter((e) => e.sets.some((s) => s.targetReps != null))
+      .flatMap((e) => e.sets);
+    expect(strengthSets.every((s) => s.targetHeartRateZone == null)).toBe(true);
+  });
+
   it("defaults to the intermediate level and records it on the blueprint", () => {
     expect(buildTriathlonPlan({ weeks: 24 }).level).toBe("intermediate");
     expect(buildTriathlonPlan({ weeks: 24, level: "advanced" }).level).toBe("advanced");
