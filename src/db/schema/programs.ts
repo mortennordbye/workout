@@ -20,6 +20,7 @@ import {
     timestamp,
 } from "drizzle-orm/pg-core";
 import { exercises } from "./exercises";
+import { trainingCycles } from "./training-cycles";
 import { users } from "./users";
 
 // -------------------------------------------------------------------
@@ -31,6 +32,14 @@ export const programs = pgTable("programs", {
     .references(() => users.id, { onDelete: "cascade" })
     .notNull(),
   name: text("name").notNull(),
+  // Set when a cycle generator (e.g. the triathlon plan) creates this program
+  // for a specific cycle. Cascades on cycle delete so generated programs are
+  // cleaned up instead of cluttering the Programs list. Null for standalone
+  // programs the user built themselves — those are never auto-deleted.
+  createdByCycleId: integer("created_by_cycle_id").references(
+    () => trainingCycles.id,
+    { onDelete: "cascade" },
+  ),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -84,4 +93,8 @@ export const programSets = pgTable("program_sets", {
   restTimeSeconds: integer("rest_time_seconds").notNull().default(0),
   // "working" | "warmup" — non-working sets are excluded from progression suggestions.
   setType: text("set_type").notNull().default("working"),
+  // Structural role for phase-aware periodization. "work" = a hard interval rep
+  // whose zone/rest the active cycle swaps by phase (base→tempo, build→threshold,
+  // peak→VO₂). Null = a steady/warmup/cooldown set that only volume-scales.
+  sessionRole: text("session_role"),
 });

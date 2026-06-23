@@ -114,25 +114,57 @@ describe("buildTriathlonPlan", () => {
     expect(longBikePeak("advanced")).toBeLessThanOrEqual(180000);
   });
 
-  it("prescribes a polarized 80/20 zone split — one hard Z4 session, the rest easy Z2", () => {
+  it("prescribes a polarized 80/20 split — one structured Z4 interval session, the rest easy Z2", () => {
     const plan = buildTriathlonPlan({ weeks: 24 });
-    const enduranceSets = plan.days
+    const enduranceExercises = plan.days
       .flatMap((d) => d.exercises)
-      .filter((e) => e.sets.some((s) => s.peakDistanceMeters != null))
-      .flatMap((e) => e.sets);
-    const zones = enduranceSets.map((s) => s.targetHeartRateZone);
-    // Every endurance set carries a target zone.
-    expect(zones.every((z) => z === 2 || z === 4)).toBe(true);
-    // The tempo run is the single hard (Z4) session; everything else is easy Z2.
-    expect(zones.filter((z) => z === 4)).toHaveLength(1);
-    const easyShare = zones.filter((z) => z === 2).length / zones.length;
-    expect(easyShare).toBeGreaterThanOrEqual(0.8);
+      .filter((e) => e.sets.some((s) => s.peakDistanceMeters != null));
+
+    // Every endurance set carries a Z2/Z4 target zone.
+    const allZones = enduranceExercises.flatMap((e) => e.sets.map((s) => s.targetHeartRateZone));
+    expect(allZones.every((z) => z === 2 || z === 4)).toBe(true);
+
+    // Exactly one session contains the hard Z4 work (the threshold-interval run).
+    const hardSessions = enduranceExercises.filter((e) => e.sets.some((s) => s.targetHeartRateZone === 4));
+    expect(hardSessions).toHaveLength(1);
+
+    // That session is a real interval workout: a Z2 warmup, ≥2 Z4 reps with rest, a Z2 cooldown.
+    const intervals = hardSessions[0].sets;
+    expect(intervals[0].targetHeartRateZone).toBe(2); // warmup
+    expect(intervals[intervals.length - 1].targetHeartRateZone).toBe(2); // cooldown
+    const z4 = intervals.filter((s) => s.targetHeartRateZone === 4);
+    expect(z4.length).toBeGreaterThanOrEqual(2);
+    expect(z4.every((s) => s.restTimeSeconds > 0)).toBe(true); // recovery between reps
+
+    // Every other endurance session is entirely easy Z2.
+    for (const e of enduranceExercises.filter((e) => e !== hardSessions[0])) {
+      expect(e.sets.every((s) => s.targetHeartRateZone === 2)).toBe(true);
+    }
+
     // Strength sets stay unzoned.
     const strengthSets = plan.days
       .flatMap((d) => d.exercises)
       .filter((e) => e.sets.some((s) => s.targetReps != null))
       .flatMap((e) => e.sets);
     expect(strengthSets.every((s) => s.targetHeartRateZone == null)).toBe(true);
+  });
+
+  it("tags only the interval run's hard reps as phase-varying 'work' sets", () => {
+    const plan = buildTriathlonPlan({ weeks: 24 });
+    const quality = plan.days.find((d) => d.label === "Run — Threshold Intervals")!;
+    const sets = quality.exercises[0].sets;
+    // Warmup (first) and cooldown (last) are not work; the middle reps are.
+    expect(sets[0].sessionRole).toBeUndefined();
+    expect(sets[sets.length - 1].sessionRole).toBeUndefined();
+    const work = sets.filter((s) => s.sessionRole === "work");
+    expect(work.length).toBeGreaterThanOrEqual(2);
+    expect(work.every((s) => s.targetHeartRateZone === 4)).toBe(true);
+    // Steady sessions (e.g. the long run, swim) carry no work sets.
+    const others = plan.days
+      .flatMap((d) => d.exercises)
+      .filter((e) => e !== quality.exercises[0])
+      .flatMap((e) => e.sets);
+    expect(others.every((s) => s.sessionRole == null)).toBe(true);
   });
 
   it("defaults to the intermediate level and records it on the blueprint", () => {

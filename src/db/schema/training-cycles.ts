@@ -53,6 +53,11 @@ export const trainingCycles = pgTable("training_cycles", {
   // Last cycle-week whose endurance targets were synced from the periodization
   // curve. Lets the weekly sync run once per week, idempotently. Null = unsynced.
   lastSyncedWeek: integer("last_synced_week"),
+  // Performance-based adaptation applied at the last sync (no wearable needed):
+  // the curve volume is nudged by this percent based on recent adherence/readiness/
+  // RPE. 100 = no change. adaptationNote is the human reason shown in the summary.
+  adaptationPct: integer("adaptation_pct").default(100).notNull(),
+  adaptationNote: text("adaptation_note"),
   startDate: date("start_date"),
   status: text("status", { enum: ["draft", "active", "completed"] })
     .default("draft")

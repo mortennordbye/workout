@@ -116,7 +116,7 @@ export async function generateTriathlonPlan(
 
         const [program] = await tx
           .insert(programs)
-          .values({ userId: auth.user.id, name: day.label })
+          .values({ userId: auth.user.id, name: day.label, createdByCycleId: cycle.id })
           .returning({ id: programs.id });
 
         let orderIndex = 0;
@@ -175,6 +175,7 @@ async function insertPlanExercise(
       distanceMeters: s.distanceMeters ?? null,
       peakDistanceMeters: s.peakDistanceMeters ?? null,
       targetHeartRateZone: s.targetHeartRateZone ?? null,
+      sessionRole: s.sessionRole ?? null,
       restTimeSeconds: s.restTimeSeconds,
       setType: "working",
     })),

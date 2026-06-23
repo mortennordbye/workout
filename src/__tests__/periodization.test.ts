@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeAdaptationFactor,
   deloadCadenceForLevel,
   formatPeriodizationSummary,
+  intervalPhaseRecipe,
   periodizedLoad,
   phaseLayout,
   scaledDuration,
@@ -119,6 +121,50 @@ describe("uncoupledAcwr — injury-risk guardrail", () => {
   });
 });
 
+describe("intervalPhaseRecipe — quality session evolves by phase", () => {
+  it("ramps the work-rep zone aerobic → threshold → VO₂ across the block", () => {
+    expect(intervalPhaseRecipe("base").zone).toBe(3);
+    expect(intervalPhaseRecipe("build").zone).toBe(4);
+    expect(intervalPhaseRecipe("peak").zone).toBe(5);
+    expect(intervalPhaseRecipe("taper").zone).toBe(4);
+    expect(intervalPhaseRecipe("maintain").zone).toBe(4);
+  });
+
+  it("gives harder reps more recovery", () => {
+    expect(intervalPhaseRecipe("peak").restSeconds).toBeGreaterThan(intervalPhaseRecipe("base").restSeconds);
+    expect(intervalPhaseRecipe("build").restSeconds).toBeGreaterThanOrEqual(intervalPhaseRecipe("base").restSeconds);
+  });
+});
+
+describe("computeAdaptationFactor — no-wearable nudge", () => {
+  it("eases when behind on the plan", () => {
+    expect(computeAdaptationFactor({ adherence: 0.4, avgReadiness: null, avgRpe: null }).pct).toBe(90);
+  });
+
+  it("eases when readiness is low", () => {
+    expect(computeAdaptationFactor({ adherence: 1, avgReadiness: 2, avgRpe: 5 }).pct).toBe(92);
+  });
+
+  it("boosts on a strong, consistent, comfortable week", () => {
+    expect(computeAdaptationFactor({ adherence: 1, avgReadiness: 4.5, avgRpe: 5 }).pct).toBe(105);
+  });
+
+  it("stays neutral when there's no clear signal", () => {
+    expect(computeAdaptationFactor({ adherence: 0.75, avgReadiness: null, avgRpe: null }).pct).toBe(100);
+    expect(computeAdaptationFactor({ adherence: 0.75, avgReadiness: 3, avgRpe: 7 }).pct).toBe(100);
+  });
+
+  it("never moves beyond a tight ±band", () => {
+    for (const a of [0, 0.3, 0.6, 0.9, 1]) {
+      for (const r of [null, 1, 3, 5]) {
+        const { pct } = computeAdaptationFactor({ adherence: a, avgReadiness: r, avgRpe: null });
+        expect(pct).toBeGreaterThanOrEqual(90);
+        expect(pct).toBeLessThanOrEqual(105);
+      }
+    }
+  });
+});
+
 describe("periodizedLoad — bounds", () => {
   it("clamps out-of-range weeks", () => {
     expect(periodizedLoad(0, 12, "build").week).toBe(1);
@@ -176,6 +222,24 @@ describe("formatPeriodizationSummary", () => {
     const { headline, note } = summary(5, 24, "maintain");
     expect(headline).toBe("Maintain · Week 5 of 24");
     expect(note).toBe("Endurance held steady; strength at maintenance.");
+  });
+
+  it("appends the no-wearable adaptation note when present", () => {
+    const base = periodizedLoad(5, 24, "build");
+    const { rampWeeks, peakWeeks } = phaseLayout(24);
+    const input: PeriodizationSummaryInput = {
+      goal: "build",
+      phase: base.phase,
+      phaseLabel: "Base",
+      currentWeek: 5,
+      totalWeeks: 24,
+      multiplier: base.multiplier,
+      isDeload: base.isDeload,
+      weeksUntilPeak: Math.max(0, rampWeeks + 1 - 5),
+      weeksUntilTaper: Math.max(0, rampWeeks + peakWeeks + 1 - 5),
+      adaptationNote: "Eased ~10% — under half of last week's sessions were completed.",
+    };
+    expect(formatPeriodizationSummary(input).note).toContain("Eased ~10%");
   });
 });
 

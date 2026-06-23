@@ -16,6 +16,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:seed-fake": "tsx scripts/seed-fake.ts",
     "db:reset-user": "tsx scripts/reset-user.ts",
+    "db:cleanup-programs": "tsx scripts/cleanup-orphaned-cycle-programs.ts",
     "db:diagnose": "tsx scripts/diagnose.ts",
     "create-admin": "tsx scripts/create-admin.ts",
     "test": "vitest run",

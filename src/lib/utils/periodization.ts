@@ -187,6 +187,75 @@ export function phaseLabel(phase: TrainingPhase): string {
   return PHASE_LABELS[phase];
 }
 
+/**
+ * Phase-specific prescription for an interval session's hard "work" reps. The
+ * quality session evolves across the block instead of being threshold the whole
+ * way: aerobic-tempo in base, threshold in build, VO₂ in peak, short sharpeners
+ * in taper. Returns the target HR zone and recovery between reps; the active
+ * cycle's weekly sync applies this to sets tagged sessionRole = "work".
+ */
+export function intervalPhaseRecipe(phase: TrainingPhase): {
+  zone: number;
+  restSeconds: number;
+  intent: string;
+} {
+  switch (phase) {
+    case "base":
+      return { zone: 3, restSeconds: 60, intent: "Tempo" };
+    case "build":
+      return { zone: 4, restSeconds: 120, intent: "Threshold" };
+    case "peak":
+      return { zone: 5, restSeconds: 180, intent: "VO₂max" };
+    case "taper":
+      return { zone: 4, restSeconds: 150, intent: "Sharpener" };
+    case "maintain":
+      return { zone: 4, restSeconds: 120, intent: "Threshold" };
+  }
+}
+
+/** Signals for the no-wearable performance nudge, drawn from recent sessions. */
+export type AdaptationSignals = {
+  /** Fraction of the past week's scheduled sessions actually completed (0–1). */
+  adherence: number;
+  /** Mean pre-workout readiness (1–5) over recent sessions, or null if none rated. */
+  avgReadiness: number | null;
+  /** Mean RPE over recent sessions, or null if none logged. */
+  avgRpe: number | null;
+};
+
+export type Adaptation = {
+  /** Percent applied to the curve volume (90–105). 100 = no change. */
+  pct: number;
+  /** Human reason for the summary; empty when no adjustment. */
+  note: string;
+};
+
+/**
+ * No-wearable performance adaptation. Eases the block when the athlete is behind
+ * or under-recovered, and nudges it up when they're consistent and fresh. Pure
+ * and conservative — a tight ±band, and neutral (100) when there's no signal, so
+ * it never moves on missing data. Caller must skip it before any history exists.
+ */
+export function computeAdaptationFactor(s: AdaptationSignals): Adaptation {
+  // Behind on the plan — don't pile volume onto a missed week.
+  if (s.adherence < 0.6) {
+    return { pct: 90, note: "Eased ~10% — under half of last week's sessions were completed." };
+  }
+  // Under-recovered — back off slightly.
+  if (s.avgReadiness != null && s.avgReadiness <= 2) {
+    return { pct: 92, note: "Eased ~8% — readiness has been low lately." };
+  }
+  // Consistent, fresh, and comfortable — allow a small extra push.
+  if (
+    s.adherence >= 0.9 &&
+    (s.avgReadiness == null || s.avgReadiness >= 4) &&
+    (s.avgRpe == null || s.avgRpe <= 6)
+  ) {
+    return { pct: 105, note: "Boosted ~5% — strong, consistent week." };
+  }
+  return { pct: 100, note: "" };
+}
+
 /** Fields needed to phrase a periodization summary (subset of CyclePeriodization). */
 export type PeriodizationSummaryInput = {
   goal: TrainingGoal;
@@ -198,6 +267,8 @@ export type PeriodizationSummaryInput = {
   isDeload: boolean;
   weeksUntilPeak: number;
   weeksUntilTaper: number;
+  /** No-wearable performance nudge note, appended to the summary when present. */
+  adaptationNote?: string | null;
 };
 
 /**
@@ -225,5 +296,7 @@ export function formatPeriodizationSummary(
   } else {
     note = "Peak block - race-prep volume.";
   }
+  // Append the no-wearable performance nudge when it adjusted this week's volume.
+  if (p.adaptationNote) note = `${note} ${p.adaptationNote}`;
   return { headline, note };
 }

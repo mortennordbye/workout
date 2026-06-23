@@ -253,6 +253,20 @@
       "when": 1782233635958,
       "tag": "0035_clumsy_tyger_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1782235517261,
+      "tag": "0036_nice_jean_grey",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1782237460137,
+      "tag": "0037_secret_jean_grey",
+      "breakpoints": true
     }
   ]
 }

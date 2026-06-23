@@ -1175,15 +1175,28 @@ function SortableSetRow({
       <div className="flex-1">
         {isRunning ? (
           <div>
-            {set.distanceMeters ? (
-              <p className="text-lg font-medium">
-                {formatEnduranceDistance(cfg.inputUnit, set.distanceMeters)}
-              </p>
-            ) : (
-              <p className="text-lg font-medium text-muted-foreground">
-                {totalSets > 1 ? `Interval ${setNumber}` : cfg.label}
-              </p>
-            )}
+            <div className="flex items-center gap-2">
+              {set.distanceMeters ? (
+                <p className="text-lg font-medium">
+                  {formatEnduranceDistance(cfg.inputUnit, set.distanceMeters)}
+                </p>
+              ) : (
+                <p className="text-lg font-medium text-muted-foreground">
+                  {totalSets > 1 ? `Interval ${setNumber}` : cfg.label}
+                </p>
+              )}
+              {set.targetHeartRateZone != null && (
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5 shrink-0 ${
+                    set.targetHeartRateZone >= 4
+                      ? "bg-amber-500/15 text-amber-600"
+                      : "bg-primary/10 text-primary"
+                  }`}
+                >
+                  Z{set.targetHeartRateZone}
+                </span>
+              )}
+            </div>
             {set.durationSeconds != null && (
               <p className="text-sm text-muted-foreground">
                 {formatTime(set.durationSeconds)}
