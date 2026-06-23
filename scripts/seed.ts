@@ -180,6 +180,7 @@ const EXERCISES = [
   { name: "High Knees",            category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
   { name: "Jump Rope",             category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "other",      movementPattern: "cardio" },
   { name: "Box Jump",              category: "cardio",   isCustom: false,               bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
+  { name: "Pogo Hops",             category: "cardio",   isCustom: false,               bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "bodyweight", movementPattern: "cardio" },
   { name: "Cycling",               category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
   { name: "Stair Climber",         category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },
   { name: "Elliptical",            category: "cardio",   isCustom: false, isTimed: true, bodyArea: "cardio",     muscleGroup: "cardio",     equipment: "machine",    movementPattern: "cardio" },

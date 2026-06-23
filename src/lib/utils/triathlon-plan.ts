@@ -7,13 +7,21 @@
  * periodization (see periodization.ts) can scale the week-to-week volume —
  * Base → Build → Peak → Taper for "build", flat for "maintain". Endurance uses
  * `manual` progression because the periodization curve, not reactive
- * +increment suggestions, drives the load. Strength stays maintenance.
+ * +increment suggestions, drives the load.
+ *
+ * Strength is two science-based sessions for endurance athletes: heavy,
+ * lower-body and posterior-chain compound lifts plus plyometrics — the movements
+ * the literature ties to swim/bike/run economy, not bench-press hypertrophy. The
+ * main lifts are tagged sessionRole = "strength" so the active cycle periodizes
+ * their reps/rest by phase (see strengthPhaseRecipe); plyometric and core work is
+ * held constant.
  */
 
 import {
   deloadCadenceForLevel,
   periodizedLoad,
   scaledDistance,
+  strengthPhaseRecipe,
   type AthleteLevel,
   type TrainingGoal,
 } from "@/lib/utils/periodization";
@@ -112,13 +120,8 @@ export function snapWeeks(weeks: number): number {
   );
 }
 
-function strengthSet(): PlanSet {
-  return { targetReps: 5, weightKg: 0, restTimeSeconds: 120 };
-}
-
-function strengthExercise(name: string): PlanExercise {
-  return { name, progressionMode: "manual", overloadIncrementReps: 0, sets: [strengthSet(), strengthSet(), strengthSet()] };
-}
+/** Working sets per main strength lift — held constant; reps/rest carry the phase. */
+const STRENGTH_SETS = 3;
 
 /**
  * Build a balanced Triathlon week. The `peakMeters` is the race-prep volume; the
@@ -128,8 +131,37 @@ function strengthExercise(name: string): PlanExercise {
  */
 export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "intermediate" }: BuildTriathlonPlanParams): PlanBlueprint {
   const durationWeeks = snapWeeks(weeks);
-  const week1Multiplier = periodizedLoad(1, durationWeeks, goal, deloadCadenceForLevel(level)).multiplier;
+  const week1Load = periodizedLoad(1, durationWeeks, goal, deloadCadenceForLevel(level));
+  const week1Multiplier = week1Load.multiplier;
   const v = PEAK_VOLUMES[level];
+
+  // Week-1 strength prescription for the main lifts. The active cycle re-prescribes
+  // reps/rest every week by phase (see strengthPhaseRecipe); this is just the start.
+  const strength = strengthPhaseRecipe(week1Load.phase);
+
+  // A periodized main barbell lift: STRENGTH_SETS working sets, reps/rest from the
+  // current phase, weight left at 0 for the athlete to load to the target reps.
+  // Tagged sessionRole "strength" so the weekly sync periodizes it.
+  const mainLift = (name: string): PlanExercise => ({
+    name,
+    progressionMode: "manual",
+    overloadIncrementReps: 0,
+    sets: Array.from({ length: STRENGTH_SETS }, () => ({
+      targetReps: strength.reps,
+      weightKg: 0,
+      restTimeSeconds: strength.restSeconds,
+      sessionRole: "strength",
+    })),
+  });
+
+  // A fixed accessory — plyometric (running economy) or core. Not periodized:
+  // jumps stay explosive and low-rep, core stays moderate, all block long.
+  const accessory = (name: string, sets: number, reps: number, restSeconds: number): PlanExercise => ({
+    name,
+    progressionMode: "manual",
+    overloadIncrementReps: 0,
+    sets: Array.from({ length: sets }, () => ({ targetReps: reps, weightKg: 0, restTimeSeconds: restSeconds })),
+  });
 
   // Each session is built from structured segments — not one distance blob — so it
   // reads like a real workout. Easy Z2 warmup/cooldown bracket the work; the single
@@ -191,8 +223,16 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
   const days: PlanDay[] = [
     {
       dayOfWeek: 1,
-      label: "Strength — Full Body A",
-      exercises: [strengthExercise("Squat"), strengthExercise("Bench Press"), strengthExercise("Barbell Row")],
+      label: "Strength A — Lower Body",
+      // Squat (knee-dominant) + RDL (hip hinge / posterior chain) are the heavy,
+      // periodized mains; box jumps add reactive power for run economy; the Pallof
+      // press trains the anti-rotation trunk stability all three disciplines need.
+      exercises: [
+        mainLift("Squat"),
+        mainLift("Romanian Deadlift"),
+        accessory("Box Jump", 4, 3, 120),
+        accessory("Pallof Press", 3, 10, 60),
+      ],
     },
     {
       dayOfWeek: 2,
@@ -212,10 +252,15 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
     {
       dayOfWeek: 5,
       label: "Strength B + Recovery Swim",
+      // Hip thrust (glute/hip power for bike & run) + Bulgarian split squat
+      // (unilateral, exposes left/right imbalance) are the periodized mains; pogo
+      // hops train ankle/Achilles stiffness for run economy; one pull-up keeps the
+      // swim's pulling muscles and posture balanced. Closes with an easy recovery swim.
       exercises: [
-        strengthExercise("Deadlift"),
-        strengthExercise("Overhead Press"),
-        strengthExercise("Pull-up"),
+        mainLift("Hip Thrust"),
+        mainLift("Bulgarian Split Squat"),
+        accessory("Pogo Hops", 3, 12, 90),
+        accessory("Pull-up", 3, 6, 120),
         steady("Swim", v.swimShort),
       ],
     },

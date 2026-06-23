@@ -28,18 +28,20 @@ const generateTriathlonPlanSchema = z.object({
 });
 
 // Canonical exercises the plan references. Endurance ones are new (discipline-tagged);
-// the strength lifts match the seed names so existing rows are reused, and a fresh
-// (unseeded) DB still gets them. Inserted with onConflictDoNothing on the unique name.
+// the strength/plyometric lifts match the seed names so existing rows are reused, and
+// a fresh (unseeded) DB still gets them. Inserted with onConflictDoNothing on name.
 const ENSURED_EXERCISES = [
   { name: "Swim", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio", discipline: "swim" },
   { name: "Bike", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "machine", movementPattern: "cardio", discipline: "bike" },
   { name: "Run", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio", discipline: "run" },
   { name: "Squat", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "quads", equipment: "barbell", movementPattern: "squat", discipline: null },
-  { name: "Bench Press", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "chest", equipment: "barbell", movementPattern: "push", discipline: null },
-  { name: "Barbell Row", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "barbell", movementPattern: "pull", discipline: null },
-  { name: "Deadlift", category: "strength", isTimed: false, bodyArea: "full_body", muscleGroup: "back", equipment: "barbell", movementPattern: "hinge", discipline: null },
-  { name: "Overhead Press", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "shoulders", equipment: "barbell", movementPattern: "push", discipline: null },
+  { name: "Romanian Deadlift", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "barbell", movementPattern: "hinge", discipline: null },
+  { name: "Hip Thrust", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "glutes", equipment: "barbell", movementPattern: "hinge", discipline: null },
+  { name: "Bulgarian Split Squat", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "quads", equipment: "dumbbell", movementPattern: "squat", discipline: null },
   { name: "Pull-up", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "bodyweight", movementPattern: "pull", discipline: null },
+  { name: "Box Jump", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio", discipline: null },
+  { name: "Pogo Hops", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio", discipline: null },
+  { name: "Pallof Press", category: "strength", isTimed: false, bodyArea: "core", muscleGroup: "abs", equipment: "cable", movementPattern: "isometric", discipline: null },
 ] as const;
 
 const ENDURANCE_NAMES = ["Swim", "Bike", "Run"] as const;

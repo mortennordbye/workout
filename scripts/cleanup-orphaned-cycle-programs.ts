@@ -25,6 +25,7 @@ import { programs, trainingCycleSlots, workoutSessions } from "../src/db/schema"
 // Names the cycle generators produce (current + historical labels).
 const GENERATED_NAMES = [
   "Strength — Full Body A",
+  "Strength A — Lower Body",
   "Run — Tempo",
   "Run — Threshold Intervals",
   "Swim — Endurance",

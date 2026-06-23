@@ -159,12 +159,54 @@ describe("buildTriathlonPlan", () => {
     const work = sets.filter((s) => s.sessionRole === "work");
     expect(work.length).toBeGreaterThanOrEqual(2);
     expect(work.every((s) => s.targetHeartRateZone === 4)).toBe(true);
-    // Steady sessions (e.g. the long run, swim) carry no work sets.
+    // No other session carries "work" reps (strength mains carry their own role).
     const others = plan.days
       .flatMap((d) => d.exercises)
       .filter((e) => e !== quality.exercises[0])
       .flatMap((e) => e.sets);
-    expect(others.every((s) => s.sessionRole == null)).toBe(true);
+    expect(others.every((s) => s.sessionRole !== "work")).toBe(true);
+  });
+
+  it("prescribes science-based strength: heavy lower-body/posterior mains + plyometrics", () => {
+    const names = planExerciseNames(buildTriathlonPlan({ weeks: 24, goal: "build" }));
+    // Lower-body, posterior-chain, unilateral, and plyometric — the movements
+    // tied to endurance economy.
+    for (const n of [
+      "Squat",
+      "Romanian Deadlift",
+      "Hip Thrust",
+      "Bulgarian Split Squat",
+      "Box Jump",
+      "Pogo Hops",
+    ]) {
+      expect(names).toContain(n);
+    }
+    // The old upper-body-hypertrophy bias is gone.
+    expect(names).not.toContain("Bench Press");
+    expect(names).not.toContain("Barbell Row");
+  });
+
+  it("tags the main lifts for phase periodization and starts a build in the adaptation base", () => {
+    const plan = buildTriathlonPlan({ weeks: 24, goal: "build" });
+    const mains = plan.days
+      .flatMap((d) => d.exercises)
+      .filter((e) => e.sets.some((s) => s.sessionRole === "strength"));
+    expect(mains.map((e) => e.name).sort()).toEqual(
+      ["Bulgarian Split Squat", "Hip Thrust", "Romanian Deadlift", "Squat"].sort(),
+    );
+    // Week 1 of a build is the base phase → anatomical-adaptation reps (12), 3 sets.
+    for (const m of mains) {
+      expect(m.sets).toHaveLength(3);
+      expect(m.sets.every((s) => s.targetReps === 12 && s.sessionRole === "strength")).toBe(true);
+    }
+  });
+
+  it("starts a maintain cycle's strength at its maintenance rep scheme", () => {
+    const plan = buildTriathlonPlan({ weeks: 24, goal: "maintain" });
+    const firstMain = plan.days
+      .flatMap((d) => d.exercises)
+      .find((e) => e.sets.some((s) => s.sessionRole === "strength"))!;
+    expect(firstMain.sets.every((s) => s.targetReps === 6)).toBe(true);
   });
 
   it("defaults to the intermediate level and records it on the blueprint", () => {
