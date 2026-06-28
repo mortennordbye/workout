@@ -31,7 +31,9 @@ export function TriathlonPlanForm() {
   const [goal, setGoal] = useState<"build" | "maintain">("build");
   const [level, setLevel] = useState<"novice" | "intermediate" | "advanced">("intermediate");
   const [weeks, setWeeks] = useState(12);
-  const [restDay, setRestDay] = useState<number | null>(1);
+  // Default rest to Thursday (the expendable mid-week bike) — never a strength day,
+  // so generating with defaults keeps all three strength sessions intact.
+  const [restDay, setRestDay] = useState<number | null>(4);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,8 +67,9 @@ export function TriathlonPlanForm() {
       <div className="px-4 pb-4 shrink-0">
         <h1 className="text-3xl font-bold tracking-tight">Triathlon plan</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          A weekly swim/bike/run template with two strength days to keep muscle. Endurance volume is periodized
-          across the block; strength stays at maintenance. You can edit every session afterward.
+          A weekly swim/bike/run template with three full-body strength days to build and keep muscle. Endurance
+          volume is periodized across the block; the hypertrophy work progresses load week to week. You can edit
+          every session afterward.
         </p>
       </div>
 

@@ -40,8 +40,18 @@ const ENSURED_EXERCISES = [
   { name: "Bulgarian Split Squat", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "quads", equipment: "dumbbell", movementPattern: "squat", discipline: null },
   { name: "Pull-up", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "bodyweight", movementPattern: "pull", discipline: null },
   { name: "Box Jump", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio", discipline: null },
-  { name: "Pogo Hops", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio", discipline: null },
   { name: "Pallof Press", category: "strength", isTimed: false, bodyArea: "core", muscleGroup: "abs", equipment: "cable", movementPattern: "isometric", discipline: null },
+  { name: "Calf Raise", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "calves", equipment: "machine", movementPattern: "push", discipline: null },
+  { name: "Bench Press", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "chest", equipment: "barbell", movementPattern: "push", discipline: null },
+  { name: "Overhead Press", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "shoulders", equipment: "barbell", movementPattern: "push", discipline: null },
+  { name: "Incline Dumbbell Press", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "chest", equipment: "dumbbell", movementPattern: "push", discipline: null },
+  { name: "Dumbbell Lateral Raise", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "shoulders", equipment: "dumbbell", movementPattern: "push", discipline: null },
+  { name: "Tricep Pushdown", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "triceps", equipment: "cable", movementPattern: "push", discipline: null },
+  { name: "Barbell Row", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "barbell", movementPattern: "pull", discipline: null },
+  { name: "Lat Pulldown", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "cable", movementPattern: "pull", discipline: null },
+  { name: "Seated Cable Row", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "cable", movementPattern: "pull", discipline: null },
+  { name: "Face Pull", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "shoulders", equipment: "cable", movementPattern: "pull", discipline: null },
+  { name: "Hammer Curl", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "biceps", equipment: "dumbbell", movementPattern: "pull", discipline: null },
 ] as const;
 
 const ENDURANCE_NAMES = ["Swim", "Bike", "Run"] as const;
@@ -164,6 +174,8 @@ async function insertPlanExercise(
       orderIndex,
       progressionMode: ex.progressionMode,
       overloadIncrementReps: ex.overloadIncrementReps,
+      overloadIncrementKg:
+        ex.overloadIncrementKg != null ? String(ex.overloadIncrementKg) : null,
     })
     .returning({ id: programExercises.id });
 

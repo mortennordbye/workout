@@ -9,12 +9,18 @@
  * `manual` progression because the periodization curve, not reactive
  * +increment suggestions, drives the load.
  *
- * Strength is two science-based sessions for endurance athletes: heavy,
- * lower-body and posterior-chain compound lifts plus plyometrics — the movements
- * the literature ties to swim/bike/run economy, not bench-press hypertrophy. The
- * main lifts are tagged sessionRole = "strength" so the active cycle periodizes
- * their reps/rest by phase (see strengthPhaseRecipe); plyometric and core work is
- * held constant.
+ * Strength is three sessions a week (Lower / Upper-Push / Upper-Pull) built to
+ * maintain and build muscle alongside the endurance load, not just support economy.
+ * The four lower-body / posterior-chain compound mains (Squat, RDL, Hip Thrust,
+ * Bulgarian Split Squat) stay tagged sessionRole = "strength" so the active cycle
+ * periodizes their reps/rest by phase (see strengthPhaseRecipe) — they carry the
+ * economy stimulus and still maintain muscle. The full-body hypertrophy work added
+ * around them (chest/shoulders/back/arms/calves) runs in fixed 8–12 rep ranges with
+ * "weight"/"reps" progressive overload, so the history-based suggestion engine
+ * auto-adds load week to week; these accessories carry no sessionRole, so the weekly
+ * sync leaves their rep targets stable. Plyometric and core work is held constant.
+ * The standalone endurance swim is folded onto the Upper-Push day so no swim/bike/run
+ * volume is lost when the third strength day is added.
  */
 
 import {
@@ -26,7 +32,7 @@ import {
   type TrainingGoal,
 } from "@/lib/utils/periodization";
 
-export type PlanProgressionMode = "manual" | "distance";
+export type PlanProgressionMode = "manual" | "distance" | "weight" | "reps";
 
 export type PlanSet = {
   targetReps?: number;
@@ -48,6 +54,8 @@ export type PlanExercise = {
   progressionMode: PlanProgressionMode;
   /** Doubles as the meters increment for distance mode (see programExercises). */
   overloadIncrementReps: number;
+  /** Per-session weight increment (kg) for "weight" mode progressive overload. */
+  overloadIncrementKg?: number;
   sets: PlanSet[];
 };
 
@@ -127,7 +135,7 @@ const STRENGTH_SETS = 3;
  * Build a balanced Triathlon week. The `peakMeters` is the race-prep volume; the
  * stored `distanceMeters` is the week-1 prescription (scaled by the periodization
  * curve) and `peakDistanceMeters` is the anchor the active cycle ramps toward.
- * Two strength days (Mon/Fri) keep muscle; Saturday is a bike→run brick.
+ * Three strength days (Mon/Wed/Fri) build muscle; Saturday is a bike→run brick.
  */
 export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "intermediate" }: BuildTriathlonPlanParams): PlanBlueprint {
   const durationWeeks = snapWeeks(weeks);
@@ -160,6 +168,35 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
     name,
     progressionMode: "manual",
     overloadIncrementReps: 0,
+    sets: Array.from({ length: sets }, () => ({ targetReps: reps, weightKg: 0, restTimeSeconds: restSeconds })),
+  });
+
+  // A weighted hypertrophy lift: fixed 8–12 rep target with "weight"-mode progressive
+  // overload. No sessionRole, so the weekly sync leaves the reps stable; load auto-climbs
+  // from logged history (the suggestion engine adds incrementKg once a working weight is
+  // logged). Weight left at 0 for the athlete to pick a starting load.
+  const hypertrophy = (
+    name: string,
+    reps: number,
+    opts?: { sets?: number; rest?: number; incrementKg?: number },
+  ): PlanExercise => ({
+    name,
+    progressionMode: "weight",
+    overloadIncrementReps: 0,
+    overloadIncrementKg: opts?.incrementKg,
+    sets: Array.from({ length: opts?.sets ?? 3 }, () => ({
+      targetReps: reps,
+      weightKg: 0,
+      restTimeSeconds: opts?.rest ?? 90,
+    })),
+  });
+
+  // A bodyweight hypertrophy lift (e.g. Pull-up): "reps"-mode progression adds reps
+  // week to week from logged history. No sessionRole, no weight.
+  const bodyweight = (name: string, sets: number, reps: number, restSeconds: number): PlanExercise => ({
+    name,
+    progressionMode: "reps",
+    overloadIncrementReps: 1,
     sets: Array.from({ length: sets }, () => ({ targetReps: reps, weightKg: 0, restTimeSeconds: restSeconds })),
   });
 
@@ -220,16 +257,25 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
     ]);
   };
 
+  // Compound-press/row increment vs isolation increment for progressive overload.
+  const INC_COMPOUND = 2.5;
+  const INC_ISOLATION = 1.25;
+
   const days: PlanDay[] = [
     {
       dayOfWeek: 1,
-      label: "Strength A — Lower Body",
-      // Squat (knee-dominant) + RDL (hip hinge / posterior chain) are the heavy,
-      // periodized mains; box jumps add reactive power for run economy; the Pallof
-      // press trains the anti-rotation trunk stability all three disciplines need.
+      label: "Strength — Lower Body",
+      // All four heavy, periodized lower-body / posterior mains consolidated here:
+      // Squat + Bulgarian (knee-dominant), RDL + Hip Thrust (hip hinge / glutes).
+      // Calf raises add lower-leg hypertrophy; box jumps reactive power for run
+      // economy; the Pallof press trains the anti-rotation trunk stability all three
+      // disciplines need.
       exercises: [
         mainLift("Squat"),
         mainLift("Romanian Deadlift"),
+        mainLift("Hip Thrust"),
+        mainLift("Bulgarian Split Squat"),
+        hypertrophy("Calf Raise", 12, { incrementKg: INC_ISOLATION }),
         accessory("Box Jump", 4, 3, 120),
         accessory("Pallof Press", 3, 10, 60),
       ],
@@ -241,8 +287,18 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
     },
     {
       dayOfWeek: 3,
-      label: "Swim — Endurance",
-      exercises: [swimEndurance("Swim", v.swimLong, 5)],
+      label: "Strength — Upper Push + Swim Endurance",
+      // Horizontal + vertical press compounds for chest/shoulders, with isolation
+      // for side delts and triceps. The standalone endurance swim is folded in here
+      // so adding the third strength day costs no swim volume.
+      exercises: [
+        hypertrophy("Bench Press", 8, { incrementKg: INC_COMPOUND }),
+        hypertrophy("Overhead Press", 8, { incrementKg: INC_COMPOUND }),
+        hypertrophy("Incline Dumbbell Press", 10, { incrementKg: INC_ISOLATION }),
+        hypertrophy("Dumbbell Lateral Raise", 12, { incrementKg: INC_ISOLATION }),
+        hypertrophy("Tricep Pushdown", 12, { incrementKg: INC_ISOLATION }),
+        swimEndurance("Swim", v.swimLong, 5),
+      ],
     },
     {
       dayOfWeek: 4,
@@ -251,16 +307,17 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
     },
     {
       dayOfWeek: 5,
-      label: "Strength B + Recovery Swim",
-      // Hip thrust (glute/hip power for bike & run) + Bulgarian split squat
-      // (unilateral, exposes left/right imbalance) are the periodized mains; pogo
-      // hops train ankle/Achilles stiffness for run economy; one pull-up keeps the
-      // swim's pulling muscles and posture balanced. Closes with an easy recovery swim.
+      label: "Strength — Upper Pull + Recovery Swim",
+      // Horizontal + vertical pull compounds for back/lats, rear-delt and biceps
+      // isolation, and a bodyweight pull-up that keeps the swim's pulling muscles
+      // balanced. Closes with an easy recovery swim.
       exercises: [
-        mainLift("Hip Thrust"),
-        mainLift("Bulgarian Split Squat"),
-        accessory("Pogo Hops", 3, 12, 90),
-        accessory("Pull-up", 3, 6, 120),
+        hypertrophy("Barbell Row", 8, { incrementKg: INC_COMPOUND }),
+        hypertrophy("Lat Pulldown", 10, { incrementKg: INC_ISOLATION }),
+        hypertrophy("Seated Cable Row", 10, { incrementKg: INC_ISOLATION }),
+        hypertrophy("Face Pull", 15, { incrementKg: INC_ISOLATION }),
+        hypertrophy("Hammer Curl", 12, { incrementKg: INC_ISOLATION }),
+        bodyweight("Pull-up", 3, 8, 120),
         steady("Swim", v.swimShort),
       ],
     },

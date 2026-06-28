@@ -60,12 +60,15 @@ describe("buildTriathlonPlan", () => {
     expect(swim.sets[0].distanceMeters).toBe(swim.sets[0].peakDistanceMeters);
   });
 
-  it("includes two strength days to maintain muscle", () => {
+  it("includes three strength days to build muscle", () => {
     const plan = buildTriathlonPlan({ weeks: 12 });
+    // A strength day has resistance sets (rep-based, not endurance peak-anchored).
     const strengthDays = plan.days.filter((d) =>
-      d.exercises.some((e) => e.progressionMode === "manual" && e.sets.some((s) => s.targetReps)),
+      d.exercises.some((e) =>
+        e.sets.some((s) => s.targetReps != null && s.peakDistanceMeters == null),
+      ),
     );
-    expect(strengthDays.length).toBe(2);
+    expect(strengthDays.length).toBe(3);
   });
 
   it("makes Saturday a brick (bike then run in one session)", () => {
@@ -167,23 +170,82 @@ describe("buildTriathlonPlan", () => {
     expect(others.every((s) => s.sessionRole !== "work")).toBe(true);
   });
 
-  it("prescribes science-based strength: heavy lower-body/posterior mains + plyometrics", () => {
+  it("prescribes full-body strength: heavy lower-body mains + upper-body hypertrophy", () => {
     const names = planExerciseNames(buildTriathlonPlan({ weeks: 24, goal: "build" }));
-    // Lower-body, posterior-chain, unilateral, and plyometric — the movements
-    // tied to endurance economy.
+    // Heavy, periodized lower-body / posterior mains + reactive plyo for run economy.
     for (const n of [
       "Squat",
       "Romanian Deadlift",
       "Hip Thrust",
       "Bulgarian Split Squat",
       "Box Jump",
-      "Pogo Hops",
     ]) {
       expect(names).toContain(n);
     }
-    // The old upper-body-hypertrophy bias is gone.
-    expect(names).not.toContain("Bench Press");
-    expect(names).not.toContain("Barbell Row");
+    // Full-body hypertrophy work so the athlete actually builds/keeps muscle.
+    for (const n of [
+      "Bench Press",
+      "Overhead Press",
+      "Incline Dumbbell Press",
+      "Dumbbell Lateral Raise",
+      "Tricep Pushdown",
+      "Barbell Row",
+      "Lat Pulldown",
+      "Seated Cable Row",
+      "Face Pull",
+      "Hammer Curl",
+      "Pull-up",
+      "Calf Raise",
+    ]) {
+      expect(names).toContain(n);
+    }
+  });
+
+  it("covers all major muscle groups for hypertrophy", () => {
+    const names = planExerciseNames(buildTriathlonPlan({ weeks: 24, goal: "build" }));
+    // One representative lift per major group: chest, shoulders, back, biceps,
+    // triceps, quads, hamstrings/glutes, calves.
+    const groups = [
+      ["Bench Press", "Incline Dumbbell Press"], // chest
+      ["Overhead Press", "Dumbbell Lateral Raise"], // shoulders
+      ["Barbell Row", "Lat Pulldown", "Seated Cable Row", "Pull-up"], // back
+      ["Hammer Curl"], // biceps
+      ["Tricep Pushdown"], // triceps
+      ["Squat", "Bulgarian Split Squat"], // quads
+      ["Romanian Deadlift", "Hip Thrust"], // hamstrings/glutes
+      ["Calf Raise"], // calves
+    ];
+    for (const group of groups) {
+      expect(group.some((n) => names.includes(n))).toBe(true);
+    }
+  });
+
+  it("auto-progresses the hypertrophy work in the 8–12 rep range", () => {
+    const plan = buildTriathlonPlan({ weeks: 24, goal: "build" });
+    const exercises = plan.days.flatMap((d) => d.exercises);
+
+    // Weighted hypertrophy lifts: weight-mode, every set 8–12 reps, increment present.
+    const weighted = exercises.filter((e) => e.progressionMode === "weight");
+    expect(weighted.length).toBeGreaterThan(0);
+    for (const e of weighted) {
+      expect(e.sets.every((s) => s.targetReps! >= 8 && s.targetReps! <= 15)).toBe(true);
+      expect(e.overloadIncrementKg).toBeGreaterThan(0);
+    }
+
+    // The bodyweight pull-up progresses on reps instead of load.
+    const pullup = exercises.find((e) => e.name === "Pull-up")!;
+    expect(pullup.progressionMode).toBe("reps");
+    expect(pullup.overloadIncrementReps).toBeGreaterThanOrEqual(1);
+  });
+
+  it("preserves both swims when the third strength day is added", () => {
+    const plan = buildTriathlonPlan({ weeks: 24, goal: "build" });
+    const swims = plan.days
+      .flatMap((d) => d.exercises)
+      .filter((e) => e.name === "Swim");
+    // Endurance swim (multi-segment, peak-anchored) + recovery swim — both survive.
+    expect(swims.length).toBe(2);
+    expect(swims.some((e) => e.sets.length > 1)).toBe(true); // folded endurance swim
   });
 
   it("tags the main lifts for phase periodization and starts a build in the adaptation base", () => {
