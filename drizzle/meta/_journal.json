@@ -281,6 +281,13 @@
       "when": 1782749549062,
       "tag": "0039_nice_supreme_intelligence",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1782753564616,
+      "tag": "0040_nostalgic_shotgun",
+      "breakpoints": true
     }
   ]
 }

@@ -36,6 +36,7 @@ type Props = {
 };
 
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 300, 600];
+const REST_OPTIONS = [0, 30, 45, 60, 90, 120, 150, 180, 240, 300];
 const RUNNING_DURATION_PRESETS_S = [600, 1200, 1800, 2400, 3000, 3600, 4500, 5400, 7200]; // 10–120 min
 const INCLINE_PRESETS = [0, 1, 2, 3, 5, 8, 10, 12, 15];
 const HR_ZONES = [
@@ -138,6 +139,13 @@ export function SetEditView({
   const initialDuration = Number(set.durationSeconds ?? 60);
   const [durationMinStr, setDurationMinStr] = useState(String(Math.floor(initialDuration / 60)));
   const [durationSecStr, setDurationSecStr] = useState(String(initialDuration % 60).padStart(2, "0"));
+  // Program-edit only: rest after this set + the prescribed RIR cap for the set.
+  const initialRest = Number(set.restTimeSeconds ?? 0);
+  const [restSeconds, setRestSeconds] = useState(initialRest);
+  const [restMinStr, setRestMinStr] = useState(String(Math.floor(initialRest / 60)));
+  const [restSecStr, setRestSecStr] = useState(String(initialRest % 60).padStart(2, "0"));
+  const [showRestPicker, setShowRestPicker] = useState(false);
+  const [prescribedRir, setPrescribedRir] = useState<number | null>(set.targetRir ?? null);
   const weightScrollRef = useRef<HTMLDivElement>(null);
   const repsScrollRef = useRef<HTMLDivElement>(null);
 
@@ -192,11 +200,11 @@ export function SetEditView({
         const anchor = isPeriodized && set.peakDistanceMeters == null
           ? { peakDistanceMeters: distanceMeters, peakDurationSeconds: null }
           : {};
-        await updateProgramSet({ id: set.id, distanceMeters, durationSeconds: duration > 0 ? duration : undefined, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined, setType, ...anchor });
+        await updateProgramSet({ id: set.id, distanceMeters, durationSeconds: duration > 0 ? duration : undefined, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined, setType, restTimeSeconds: restSeconds, ...anchor });
       } else {
         // Time mode: anchor the entered duration as the peak (and drop the distance anchor) for periodized sets.
         const anchor = isPeriodized ? { peakDurationSeconds: duration, peakDistanceMeters: null } : {};
-        await updateProgramSet({ id: set.id, distanceMeters: null, durationSeconds: duration, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined, setType, ...anchor });
+        await updateProgramSet({ id: set.id, distanceMeters: null, durationSeconds: duration, inclinePercent: inclinePercent ?? undefined, targetHeartRateZone: targetHeartRateZone ?? undefined, setType, restTimeSeconds: restSeconds, ...anchor });
       }
     } else if (isWorkout) {
       // During a workout, changes apply to the active session only — never write back to the program
@@ -210,9 +218,9 @@ export function SetEditView({
         workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight, notes: noteValue, rir: rir ?? undefined });
       }
     } else if (isTimed) {
-      await updateProgramSet({ id: set.id, durationSeconds: duration, setType });
+      await updateProgramSet({ id: set.id, durationSeconds: duration, setType, restTimeSeconds: restSeconds });
     } else {
-      await updateProgramSet({ id: set.id, targetReps: reps, weightKg: weight, setType });
+      await updateProgramSet({ id: set.id, targetReps: reps, weightKg: weight, setType, restTimeSeconds: restSeconds, targetRir: prescribedRir });
     }
 
     // If this set has already been logged in the active session, persist the
@@ -481,7 +489,10 @@ export function SetEditView({
               <div className="py-4 border-b border-border">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-base font-medium">
-                    Reps in reserve <span className="text-xs text-muted-foreground">(optional)</span>
+                    Reps in reserve{" "}
+                    <span className="text-xs text-muted-foreground">
+                      {set.targetRir != null ? `(target ${set.targetRir})` : "(optional)"}
+                    </span>
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {rir == null ? "Not logged" : rir === 0 ? "to failure" : rir === 5 ? "5+ left" : `${rir} left`}
@@ -525,6 +536,52 @@ export function SetEditView({
                 </span>
               </button>
             )}
+          </>
+        )}
+
+        {/* Program-edit controls — configure the set's prescription. Hidden during
+            a workout (rest is auto-applied by the rest timer; RIR is logged, not set). */}
+        {!isWorkout && (
+          <>
+            {/* Target RIR — prescribe the intensity cap (rep-based strength sets only). */}
+            {!isRunning && !isTimed && (
+              <div className="py-4 border-b border-border">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-base font-medium">
+                    Target RIR <span className="text-xs text-muted-foreground">(optional)</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {prescribedRir == null ? "None" : prescribedRir === 0 ? "to failure" : prescribedRir === 5 ? "5+ left" : `${prescribedRir} left`}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  {RIR_OPTIONS.map(({ value, label }) => (
+                    <button
+                      key={label}
+                      onClick={() => setPrescribedRir(value)}
+                      className={`flex-1 h-11 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+                        prescribedRir === value
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-foreground"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Rest after this set — every program set carries a rest period. */}
+            <button
+              onClick={() => setShowRestPicker(true)}
+              className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
+            >
+              <span className="text-base font-medium">Rest after set</span>
+              <span className="text-base text-muted-foreground">
+                {restSeconds > 0 ? formatTime(restSeconds) : "—"}
+              </span>
+            </button>
           </>
         )}
 
@@ -811,6 +868,87 @@ export function SetEditView({
                   {EXERCISE_TYPE_LABELS[t]}
                 </button>
               ))}
+            </div>
+          </div>
+      </BottomSheet>
+
+      {/* Rest Picker Modal (program-edit) */}
+      <BottomSheet open={showRestPicker} onClose={() => setShowRestPicker(false)} blur>
+          <div className="w-full bg-card rounded-t-3xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <span className="text-sm text-muted-foreground uppercase tracking-wider">
+                Rest after set
+              </span>
+              <button
+                onClick={() => setShowRestPicker(false)}
+                className="text-primary text-sm font-medium"
+              >
+                Done
+              </button>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-4">
+              {REST_OPTIONS.map((seconds) => (
+                <button
+                  key={seconds}
+                  onClick={() => {
+                    setRestSeconds(seconds);
+                    setRestMinStr(String(Math.floor(seconds / 60)));
+                    setRestSecStr(String(seconds % 60).padStart(2, "0"));
+                    setShowRestPicker(false);
+                  }}
+                  className={`flex-shrink-0 w-20 h-20 rounded-full flex flex-col items-center justify-center font-bold transition-all active:scale-95 ${
+                    restSeconds === seconds
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
+                  }`}
+                >
+                  {seconds === 0 ? (
+                    <span className="text-sm">Off</span>
+                  ) : seconds % 60 === 0 ? (
+                    <>
+                      <span className="text-lg">{seconds / 60}</span>
+                      <span className="text-xs opacity-70">m</span>
+                    </>
+                  ) : (
+                    <span className="text-lg">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2, "0")}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="mt-4 flex items-end justify-center gap-2">
+              <div className="flex flex-col items-center gap-1">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={restMinStr}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setRestMinStr(val);
+                    const mins = Math.max(0, Math.min(59, parseInt(val) || 0));
+                    setRestSeconds(mins * 60 + (restSeconds % 60));
+                  }}
+                  onBlur={() => setRestMinStr(String(Math.floor(restSeconds / 60)))}
+                  className="w-24 rounded-xl bg-background border border-border px-2 py-3 text-center text-3xl font-bold outline-none focus:ring-2 ring-primary"
+                />
+                <span className="text-xs text-muted-foreground">min</span>
+              </div>
+              <span className="text-3xl font-bold pb-6">:</span>
+              <div className="flex flex-col items-center gap-1">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={restSecStr}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    setRestSecStr(val);
+                    const secs = Math.max(0, Math.min(59, parseInt(val) || 0));
+                    setRestSeconds(Math.floor(restSeconds / 60) * 60 + secs);
+                  }}
+                  onBlur={() => setRestSecStr(String(restSeconds % 60).padStart(2, "0"))}
+                  className="w-24 rounded-xl bg-background border border-border px-2 py-3 text-center text-3xl font-bold outline-none focus:ring-2 ring-primary"
+                />
+                <span className="text-xs text-muted-foreground">sec</span>
+              </div>
             </div>
           </div>
       </BottomSheet>

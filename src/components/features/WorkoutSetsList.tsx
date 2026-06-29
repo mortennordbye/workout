@@ -1101,7 +1101,8 @@ function SortableSetRow({
 
   const setEditHref = isWorkout
     ? `/programs/${programId}/workout/exercises/${programExerciseId}/sets/${set.id}`
-    : `/programs/${programId}/exercises/${programExerciseId}/sets/${set.id}`;
+    // Carry edit mode through to the set editor so its "Sets" back link returns here in edit mode.
+    : `/programs/${programId}/exercises/${programExerciseId}/sets/${set.id}${isEditing ? "?edit=true" : ""}`;
 
   const handleRowClick = () => {
     if (isEditing || isWorkout) router.push(setEditHref);

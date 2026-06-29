@@ -71,11 +71,13 @@ function SortableExerciseRow({
   programId,
   isEditing,
   onDelete,
+  onOpen,
 }: {
   exercise: ProgramExItem;
   programId: number;
   isEditing: boolean;
   onDelete: (id: number) => void;
+  onOpen: (id: number) => void;
 }) {
   const {
     attributes,
@@ -114,11 +116,12 @@ function SortableExerciseRow({
         <div className="w-7 h-7 rounded-full border-2 border-muted-foreground/30 shrink-0" />
       )}
 
-      {/* Exercise info */}
+      {/* Exercise info — drills into the exercise's sets in both view and edit mode.
+          In edit mode we intercept to commit staged changes first (see onOpen). */}
       <Link
         href={`/programs/${programId}/exercises/${exercise.id}`}
         className="flex-1 min-w-0"
-        onClick={(e) => { if (isEditing) e.preventDefault(); }}
+        onClick={(e) => { if (isEditing) { e.preventDefault(); onOpen(exercise.id); } }}
       >
         <p className="text-base font-medium">{exercise.name}</p>
         {summary && (
@@ -204,8 +207,8 @@ export function ProgramDetailClient({
     setIsEditing(false);
   }
 
-  async function saveEditing() {
-    setSaving(true);
+  // Commit the staged edit-mode changes (rename / deletes / reorder) to the DB.
+  async function commitEdits() {
     // Rename if changed
     if (name.trim() !== preEditName) {
       await updateProgram({ id: programId, name: name.trim() });
@@ -219,9 +222,28 @@ export function ProgramDetailClient({
     if (surviving.length > 1) {
       await reorderProgramExercises(programId, surviving.map((e) => e.id));
     }
+  }
+
+  async function saveEditing() {
+    setSaving(true);
+    await commitEdits();
     setSaving(false);
     setIsEditing(false);
     router.refresh();
+  }
+
+  // Drilling into an exercise's sets leaves this screen and unmounts it, which
+  // would discard staged edit-mode changes. Commit them first so nothing is lost,
+  // then navigate. (Pending-deleted rows are already hidden, so the target exists.)
+  async function openExercise(peId: number) {
+    if (isEditing) {
+      setSaving(true);
+      await commitEdits();
+      // Carry edit mode into the exercise's set list so the flow is continuous.
+      router.push(`/programs/${programId}/exercises/${peId}?edit=true`);
+      return;
+    }
+    router.push(`/programs/${programId}/exercises/${peId}`);
   }
 
   async function handleExport() {
@@ -372,6 +394,7 @@ export function ProgramDetailClient({
                     programId={programId}
                     isEditing={isEditing}
                     onDelete={handleDeleteExercise}
+                    onOpen={openExercise}
                   />
                 ))}
               </div>

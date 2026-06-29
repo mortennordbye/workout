@@ -451,6 +451,25 @@ describe("createExerciseSchema enum fields", () => {
   });
 });
 
+// ─── addProgramSetSchema (targetRir field) ────────────────────────────────────
+
+describe("addProgramSetSchema targetRir", () => {
+  const valid = { programExerciseId: 1, setNumber: 1 };
+
+  it("accepts a target RIR within 0–5", () => {
+    expect(addProgramSetSchema.safeParse({ ...valid, targetRir: 0 }).success).toBe(true);
+    expect(addProgramSetSchema.safeParse({ ...valid, targetRir: 5 }).success).toBe(true);
+  });
+
+  it("rejects a target RIR above 5", () => {
+    expect(addProgramSetSchema.safeParse({ ...valid, targetRir: 6 }).success).toBe(false);
+  });
+
+  it("treats targetRir as optional", () => {
+    expect(addProgramSetSchema.safeParse(valid).success).toBe(true);
+  });
+});
+
 // ─── logWorkoutSetSchema (targetReps field) ───────────────────────────────────
 
 describe("logWorkoutSetSchema targetReps", () => {

@@ -2,6 +2,7 @@ import { BottomNav } from "@/components/ui/bottom-nav";
 import { ImpersonationBanner } from "@/components/features/ImpersonationBanner";
 import { OnboardingTutorialLoader } from "@/components/features/OnboardingTutorialLoader";
 import { PageTransition } from "@/components/features/PageTransition";
+import { StaleWorkoutHealer } from "@/components/features/StaleWorkoutHealer";
 import { ViewportFix } from "@/components/features/ViewportFix";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { PendingQueueProvider } from "@/contexts/pending-queue-context";
@@ -78,6 +79,9 @@ export default function RootLayout({
                 <BottomNav />
                 <Suspense fallback={null}>
                   <OnboardingTutorialLoader />
+                </Suspense>
+                <Suspense fallback={null}>
+                  <StaleWorkoutHealer />
                 </Suspense>
               </WorkoutSessionProvider>
             </PendingQueueProvider>

@@ -665,6 +665,7 @@ export async function exportProgram(
           distM: s.distanceMeters ?? null,
           rest: s.restTimeSeconds ?? 0,
           type: s.setType ?? "working",
+          rir: s.targetRir ?? null,
         })),
       })),
     },
@@ -722,6 +723,7 @@ export async function exportAllPrograms(): Promise<ActionResult<ExportedPrograms
               distM: s.distanceMeters ?? null,
               rest: s.restTimeSeconds ?? 0,
               type: s.setType ?? "working",
+              rir: s.targetRir ?? null,
             })),
           })),
         })),
@@ -868,6 +870,7 @@ export async function importProgram(
                 distanceMeters: s.distM ?? undefined,
                 restTimeSeconds: s.rest,
                 setType: s.type,
+                targetRir: s.rir ?? undefined,
               })),
             );
           }

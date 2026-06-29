@@ -31,27 +31,24 @@ const generateTriathlonPlanSchema = z.object({
 // the strength/plyometric lifts match the seed names so existing rows are reused, and
 // a fresh (unseeded) DB still gets them. Inserted with onConflictDoNothing on name.
 const ENSURED_EXERCISES = [
-  { name: "Swim", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio", discipline: "swim" },
-  { name: "Bike", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "machine", movementPattern: "cardio", discipline: "bike" },
-  { name: "Run", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio", discipline: "run" },
-  { name: "Squat", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "quads", equipment: "barbell", movementPattern: "squat", discipline: null },
-  { name: "Romanian Deadlift", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "barbell", movementPattern: "hinge", discipline: null },
-  { name: "Hip Thrust", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "glutes", equipment: "barbell", movementPattern: "hinge", discipline: null },
-  { name: "Bulgarian Split Squat", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "quads", equipment: "dumbbell", movementPattern: "squat", discipline: null },
-  { name: "Pull-up", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "bodyweight", movementPattern: "pull", discipline: null },
-  { name: "Box Jump", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio", discipline: null },
-  { name: "Pallof Press", category: "strength", isTimed: false, bodyArea: "core", muscleGroup: "abs", equipment: "cable", movementPattern: "isometric", discipline: null },
-  { name: "Calf Raise", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "calves", equipment: "machine", movementPattern: "push", discipline: null },
-  { name: "Bench Press", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "chest", equipment: "barbell", movementPattern: "push", discipline: null },
-  { name: "Overhead Press", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "shoulders", equipment: "barbell", movementPattern: "push", discipline: null },
-  { name: "Incline Dumbbell Press", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "chest", equipment: "dumbbell", movementPattern: "push", discipline: null },
-  { name: "Dumbbell Lateral Raise", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "shoulders", equipment: "dumbbell", movementPattern: "push", discipline: null },
-  { name: "Tricep Pushdown", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "triceps", equipment: "cable", movementPattern: "push", discipline: null },
-  { name: "Barbell Row", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "barbell", movementPattern: "pull", discipline: null },
-  { name: "Lat Pulldown", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "cable", movementPattern: "pull", discipline: null },
-  { name: "Seated Cable Row", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "cable", movementPattern: "pull", discipline: null },
-  { name: "Face Pull", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "shoulders", equipment: "cable", movementPattern: "pull", discipline: null },
-  { name: "Hammer Curl", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "biceps", equipment: "dumbbell", movementPattern: "pull", discipline: null },
+  { name: "Swim", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio", discipline: "swim", exerciseType: null },
+  { name: "Bike", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "machine", movementPattern: "cardio", discipline: "bike", exerciseType: null },
+  { name: "Run", category: "cardio", isTimed: false, bodyArea: "cardio", muscleGroup: "cardio", equipment: "bodyweight", movementPattern: "cardio", discipline: "run", exerciseType: null },
+  // Workout A — Squat & Horizontal
+  { name: "Front Squat", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "quads", equipment: "barbell", movementPattern: "squat", discipline: null, exerciseType: "compound" },
+  { name: "Dumbbell Bench Press", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "chest", equipment: "dumbbell", movementPattern: "push", discipline: null, exerciseType: "compound" },
+  { name: "Pendlay Row", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "barbell", movementPattern: "pull", discipline: null, exerciseType: "compound" },
+  { name: "Bulgarian Split Squat", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "quads", equipment: "dumbbell", movementPattern: "squat", discipline: null, exerciseType: "compound" },
+  { name: "Seated Calf Raise", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "calves", equipment: "machine", movementPattern: "push", discipline: null, exerciseType: "isolation" },
+  // Pallof is a static anti-rotation hold → timed set (durationSeconds), so isTimed.
+  { name: "Pallof Press", category: "strength", isTimed: true, bodyArea: "core", muscleGroup: "abs", equipment: "cable", movementPattern: "isometric", discipline: null, exerciseType: "isometric" },
+  // Workout B — Hinge & Vertical
+  { name: "Romanian Deadlift", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "barbell", movementPattern: "hinge", discipline: null, exerciseType: "compound" },
+  { name: "Weighted Pull-up", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "back", equipment: "bodyweight", movementPattern: "pull", discipline: null, exerciseType: "compound" },
+  { name: "Dumbbell Shoulder Press", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "shoulders", equipment: "dumbbell", movementPattern: "push", discipline: null, exerciseType: "compound" },
+  { name: "Seated Leg Curl", category: "strength", isTimed: false, bodyArea: "lower_body", muscleGroup: "hamstrings", equipment: "machine", movementPattern: "pull", discipline: null, exerciseType: "isolation" },
+  { name: "Face Pull", category: "strength", isTimed: false, bodyArea: "upper_body", muscleGroup: "shoulders", equipment: "cable", movementPattern: "pull", discipline: null, exerciseType: "isolation" },
+  { name: "Ab Wheel Rollout", category: "strength", isTimed: false, bodyArea: "core", muscleGroup: "abs", equipment: "other", movementPattern: "isometric", discipline: null, exerciseType: "isometric" },
 ] as const;
 
 const ENDURANCE_NAMES = ["Swim", "Bike", "Run"] as const;
@@ -87,6 +84,13 @@ export async function generateTriathlonPlan(
         .set({ discipline })
         .where(and(eq(exercises.name, name), isNull(exercises.discipline)));
     }
+
+    // Pallof Press is a static hold (timed). A pre-existing rep-based row would
+    // render without a timer, so ensure it's flagged timed.
+    await db
+      .update(exercises)
+      .set({ isTimed: true })
+      .where(and(eq(exercises.name, "Pallof Press"), eq(exercises.isTimed, false)));
 
     // Resolve names → ids.
     const rows = await db
@@ -176,6 +180,9 @@ async function insertPlanExercise(
       overloadIncrementReps: ex.overloadIncrementReps,
       overloadIncrementKg:
         ex.overloadIncrementKg != null ? String(ex.overloadIncrementKg) : null,
+      // The plan is authoritative about each exercise's role in the program, so
+      // persist it as an explicit override (independent of the library default).
+      exerciseType: ex.exerciseType ?? null,
     })
     .returning({ id: programExercises.id });
 
@@ -191,7 +198,8 @@ async function insertPlanExercise(
       targetHeartRateZone: s.targetHeartRateZone ?? null,
       sessionRole: s.sessionRole ?? null,
       restTimeSeconds: s.restTimeSeconds,
-      setType: "working",
+      setType: s.setType ?? "working",
+      targetRir: s.targetRir ?? null,
     })),
   );
 }

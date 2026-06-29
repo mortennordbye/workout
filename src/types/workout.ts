@@ -414,6 +414,8 @@ export type ExportedProgram = {
         durSec: number | null;
         distM: number | null;
         rest: number;
+        type?: string;
+        rir?: number | null;
       }>;
     }>;
   };

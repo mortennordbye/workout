@@ -193,6 +193,8 @@ export const addProgramSetSchema = z.object({
   targetHeartRateZone: z.number().int().min(1).max(5).optional(),
   restTimeSeconds: z.number().int().min(0).max(3600).default(0),
   setType: z.enum(SET_TYPES).default("working"),
+  // Prescribed reps-in-reserve cap (0–5). Guidance for the athlete when logging.
+  targetRir: z.number().int().min(0).max(5).optional(),
 });
 
 export const updateProgramSetSchema = addProgramSetSchema
@@ -202,6 +204,8 @@ export const updateProgramSetSchema = addProgramSetSchema
     // No default — partial updates must not overwrite fields that weren't provided
     restTimeSeconds: z.number().int().min(0).max(3600).optional(),
     setType: z.enum(SET_TYPES).optional(),
+    // Null clears the prescription (inherit nothing).
+    targetRir: z.number().int().min(0).max(5).nullable().optional(),
     // Allow explicit null to clear these fields (e.g., switching run mode from distance to time)
     distanceMeters: z.number().int().min(0).nullable().optional(),
     durationSeconds: z.number().int().min(0).nullable().optional(),
@@ -324,6 +328,7 @@ const importProgramEntrySchema = z.object({
               distM: z.number().int().min(0).nullable().optional(),
               rest: z.number().int().min(0).max(3600).catch(0),
               type: z.enum(SET_TYPES).catch("working"),
+              rir: z.number().int().min(0).max(5).nullable().optional().catch(null),
             }),
           ),
         }),

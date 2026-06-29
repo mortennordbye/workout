@@ -23,11 +23,11 @@
  * volume is lost when the third strength day is added.
  */
 
+import type { ExerciseType } from "@/lib/utils/exercise-type";
 import {
   deloadCadenceForLevel,
   periodizedLoad,
   scaledDistance,
-  strengthPhaseRecipe,
   type AthleteLevel,
   type TrainingGoal,
 } from "@/lib/utils/periodization";
@@ -45,6 +45,10 @@ export type PlanSet = {
   targetHeartRateZone?: number;
   /** "work" = a hard interval rep the active cycle phase-swaps (zone/rest) by block phase. */
   sessionRole?: string;
+  /** "warmup" excludes the set from progression; defaults to "working". */
+  setType?: "working" | "warmup";
+  /** Prescribed reps-in-reserve cap (the stricter floor of a range). */
+  targetRir?: number;
   restTimeSeconds: number;
 };
 
@@ -56,6 +60,8 @@ export type PlanExercise = {
   overloadIncrementReps: number;
   /** Per-session weight increment (kg) for "weight" mode progressive overload. */
   overloadIncrementKg?: number;
+  /** The exercise's role in this program — persisted as the program_exercise type override. */
+  exerciseType?: ExerciseType;
   sets: PlanSet[];
 };
 
@@ -128,14 +134,12 @@ export function snapWeeks(weeks: number): number {
   );
 }
 
-/** Working sets per main strength lift — held constant; reps/rest carry the phase. */
-const STRENGTH_SETS = 3;
-
 /**
  * Build a balanced Triathlon week. The `peakMeters` is the race-prep volume; the
  * stored `distanceMeters` is the week-1 prescription (scaled by the periodization
  * curve) and `peakDistanceMeters` is the anchor the active cycle ramps toward.
- * Three strength days (Mon/Wed/Fri) build muscle; Saturday is a bike→run brick.
+ * Two strength days (Mon/Thu) run a flat, RIR-capped hypertrophy/maintenance block
+ * (Workout A / Workout B); the rest of the week is the polarized endurance schedule.
  */
 export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "intermediate" }: BuildTriathlonPlanParams): PlanBlueprint {
   const durationWeeks = snapWeeks(weeks);
@@ -143,62 +147,72 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
   const week1Multiplier = week1Load.multiplier;
   const v = PEAK_VOLUMES[level];
 
-  // Week-1 strength prescription for the main lifts. The active cycle re-prescribes
-  // reps/rest every week by phase (see strengthPhaseRecipe); this is just the start.
-  const strength = strengthPhaseRecipe(week1Load.phase);
+  // Compound-press/row increment vs isolation increment for progressive overload.
+  const INC_COMPOUND = 2.5;
+  const INC_ISOLATION = 1.25;
 
-  // A periodized main barbell lift: STRENGTH_SETS working sets, reps/rest from the
-  // current phase, weight left at 0 for the athlete to load to the target reps.
-  // Tagged sessionRole "strength" so the weekly sync periodizes it.
-  const mainLift = (name: string): PlanExercise => ({
-    name,
-    progressionMode: "manual",
-    overloadIncrementReps: 0,
-    sets: Array.from({ length: STRENGTH_SETS }, () => ({
-      targetReps: strength.reps,
-      weightKg: 0,
-      restTimeSeconds: strength.restSeconds,
-      sessionRole: "strength",
-    })),
-  });
-
-  // A fixed accessory — plyometric (running economy) or core. Not periodized:
-  // jumps stay explosive and low-rep, core stays moderate, all block long.
-  const accessory = (name: string, sets: number, reps: number, restSeconds: number): PlanExercise => ({
-    name,
-    progressionMode: "manual",
-    overloadIncrementReps: 0,
-    sets: Array.from({ length: sets }, () => ({ targetReps: reps, weightKg: 0, restTimeSeconds: restSeconds })),
-  });
-
-  // A weighted hypertrophy lift: fixed 8–12 rep target with "weight"-mode progressive
-  // overload. No sessionRole, so the weekly sync leaves the reps stable; load auto-climbs
-  // from logged history (the suggestion engine adds incrementKg once a working weight is
-  // logged). Weight left at 0 for the athlete to pick a starting load.
-  const hypertrophy = (
+  // ── Strength block (flat straight sets, RIR-capped) ─────────────────────────
+  // A maintenance/hypertrophy block run alongside the endurance load. Sets are
+  // FLAT — the same target reps across every working set, no phase re-prescription
+  // (no sessionRole "strength") and no top-set pyramiding — to spare the CNS so the
+  // endurance quality sessions aren't compromised. Weight is left at 0 for the
+  // athlete to load to the target reps at the prescribed RIR cap. The spec's `smart`
+  // mode is mapped to `weight`: smart nudges reps via a 1RM estimate, which would
+  // break the strictly-static rep scheme.
+  type StrengthSetSpec = {
+    reps?: number;
+    durationSeconds?: number;
+    rest: number;
+    warmup?: boolean;
+    targetRir?: number;
+  };
+  const lift = (
     name: string,
-    reps: number,
-    opts?: { sets?: number; rest?: number; incrementKg?: number },
+    mode: PlanProgressionMode,
+    type: ExerciseType,
+    sets: StrengthSetSpec[],
+    incrementKg?: number,
   ): PlanExercise => ({
     name,
-    progressionMode: "weight",
+    progressionMode: mode,
+    exerciseType: type,
     overloadIncrementReps: 0,
-    overloadIncrementKg: opts?.incrementKg,
-    sets: Array.from({ length: opts?.sets ?? 3 }, () => ({
-      targetReps: reps,
+    overloadIncrementKg: incrementKg,
+    sets: sets.map((s) => ({
+      targetReps: s.durationSeconds != null ? undefined : s.reps,
+      durationSeconds: s.durationSeconds,
       weightKg: 0,
-      restTimeSeconds: opts?.rest ?? 90,
+      restTimeSeconds: s.rest,
+      setType: s.warmup ? "warmup" : "working",
+      targetRir: s.targetRir,
     })),
   });
 
-  // A bodyweight hypertrophy lift (e.g. Pull-up): "reps"-mode progression adds reps
-  // week to week from logged history. No sessionRole, no weight.
-  const bodyweight = (name: string, sets: number, reps: number, restSeconds: number): PlanExercise => ({
-    name,
-    progressionMode: "reps",
-    overloadIncrementReps: 1,
-    sets: Array.from({ length: sets }, () => ({ targetReps: reps, weightKg: 0, restTimeSeconds: restSeconds })),
-  });
+  const W = (reps: number, rest: number, targetRir?: number): StrengthSetSpec => ({ reps, rest, targetRir });
+  const WU = (reps: number): StrengthSetSpec => ({ reps, rest: 90, warmup: true });
+  const HOLD = (rest: number): StrengthSetSpec => ({ durationSeconds: 15, rest });
+
+  // Workout A — Squat & Horizontal: quad drive for the bike, horizontal push/pull to
+  // reverse aero hunch, anti-rotation trunk stability.
+  const workoutA: PlanExercise[] = [
+    lift("Front Squat", "weight", "compound", [WU(8), W(8, 150, 2), W(8, 150, 2), W(8, 150, 2)], INC_COMPOUND),
+    lift("Dumbbell Bench Press", "weight", "compound", [WU(10), W(10, 150, 2), W(10, 150, 2), W(10, 150, 2)], INC_COMPOUND),
+    lift("Pendlay Row", "weight", "compound", [W(10, 150, 2), W(10, 150, 2), W(10, 150, 2)], INC_COMPOUND),
+    lift("Bulgarian Split Squat", "weight", "compound", [W(10, 90, 2), W(10, 90, 2)], INC_ISOLATION),
+    lift("Seated Calf Raise", "manual", "isolation", [W(15, 90, 1), W(15, 90, 1)]),
+    lift("Pallof Press", "manual", "isometric", [HOLD(60), HOLD(60), HOLD(60)]),
+  ];
+
+  // Workout B — Hinge & Vertical: posterior chain for run power, vertical pull for the
+  // swim catch, structural shoulder/rotator-cuff longevity, anti-extension core.
+  const workoutB: PlanExercise[] = [
+    lift("Romanian Deadlift", "weight", "compound", [WU(8), W(8, 150, 2), W(8, 150, 2), W(8, 150, 2)], INC_COMPOUND),
+    lift("Weighted Pull-up", "weight", "compound", [W(8, 150, 2), W(8, 150, 2), W(8, 150, 2)], INC_COMPOUND),
+    lift("Dumbbell Shoulder Press", "weight", "compound", [W(10, 150, 2), W(10, 150, 2), W(10, 150, 2)], INC_COMPOUND),
+    lift("Seated Leg Curl", "manual", "isolation", [W(12, 90, 1), W(12, 90, 1)]),
+    lift("Face Pull", "manual", "isolation", [W(15, 90, 1), W(15, 90, 1)]),
+    lift("Ab Wheel Rollout", "manual", "isometric", [W(10, 60, 1), W(10, 60, 1)]),
+  ];
 
   // Each session is built from structured segments — not one distance blob — so it
   // reads like a real workout. Easy Z2 warmup/cooldown bracket the work; the single
@@ -257,28 +271,11 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
     ]);
   };
 
-  // Compound-press/row increment vs isolation increment for progressive overload.
-  const INC_COMPOUND = 2.5;
-  const INC_ISOLATION = 1.25;
-
   const days: PlanDay[] = [
     {
       dayOfWeek: 1,
-      label: "Strength — Lower Body",
-      // All four heavy, periodized lower-body / posterior mains consolidated here:
-      // Squat + Bulgarian (knee-dominant), RDL + Hip Thrust (hip hinge / glutes).
-      // Calf raises add lower-leg hypertrophy; box jumps reactive power for run
-      // economy; the Pallof press trains the anti-rotation trunk stability all three
-      // disciplines need.
-      exercises: [
-        mainLift("Squat"),
-        mainLift("Romanian Deadlift"),
-        mainLift("Hip Thrust"),
-        mainLift("Bulgarian Split Squat"),
-        hypertrophy("Calf Raise", 12, { incrementKg: INC_ISOLATION }),
-        accessory("Box Jump", 4, 3, 120),
-        accessory("Pallof Press", 3, 10, 60),
-      ],
+      label: "Workout A — Squat & Horizontal",
+      exercises: workoutA,
     },
     {
       dayOfWeek: 2,
@@ -287,39 +284,20 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
     },
     {
       dayOfWeek: 3,
-      label: "Strength — Upper Push + Swim Endurance",
-      // Horizontal + vertical press compounds for chest/shoulders, with isolation
-      // for side delts and triceps. The standalone endurance swim is folded in here
-      // so adding the third strength day costs no swim volume.
-      exercises: [
-        hypertrophy("Bench Press", 8, { incrementKg: INC_COMPOUND }),
-        hypertrophy("Overhead Press", 8, { incrementKg: INC_COMPOUND }),
-        hypertrophy("Incline Dumbbell Press", 10, { incrementKg: INC_ISOLATION }),
-        hypertrophy("Dumbbell Lateral Raise", 12, { incrementKg: INC_ISOLATION }),
-        hypertrophy("Tricep Pushdown", 12, { incrementKg: INC_ISOLATION }),
-        swimEndurance("Swim", v.swimLong, 5),
-      ],
+      // The endurance swim freed from the old 3-strength-day week rides alongside
+      // the mid bike here, keeping total swim volume unchanged.
+      label: "Bike — Endurance + Swim",
+      exercises: [steady("Bike", v.bikeMid), swimEndurance("Swim", v.swimLong, 5)],
     },
     {
       dayOfWeek: 4,
-      label: "Bike — Endurance",
-      exercises: [steady("Bike", v.bikeMid)],
+      label: "Workout B — Hinge & Vertical",
+      exercises: workoutB,
     },
     {
       dayOfWeek: 5,
-      label: "Strength — Upper Pull + Recovery Swim",
-      // Horizontal + vertical pull compounds for back/lats, rear-delt and biceps
-      // isolation, and a bodyweight pull-up that keeps the swim's pulling muscles
-      // balanced. Closes with an easy recovery swim.
-      exercises: [
-        hypertrophy("Barbell Row", 8, { incrementKg: INC_COMPOUND }),
-        hypertrophy("Lat Pulldown", 10, { incrementKg: INC_ISOLATION }),
-        hypertrophy("Seated Cable Row", 10, { incrementKg: INC_ISOLATION }),
-        hypertrophy("Face Pull", 15, { incrementKg: INC_ISOLATION }),
-        hypertrophy("Hammer Curl", 12, { incrementKg: INC_ISOLATION }),
-        bodyweight("Pull-up", 3, 8, 120),
-        steady("Swim", v.swimShort),
-      ],
+      label: "Recovery Swim",
+      exercises: [steady("Swim", v.swimShort)],
     },
     {
       dayOfWeek: 6,

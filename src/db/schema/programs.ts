@@ -97,6 +97,10 @@ export const programSets = pgTable("program_sets", {
   restTimeSeconds: integer("rest_time_seconds").notNull().default(0),
   // "working" | "warmup" — non-working sets are excluded from progression suggestions.
   setType: text("set_type").notNull().default("working"),
+  // Prescribed Reps In Reserve for this set (the intensity cap, e.g. 2 = "stop with
+  // ~2 reps left"). Guidance shown when logging; the athlete logs actual RIR separately.
+  // For a range like "2–3 RIR" we store the stricter floor (2). Null = no prescription.
+  targetRir: integer("target_rir"),
   // Structural role for phase-aware periodization. "work" = a hard interval rep
   // whose zone/rest the active cycle swaps by phase (base→tempo, build→threshold,
   // peak→VO₂). Null = a steady/warmup/cooldown set that only volume-scales.

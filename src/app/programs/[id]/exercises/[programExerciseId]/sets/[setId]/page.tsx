@@ -18,10 +18,12 @@ type Props = {
     programExerciseId: string;
     setId: string;
   }>;
+  searchParams: Promise<{ edit?: string }>;
 };
 
-export default async function ProgramSetEditPage({ params }: Props) {
+export default async function ProgramSetEditPage({ params, searchParams }: Props) {
   const { id, programExerciseId, setId } = await params;
+  const { edit } = await searchParams;
   const programId = Number(id);
   const peId = Number(programExerciseId);
   const setIdNum = Number(setId);
@@ -46,7 +48,7 @@ export default async function ProgramSetEditPage({ params }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-6 pb-4 shrink-0">
         <Link
-          href={`/programs/${programId}/exercises/${peId}`}
+          href={`/programs/${programId}/exercises/${peId}${edit === "true" ? "?edit=true" : ""}`}
           className="flex items-center gap-1 text-primary"
         >
           <ChevronLeftIcon className="h-5 w-5" />

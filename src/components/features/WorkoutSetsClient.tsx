@@ -229,7 +229,8 @@ export function WorkoutSetsClient({
               href={
                 isWorkout
                   ? `/programs/${programId}/workout/exercises/${programExerciseId}/sets/new`
-                  : `/programs/${programId}/exercises/${programExerciseId}/sets/new`
+                  // The "+" only shows in edit mode; carry the flag so the flow stays in edit mode.
+                  : `/programs/${programId}/exercises/${programExerciseId}/sets/new?edit=true`
               }
               className="w-7 h-7 rounded-full border-2 border-primary flex items-center justify-center"
             >

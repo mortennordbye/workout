@@ -51,7 +51,9 @@ export function setToken(s: ProgramSet, isTimed = false): string {
   }
   const weight = Number(s.weightKg ?? 0);
   const reps = s.targetReps ?? "?";
-  return weight > 0 ? `${reps}x${weight}kg` : `${reps} reps`;
+  const base = weight > 0 ? `${reps}x${weight}kg` : `${reps} reps`;
+  // Append the prescribed RIR cap (e.g. "8 reps @2 RIR") when set.
+  return s.targetRir != null ? `${base} @${s.targetRir} RIR` : base;
 }
 
 export function restToken(s: ProgramSet): string {
