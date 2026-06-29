@@ -71,17 +71,50 @@ describe("buildTriathlonPlan", () => {
     ]);
   });
 
-  it("makes Saturday a brick (bike then run in one session)", () => {
+  it("makes Sunday the long bike + brick (bike then run in one session)", () => {
     const plan = buildTriathlonPlan({ weeks: 12 });
+    const sun = plan.days.find((d) => d.dayOfWeek === 7)!;
+    expect(sun.label).toBe("Long Bike + Brick Run");
+    expect(sun.exercises.map((e) => e.name)).toEqual(["Bike", "Run"]);
+    // Saturday holds the standalone long run.
     const sat = plan.days.find((d) => d.dayOfWeek === 6)!;
-    expect(sat.exercises.map((e) => e.name)).toEqual(["Bike", "Run"]);
+    expect(sat.label).toBe("Long Run");
   });
 
-  it("turns the chosen rest day into an empty rest slot", () => {
-    const plan = buildTriathlonPlan({ weeks: 12, restDay: 3 });
-    const rest = plan.days.find((d) => d.dayOfWeek === 3)!;
+  it("turns a chosen rest day into an empty rest slot", () => {
+    // Resting Friday (recovery swim) is the lightest session — it just drops.
+    const plan = buildTriathlonPlan({ weeks: 12, restDays: [5] });
+    const rest = plan.days.find((d) => d.dayOfWeek === 5)!;
     expect(rest.exercises).toEqual([]);
     expect(rest.label).toBe("Rest");
+  });
+
+  it("relocates a key session off a rest day instead of deleting it", () => {
+    // Fri + Sat rest: the two lightest sessions (recovery swim, run intervals)
+    // drop, the long run slides off Saturday onto a freed training day, and the
+    // long bike+brick keeps Sunday.
+    const plan = buildTriathlonPlan({ weeks: 12, restDays: [5, 6] });
+    const byDay = (n: number) => plan.days.find((d) => d.dayOfWeek === n)!;
+
+    expect(byDay(5).label).toBe("Rest");
+    expect(byDay(6).label).toBe("Rest");
+    expect(byDay(5).exercises).toEqual([]);
+    expect(byDay(6).exercises).toEqual([]);
+
+    // Sunday keeps the long bike+brick; strength days untouched.
+    expect(byDay(7).label).toBe("Long Bike + Brick Run");
+    expect(byDay(7).exercises.map((e) => e.name)).toEqual(["Bike", "Run"]);
+    expect(byDay(1).label).toBe("Workout A — Squat & Horizontal");
+    expect(byDay(4).label).toBe("Workout B — Hinge & Vertical");
+
+    // The long run survives — relocated onto Tuesday (the freed interval slot).
+    const longRun = plan.days.find((d) => d.label === "Long Run")!;
+    expect(longRun).toBeTruthy();
+    expect(longRun.dayOfWeek).toBe(2);
+
+    // Exactly two empty (rest) slots; everything else keeps real sessions.
+    const restSlots = plan.days.filter((d) => d.exercises.length === 0);
+    expect(restSlots.map((d) => d.dayOfWeek)).toEqual([5, 6]);
   });
 
   it("references swim, bike, and run exercises", () => {
@@ -95,13 +128,13 @@ describe("buildTriathlonPlan", () => {
   // distanceMeters below it); it reflects the level table directly.
   const longRunPeak = (level: "novice" | "intermediate" | "advanced") => {
     const plan = buildTriathlonPlan({ weeks: 24, level });
-    const sun = plan.days.find((d) => d.dayOfWeek === 7)!; // Long Run
-    return sun.exercises[0].sets[0].peakDistanceMeters!;
+    const sat = plan.days.find((d) => d.dayOfWeek === 6)!; // Long Run
+    return sat.exercises[0].sets[0].peakDistanceMeters!;
   };
   const longBikePeak = (level: "novice" | "intermediate" | "advanced") => {
     const plan = buildTriathlonPlan({ weeks: 24, level });
-    const sat = plan.days.find((d) => d.dayOfWeek === 6)!; // Long Bike + Brick
-    return sat.exercises.find((e) => e.name === "Bike")!.sets[0].peakDistanceMeters!;
+    const sun = plan.days.find((d) => d.dayOfWeek === 7)!; // Long Bike + Brick
+    return sun.exercises.find((e) => e.name === "Bike")!.sets[0].peakDistanceMeters!;
   };
 
   it("scales peak volumes up with athlete level", () => {

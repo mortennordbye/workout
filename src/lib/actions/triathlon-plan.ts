@@ -22,7 +22,7 @@ import { z } from "zod";
 
 const generateTriathlonPlanSchema = z.object({
   weeks: z.number().int().min(1).max(52),
-  restDay: z.number().int().min(1).max(7).optional(),
+  restDays: z.array(z.number().int().min(1).max(7)).max(2).optional(),
   goal: z.enum(["build", "maintain"]).default("build"),
   level: z.enum(["novice", "intermediate", "advanced"]).default("intermediate"),
 });

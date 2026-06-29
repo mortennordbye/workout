@@ -31,11 +31,23 @@ export function TriathlonPlanForm() {
   const [goal, setGoal] = useState<"build" | "maintain">("build");
   const [level, setLevel] = useState<"novice" | "intermediate" | "advanced">("intermediate");
   const [weeks, setWeeks] = useState(12);
-  // Default rest to Friday (the light recovery swim) — never a strength day, so
-  // generating with defaults keeps Workout A (Mon) and Workout B (Thu) intact.
-  const [restDay, setRestDay] = useState<number | null>(5);
+  // Default to two rest days, Fri + Sat. Key long sessions are preserved and
+  // shuffled onto the remaining training days, so resting Sat doesn't cost the
+  // long bike+brick — it relocates, and the long run keeps Sunday.
+  const [restDays, setRestDays] = useState<number[]>([5, 6]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Toggle a rest day, capped at 2. Selecting a third drops the oldest.
+  const toggleRestDay = (day: number) => {
+    setRestDays((prev) =>
+      prev.includes(day)
+        ? prev.filter((d) => d !== day)
+        : prev.length >= 2
+          ? [prev[1], day]
+          : [...prev, day],
+    );
+  };
 
   const handleGenerate = async () => {
     setSaving(true);
@@ -44,7 +56,7 @@ export function TriathlonPlanForm() {
       weeks,
       goal,
       level,
-      ...(restDay != null ? { restDay } : {}),
+      ...(restDays.length > 0 ? { restDays } : {}),
     });
     if (result.success) {
       router.push(`/cycles/${result.data.cycleId}`);
@@ -145,16 +157,16 @@ export function TriathlonPlanForm() {
           </p>
         </div>
 
-        {/* Rest day */}
+        {/* Rest days */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Rest day</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Rest days</p>
           <div className="flex gap-1.5">
             {DAYS.map((d) => (
               <button
                 key={d.value}
-                onClick={() => setRestDay(restDay === d.value ? null : d.value)}
+                onClick={() => toggleRestDay(d.value)}
                 className={`flex-1 h-11 rounded-xl text-xs font-semibold transition-all active:scale-95 ${
-                  restDay === d.value ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
+                  restDays.includes(d.value) ? "bg-primary text-primary-foreground" : "bg-muted text-foreground"
                 }`}
               >
                 {d.label}
@@ -162,7 +174,12 @@ export function TriathlonPlanForm() {
             ))}
           </div>
           <p className="text-[11px] text-muted-foreground mt-2">
-            {restDay != null ? "That day's session becomes a rest day." : "No rest day — train all 7 days."}
+            {restDays.length === 0
+              ? "No rest days — train all 7 days."
+              : `${restDays.length} rest ${restDays.length === 1 ? "day" : "days"} · ${[...restDays]
+                  .sort((a, b) => a - b)
+                  .map((d) => DAYS.find((x) => x.value === d)?.label)
+                  .join(", ")}. Pick up to two — your hardest sessions stay, the lightest drop.`}
           </p>
         </div>
 

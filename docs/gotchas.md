@@ -18,14 +18,31 @@ Touching a single file (re-save) sometimes only partially recompiles. When in do
 
 The dev DB was built with `db:push`, so `db:migrate` from `0000` fails (non-idempotent baseline). To apply a new column locally:
 - `docker-compose exec app pnpm db:push` is **interactive** (arrow-key prompt) — doesn't work over a non-TTY exec.
-- There's no `psql` in the app container.
-- **What works:** run a one-off idempotent `ALTER ... ADD COLUMN IF NOT EXISTS` through the app's pg client:
+- There's no `psql` in the *app* container, but the **`postgres` container has it** — simplest path is to pipe the committed migration's idempotent SQL straight in:
+  ```bash
+  docker-compose exec -T postgres psql -U postgres -d workout_db -v ON_ERROR_STOP=1 <<'SQL'
+  ALTER TABLE "foo" ADD COLUMN IF NOT EXISTS "bar" integer;
+  CREATE TABLE IF NOT EXISTS "baz" (...);
+  SQL
+  ```
+  (Make `ADD CONSTRAINT` idempotent with a `DO $$ … EXCEPTION WHEN duplicate_object THEN NULL; END $$;` block.)
+- **Alternative** (app container, no psql): run the `ALTER` through the app's pg client:
   ```bash
   docker-compose exec -T app node -e '
     const {Pool}=require("pg");const p=new Pool({connectionString:process.env.DATABASE_URL});
     p.query("ALTER TABLE foo ADD COLUMN IF NOT EXISTS bar integer").then(()=>p.end());'
   ```
 The committed `drizzle/*.sql` is still the source of truth for prod (`db:migrate` runs it on boot). Full workflow: [`CLAUDE.md`](../CLAUDE.md#database-migrations).
+
+## Settings live in two stores
+
+User-facing "settings" are split, and picking the wrong store silently fails:
+- **Client-only prefs → localStorage** via `theme-provider.tsx` (`useTheme`): theme, accentColor, weeklyGoal, defaultIncrementKg/Reps, uiScale. `SettingsClient.tsx` reads/writes them through the context; the server never sees them.
+- **Server-read prefs → a `users` DB column**: `showActivityToFriends`, `missedWorkoutsEnabled`, etc. — anything a Server Component or Server Action must honour.
+
+**The trap:** the home page (`src/app/page.tsx`) and `getActiveCycleForUser` are server-side. A setting that gates server-rendered output (e.g. the missed-workout off-switch) **must** be a DB column. Add it to `theme-provider`/localStorage like the other settings and the server never sees it — the toggle does nothing.
+
+**Recipe for a server-read setting:** `users` column (+ migration) → a Zod-validated Server Action that reads `auth.user.id` (`setMissedWorkoutsEnabled` in `training-cycles.ts` is the reference) → make `settings/page.tsx` a Server Component that fetches the flag and passes it as a prop into the client `SettingsClient` → render a toggle that calls the action optimistically. The "Missed workout reminders" switch is the worked example.
 
 ## Fail-safes for deleted entities
 

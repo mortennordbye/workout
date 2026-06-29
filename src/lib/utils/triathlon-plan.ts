@@ -85,8 +85,12 @@ export type PlanBlueprint = {
 export type BuildTriathlonPlanParams = {
   /** Desired length; snapped to the nearest cycle-supported value. */
   weeks: number;
-  /** 1 = Monday … 7 = Sunday. The session on this day becomes a rest day. */
-  restDay?: number;
+  /**
+   * Rest days, 1 = Monday … 7 = Sunday (max 2). Rest days don't simply blank
+   * whatever session sits there — the lightest sessions drop and the key long
+   * sessions slide onto the remaining training days. See the rest logic below.
+   */
+  restDays?: number[];
   /** "build" ramps to a race peak then tapers; "maintain" holds flat. Default "build". */
   goal?: TrainingGoal;
   /** Experience tier — scales peak volumes and deload cadence. Default "intermediate". */
@@ -141,7 +145,7 @@ export function snapWeeks(weeks: number): number {
  * Two strength days (Mon/Thu) run a flat, RIR-capped hypertrophy/maintenance block
  * (Workout A / Workout B); the rest of the week is the polarized endurance schedule.
  */
-export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "intermediate" }: BuildTriathlonPlanParams): PlanBlueprint {
+export function buildTriathlonPlan({ weeks, restDays, goal = "build", level = "intermediate" }: BuildTriathlonPlanParams): PlanBlueprint {
   const durationWeeks = snapWeeks(weeks);
   const week1Load = periodizedLoad(1, durationWeeks, goal, deloadCadenceForLevel(level));
   const week1Multiplier = week1Load.multiplier;
@@ -301,21 +305,53 @@ export function buildTriathlonPlan({ weeks, restDay, goal = "build", level = "in
     },
     {
       dayOfWeek: 6,
-      label: "Long Bike + Brick Run",
-      exercises: [steady("Bike", v.bikeLong), steady("Run", v.runBrick)],
-    },
-    {
-      dayOfWeek: 7,
       label: "Long Run",
       exercises: [steady("Run", v.runLong)],
     },
+    {
+      dayOfWeek: 7,
+      // The long bike + brick is the week's longest session, so it sits on Sunday
+      // (the day with the most time). Resting Saturday relocates the long run.
+      label: "Long Bike + Brick Run",
+      exercises: [steady("Bike", v.bikeLong), steady("Run", v.runBrick)],
+    },
   ];
 
-  if (restDay != null) {
-    const target = days.find((d) => d.dayOfWeek === restDay);
-    if (target) {
-      target.label = "Rest";
-      target.exercises = [];
+  // Apply rest days. Rather than blanking whatever session happens to sit on a
+  // rest day (which could delete a key long session), keep the most important
+  // sessions and let the lightest ones fall away. Importance, most → least:
+  // long bike + brick (Sun), long run (Sat), the two strength days, the bike+swim
+  // endurance day, run intervals, recovery swim. With N rest days the N least-
+  // important sessions drop; any surviving session whose natural weekday is now a
+  // rest day slides onto a freed training day. The long bike + brick keeps Sunday.
+  const restSet = new Set((restDays ?? []).filter((d) => d >= 1 && d <= 7));
+  if (restSet.size > 0) {
+    const importance: Record<number, number> = { 7: 6, 6: 5, 1: 4, 4: 3, 3: 2, 2: 1, 5: 0 };
+    const keptDays = days.map((d) => d.dayOfWeek).filter((dow) => !restSet.has(dow));
+    const keptSessions = [...days]
+      .sort((a, b) => importance[b.dayOfWeek] - importance[a.dayOfWeek])
+      .slice(0, keptDays.length);
+
+    // Snapshot label+exercises up front so blanking a source day can't clobber a
+    // session already relocated onto another day (they'd share the array ref).
+    const assignment = new Map<number, { label: string; exercises: PlanExercise[] }>();
+    for (const s of keptSessions) {
+      if (keptDays.includes(s.dayOfWeek)) assignment.set(s.dayOfWeek, { label: s.label, exercises: s.exercises });
+    }
+    const freeDays = keptDays.filter((dow) => !assignment.has(dow)).sort((a, b) => a - b);
+    keptSessions
+      .filter((s) => !keptDays.includes(s.dayOfWeek))
+      .forEach((s, i) => assignment.set(freeDays[i], { label: s.label, exercises: s.exercises }));
+
+    for (const d of days) {
+      const s = assignment.get(d.dayOfWeek);
+      if (s) {
+        d.label = s.label;
+        d.exercises = s.exercises;
+      } else {
+        d.label = "Rest";
+        d.exercises = [];
+      }
     }
   }
 
