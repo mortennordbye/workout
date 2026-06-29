@@ -43,7 +43,7 @@ export async function createCustomExercise(
       };
     }
 
-    const { name, category, bodyArea, muscleGroup, equipment, movementPattern } = validation.data;
+    const { name, category, bodyArea, muscleGroup, equipment, movementPattern, exerciseType } = validation.data;
 
     // Name must not clash with a system exercise or the user's own custom exercises.
     const existing = await db.query.exercises.findFirst({
@@ -72,6 +72,7 @@ export async function createCustomExercise(
         muscleGroup,
         equipment,
         movementPattern,
+        exerciseType,
       })
       .returning();
 
@@ -131,7 +132,7 @@ export async function updateCustomExercise(
       };
     }
 
-    const { name, category, bodyArea, muscleGroup, equipment, movementPattern } = validation.data;
+    const { name, category, bodyArea, muscleGroup, equipment, movementPattern, exerciseType } = validation.data;
 
     // Verify ownership
     const existing = await db.query.exercises.findFirst({
@@ -158,7 +159,7 @@ export async function updateCustomExercise(
 
     const [updated] = await db
       .update(exercises)
-      .set({ name, category, bodyArea: bodyArea ?? null, muscleGroup: muscleGroup ?? null, equipment: equipment ?? null, movementPattern: movementPattern ?? null })
+      .set({ name, category, bodyArea: bodyArea ?? null, muscleGroup: muscleGroup ?? null, equipment: equipment ?? null, movementPattern: movementPattern ?? null, exerciseType: exerciseType ?? null })
       .where(and(eq(exercises.id, id), eq(exercises.userId, auth.user.id)))
       .returning();
 

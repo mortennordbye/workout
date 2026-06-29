@@ -46,6 +46,8 @@ export default async function ProgramExerciseDetailPage({ params, searchParams }
       overloadIncrementKg={pe.overloadIncrementKg != null ? Number(pe.overloadIncrementKg) : null}
       overloadIncrementReps={Number(pe.overloadIncrementReps ?? 0)}
       progressionMode={progressionMode}
+      exerciseTypeDefault={pe.exercise.exerciseType}
+      exerciseTypeOverride={pe.exerciseType}
     />
   );
 }

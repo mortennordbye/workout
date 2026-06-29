@@ -8,6 +8,7 @@
 
 import { db } from "@/db";
 import { exercises, programExercises, programSets, programs } from "@/db/schema";
+import { exerciseTypeFromPattern, programOverrideForRole } from "@/lib/utils/exercise-type";
 import { requireSession } from "@/lib/utils/session";
 import {
   addExerciseToProgramSchema,
@@ -18,6 +19,7 @@ import {
   removeExerciseFromProgramSchema,
   reorderProgramExercisesSchema,
   reorderProgramSetsSchema,
+  setProgramExerciseTypeSchema,
   updateProgramSchema,
   updateProgramSetSchema,
 } from "@/lib/validators/workout";
@@ -300,6 +302,50 @@ export async function updateProgramExerciseIncrement(
     return { success: true, data: undefined };
   } catch (err) {
     return { success: false, error: String(err) };
+  }
+}
+
+/**
+ * Set (or clear) the per-program exercise-type override. Pass null to clear it
+ * and inherit the exercise's intrinsic type.
+ */
+export async function setProgramExerciseType(
+  data: unknown,
+): Promise<ActionResult<void>> {
+  const auth = await requireSession();
+  const validation = setProgramExerciseTypeSchema.safeParse(data);
+  if (!validation.success) {
+    return {
+      success: false,
+      error: "Invalid input",
+      fieldErrors: validation.error.flatten().fieldErrors,
+    };
+  }
+  const { programExerciseId, exerciseType } = validation.data;
+  try {
+    const [check] = await db
+      .select({ userId: programs.userId })
+      .from(programExercises)
+      .innerJoin(programs, eq(programs.id, programExercises.programId))
+      .where(eq(programExercises.id, programExerciseId))
+      .limit(1);
+    if (!check || check.userId !== auth.user.id) {
+      return { success: false, error: "Not found" };
+    }
+    const [pe] = await db
+      .update(programExercises)
+      .set({ exerciseType })
+      .where(eq(programExercises.id, programExerciseId))
+      .returning({ programId: programExercises.programId });
+    if (pe) {
+      revalidatePath(`/programs/${pe.programId}/workout/exercises/${programExerciseId}`);
+      revalidatePath(`/programs/${pe.programId}/exercises/${programExerciseId}`);
+      revalidatePath(`/programs/${pe.programId}`);
+    }
+    return { success: true, data: undefined };
+  } catch (err) {
+    console.error("[setProgramExerciseType] failed", err);
+    return { success: false, error: "Failed to update exercise type" };
   }
 }
 
@@ -608,6 +654,8 @@ export async function exportProgram(
           muscle: pe.exercise.muscleGroup ?? null,
           equipment: pe.exercise.equipment ?? null,
           pattern: pe.exercise.movementPattern ?? null,
+          // Resolved role (per-program override wins) so a re-import reproduces it.
+          type: pe.exerciseType ?? pe.exercise.exerciseType ?? null,
         },
         sets: pe.programSets.map((s) => ({
           n: s.setNumber,
@@ -663,6 +711,8 @@ export async function exportAllPrograms(): Promise<ActionResult<ExportedPrograms
               muscle: pe.exercise.muscleGroup ?? null,
               equipment: pe.exercise.equipment ?? null,
               pattern: pe.exercise.movementPattern ?? null,
+              // Resolved role (per-program override wins) so a re-import reproduces it.
+              type: pe.exerciseType ?? pe.exercise.exerciseType ?? null,
             },
             sets: pe.programSets.map((s) => ({
               n: s.setNumber,
@@ -708,11 +758,13 @@ export async function importProgram(
   // Collect all unique exercise names across all programs
   const allSlots = programList.flatMap((p) => p.exercises);
   const names = [...new Set(allSlots.map((e) => e.exercise.name))];
-  const exerciseMap = new Map<string, number>(); // name → id
+  // name → { id, defaultType }. defaultType is the exercise's intrinsic type;
+  // it's compared against the slot's role to decide the per-program override.
+  const exerciseMap = new Map<string, { id: number; defaultType: string | null }>();
 
   if (names.length > 0) {
     const matched = await db
-      .select({ id: exercises.id, name: exercises.name })
+      .select({ id: exercises.id, name: exercises.name, exerciseType: exercises.exerciseType })
       .from(exercises)
       .where(
         and(
@@ -721,7 +773,7 @@ export async function importProgram(
         ),
       );
     for (const ex of matched) {
-      exerciseMap.set(ex.name, ex.id);
+      exerciseMap.set(ex.name, { id: ex.id, defaultType: ex.exerciseType });
     }
   }
 
@@ -741,23 +793,27 @@ export async function importProgram(
         muscleGroup: slot.exercise.muscle ?? undefined,
         equipment: slot.exercise.equipment ?? undefined,
         movementPattern: slot.exercise.pattern ?? undefined,
+        exerciseType:
+          slot.exercise.type ??
+          exerciseTypeFromPattern(slot.exercise.pattern) ??
+          undefined,
       })
       .onConflictDoNothing()
-      .returning({ id: exercises.id });
+      .returning({ id: exercises.id, exerciseType: exercises.exerciseType });
 
     if (rows.length > 0) {
-      exerciseMap.set(exName, rows[0].id);
+      exerciseMap.set(exName, { id: rows[0].id, defaultType: rows[0].exerciseType });
     } else {
       // Race condition: another request inserted it first
       const [existing] = await db
-        .select({ id: exercises.id })
+        .select({ id: exercises.id, exerciseType: exercises.exerciseType })
         .from(exercises)
         .where(and(
           eq(exercises.name, exName),
           or(isNull(exercises.userId), eq(exercises.userId, auth.user.id)),
         ))
         .limit(1);
-      if (existing) exerciseMap.set(exName, existing.id);
+      if (existing) exerciseMap.set(exName, { id: existing.id, defaultType: existing.exerciseType });
     }
   }
 
@@ -773,24 +829,31 @@ export async function importProgram(
           .returning({ id: programs.id });
 
         for (const slot of programData.exercises) {
-          const exerciseId = exerciseMap.get(slot.exercise.name);
-          if (!exerciseId) {
+          const entry = exerciseMap.get(slot.exercise.name);
+          if (!entry) {
             if (!skippedExercises.includes(slot.exercise.name)) {
               skippedExercises.push(slot.exercise.name);
             }
             continue;
           }
 
+          // The slot's type is the exercise's role in THIS program. Persist it as
+          // a program-level override only when it differs from the exercise's
+          // intrinsic default — otherwise inherit (null). New exercises whose
+          // default we just set from this same type therefore get no override.
+          const overrideType = programOverrideForRole(slot.exercise.type, entry.defaultType);
+
           const [pe] = await tx
             .insert(programExercises)
             .values({
               programId: program.id,
-              exerciseId,
+              exerciseId: entry.id,
               orderIndex: slot.idx,
               notes: slot.notes ?? undefined,
               overloadIncrementKg: slot.incKg.toString(),
               overloadIncrementReps: slot.incReps,
               progressionMode: slot.mode,
+              exerciseType: overrideType,
             })
             .returning({ id: programExercises.id });
 

@@ -33,6 +33,7 @@ import {
     type Discipline,
 } from "@/lib/utils/discipline";
 import { parseUserGoals } from "@/lib/utils/goals";
+import { rpeFromRir } from "@/lib/utils/rir";
 import { requireSession } from "@/lib/utils/session";
 import {
     logWorkoutSetSchema,
@@ -144,12 +145,18 @@ export async function logWorkoutSet(
       distanceMeters,
       inclinePercent,
       heartRateZone,
+      rir,
       rpe,
       restTimeSeconds,
       notes,
       isCompleted,
       isFailed,
     } = validation.data;
+
+    // RIR is the primary effort input; derive RPE from it so all downstream
+    // RPE-based progression/adaptation keeps working. Fall back to the supplied
+    // RPE for callers that don't report RIR yet (e.g. logged runs).
+    const effectiveRpe = rir != null ? rpeFromRir(rir) : rpe;
 
     // Verify the session belongs to the authenticated user
     const [session] = await db
@@ -196,7 +203,8 @@ export async function logWorkoutSet(
         distanceMeters,
         inclinePercent,
         heartRateZone,
-        rpe,
+        rir,
+        rpe: effectiveRpe,
         restTimeSeconds,
         notes,
         isCompleted,
@@ -1015,6 +1023,9 @@ export async function getProgressiveSuggestions(
         overloadIncrementReps: programExercises.overloadIncrementReps,
         progressionMode: programExercises.progressionMode,
         movementPattern: exercises.movementPattern,
+        // Resolve override ?? default in JS below (Drizzle returns both columns).
+        exerciseTypeOverride: programExercises.exerciseType,
+        exerciseTypeDefault: exercises.exerciseType,
         exerciseName: exercises.name,
       })
       .from(programSets)
@@ -1129,6 +1140,7 @@ export async function getProgressiveSuggestions(
         overloadIncrementReps: ps.overloadIncrementReps,
         progressionMode: ps.progressionMode,
         movementPattern: ps.movementPattern,
+        exerciseType: ps.exerciseTypeOverride ?? ps.exerciseTypeDefault,
         exerciseName: ps.exerciseName,
       };
       const suggestion = buildSuggestion(rows, psData, profile, readiness);

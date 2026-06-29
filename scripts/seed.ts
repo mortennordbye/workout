@@ -1,6 +1,7 @@
 import { db } from "../src/db";
 import { exercises } from "../src/db/schema";
 import { aiModelConfigs } from "../src/db/schema/ai-model-configs";
+import { exerciseTypeFromPattern } from "../src/lib/utils/exercise-type";
 import { inArray } from "drizzle-orm";
 
 const AI_MODELS = [
@@ -256,8 +257,14 @@ async function seed() {
 
     // Seed exercises — skips any that already exist by name
      
-    await db.insert(exercises).values([...EXERCISES]).onConflictDoNothing();
-    console.log(`✅ Seeded ${EXERCISES.length} exercises (skipped duplicates)`);
+    // Derive each exercise's default type from its movement pattern (same coarse
+    // mapping as the 0039 backfill migration). Refine per-exercise via the editor.
+    const seedExercises = EXERCISES.map((e) => ({
+      ...e,
+      exerciseType: exerciseTypeFromPattern(e.movementPattern) ?? undefined,
+    }));
+    await db.insert(exercises).values(seedExercises).onConflictDoNothing();
+    console.log(`✅ Seeded ${seedExercises.length} exercises (skipped duplicates)`);
 
     // Mark inherently time-based exercises (isometric holds, warm-up) as isTimed.
     // This also updates rows that existed before the is_timed column was added.

@@ -7,6 +7,7 @@ import {
   createProgramSchema,
   createWorkoutSessionSchema,
   deleteProgramSetSchema,
+  importProgramSchema,
   logWorkoutSetSchema,
   removeExerciseFromProgramSchema,
   reorderProgramExercisesSchema,
@@ -105,6 +106,23 @@ describe("logWorkoutSetSchema", () => {
   it("defaults isCompleted to true", () => {
     const result = logWorkoutSetSchema.safeParse(valid);
     expect(result.success && result.data.isCompleted).toBe(true);
+  });
+
+  it("accepts RIR within 0-5", () => {
+    expect(logWorkoutSetSchema.safeParse({ ...valid, rir: 0 }).success).toBe(true);
+    expect(logWorkoutSetSchema.safeParse({ ...valid, rir: 5 }).success).toBe(true);
+  });
+
+  it("rejects RIR above 5", () => {
+    expect(logWorkoutSetSchema.safeParse({ ...valid, rir: 6 }).success).toBe(false);
+  });
+
+  it("rejects negative RIR", () => {
+    expect(logWorkoutSetSchema.safeParse({ ...valid, rir: -1 }).success).toBe(false);
+  });
+
+  it("treats RIR as optional", () => {
+    expect(logWorkoutSetSchema.safeParse(valid).success).toBe(true);
   });
 });
 
@@ -417,6 +435,20 @@ describe("createExerciseSchema enum fields", () => {
   it("rejects invalid movementPattern", () => {
     expect(createExerciseSchema.safeParse({ ...valid, movementPattern: "stretch" }).success).toBe(false);
   });
+
+  it("accepts valid exerciseType values", () => {
+    for (const v of ["compound", "accessory", "isolation", "plyometric", "isometric"]) {
+      expect(createExerciseSchema.safeParse({ ...valid, exerciseType: v }).success).toBe(true);
+    }
+  });
+
+  it("rejects invalid exerciseType", () => {
+    expect(createExerciseSchema.safeParse({ ...valid, exerciseType: "main" }).success).toBe(false);
+  });
+
+  it("treats exerciseType as optional", () => {
+    expect(createExerciseSchema.safeParse(valid).success).toBe(true);
+  });
 });
 
 // ─── logWorkoutSetSchema (targetReps field) ───────────────────────────────────
@@ -439,5 +471,57 @@ describe("logWorkoutSetSchema targetReps", () => {
   it("rejects non-positive targetReps", () => {
     expect(logWorkoutSetSchema.safeParse({ ...valid, targetReps: 0 }).success).toBe(false);
     expect(logWorkoutSetSchema.safeParse({ ...valid, targetReps: -1 }).success).toBe(false);
+  });
+});
+
+// ─── importProgramSchema (exercise.type — the per-program role) ────────────────
+
+describe("importProgramSchema exercise.type", () => {
+  const slot = (type: unknown) => ({
+    program: {
+      name: "P",
+      exercises: [
+        {
+          idx: 0,
+          incKg: 2.5,
+          incReps: 0,
+          mode: "manual",
+          exercise: { name: "Bench Press", category: "strength", type },
+          sets: [{ n: 1, reps: 5, kg: 60, rest: 90, type: "working" }],
+        },
+      ],
+    },
+  });
+
+  function parsedType(input: unknown) {
+    const r = importProgramSchema.safeParse(slot(input));
+    if (!r.success) return undefined;
+    const entry = "program" in r.data ? r.data.program : r.data.programs[0];
+    return entry.exercises[0].exercise.type;
+  }
+
+  it("keeps a valid type", () => {
+    expect(parsedType("accessory")).toBe("accessory");
+    expect(parsedType("compound")).toBe("compound");
+  });
+
+  it("coerces an invalid type to null (lenient AI parsing)", () => {
+    expect(parsedType("main")).toBeNull();
+  });
+
+  it("allows the type to be omitted", () => {
+    const r = importProgramSchema.safeParse({
+      program: {
+        name: "P",
+        exercises: [
+          {
+            idx: 0, incKg: 2.5, incReps: 0, mode: "manual",
+            exercise: { name: "Bench Press", category: "strength" },
+            sets: [{ n: 1, reps: 5, kg: 60, rest: 90, type: "working" }],
+          },
+        ],
+      },
+    });
+    expect(r.success).toBe(true);
   });
 });

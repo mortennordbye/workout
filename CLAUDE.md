@@ -120,7 +120,7 @@ Before suggesting `git push` for any change that touches a **critical flow** —
 
 **Prereqs (verify before starting):**
 - Dev server reachable at `http://localhost:3000`. If not, ask the user to run `./scripts/dev.sh` first; do not start it autonomously.
-- `E2E_USER_EMAIL` and `E2E_USER_PASSWORD` set in your shell. If missing, ask the user before continuing.
+- `E2E_USER_EMAIL` and `E2E_USER_PASSWORD` — the test-account credentials live in `.env.local` (gitignored) under those keys. Read them from there (e.g. `set -a; . ./.env.local; set +a`) rather than asking the user. Only ask if `.env.local` is absent or the keys are missing.
 
 **Tools:** `mcp__playwright__browser_navigate`, `browser_snapshot`, `browser_click`, `browser_fill_form`, `browser_wait_for`, `browser_take_screenshot`, `browser_console_messages`. Save any failure screenshot to `.playwright-mcp/<flow>-fail.png` (folder is gitignored).
 

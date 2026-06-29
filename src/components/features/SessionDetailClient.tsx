@@ -165,7 +165,7 @@ export function SessionDetailClient({ detail }: { detail: SessionDetail }) {
                             : "—"}
                         </span>
                         <span className="text-muted-foreground w-16 text-right">
-                          RPE {set.rpe}
+                          {set.rir != null ? `RIR ${set.rir}` : `RPE ${set.rpe}`}
                         </span>
                       </div>
                       {set.notes && (

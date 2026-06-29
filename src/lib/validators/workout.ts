@@ -77,6 +77,9 @@ export const logWorkoutSetSchema = z.object({
   distanceMeters: z.number().int().min(0).optional(),
   inclinePercent: z.number().int().min(0).max(30).optional(),
   heartRateZone: z.number().int().min(1).max(5).optional(),
+  // Reps In Reserve — the primary effort input (0 = to failure, 5 = 5+ left).
+  // When present, the server derives rpe from it (rpe = clamp(10 - rir, 1, 10)).
+  rir: z.number().int().min(0).max(5).optional(),
   rpe: z
     .number()
     .int()
@@ -145,6 +148,7 @@ export const createExerciseSchema = z.object({
   muscleGroup: z.enum(["chest", "back", "shoulders", "biceps", "triceps", "forearms", "quads", "hamstrings", "glutes", "calves", "abs", "lower_back", "full_body", "cardio"]).optional(),
   equipment: z.enum(["barbell", "dumbbell", "machine", "cable", "bodyweight", "kettlebell", "bands", "other"]).optional(),
   movementPattern: z.enum(["push", "pull", "hinge", "squat", "carry", "rotation", "isometric", "cardio"]).optional(),
+  exerciseType: z.enum(["compound", "accessory", "isolation", "plyometric", "isometric"]).optional(),
 });
 
 /**
@@ -164,6 +168,15 @@ export const addExerciseToProgramSchema = z.object({
   exerciseId: z.number().int().positive(),
   orderIndex: z.number().int().min(0).optional(),
   notes: z.string().max(500).optional(),
+});
+
+// Per-program override of an exercise's type. null clears the override (inherit
+// the exercise's intrinsic type).
+export const setProgramExerciseTypeSchema = z.object({
+  programExerciseId: z.number().int().positive(),
+  exerciseType: z
+    .enum(["compound", "accessory", "isolation", "plyometric", "isometric"])
+    .nullable(),
 });
 
 export const SET_TYPES = ["working", "warmup"] as const;
@@ -293,6 +306,11 @@ const importProgramEntrySchema = z.object({
                 "isometric",
                 "cardio",
               ])
+              .nullable()
+              .optional()
+              .catch(null),
+            type: z
+              .enum(["compound", "accessory", "isolation", "plyometric", "isometric"])
               .nullable()
               .optional()
               .catch(null),

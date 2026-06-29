@@ -14,6 +14,8 @@ type SetOverride = {
   isFailed?: boolean;
   /** Reps actually achieved on a failed set (0..target). Only meaningful when isFailed. */
   actualReps?: number;
+  /** Reps In Reserve the user logged for this set (0 = to failure, 5 = 5+). */
+  rir?: number;
 };
 
 const STORAGE_KEY = "activeWorkout";

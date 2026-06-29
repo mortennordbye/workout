@@ -1,6 +1,7 @@
 "use client";
 
 import { createCustomExercise, deleteCustomExercise, updateCustomExercise } from "@/lib/actions/exercises";
+import { EXERCISE_TYPES, EXERCISE_TYPE_LABELS, type ExerciseType } from "@/lib/utils/exercise-type";
 import type { Exercise } from "@/types/workout";
 import {
   Activity,
@@ -102,7 +103,10 @@ function SearchBar({ value, onChange }: { value: string; onChange: (v: string) =
 function DetailView({ exercise }: { exercise: Exercise }) {
   const rows: { label: string; value: string }[] = [
     { label: "Title", value: exercise.name },
-    { label: "Exercise Type", value: exerciseType(exercise.category, exercise.isTimed) },
+    // "Format" = how the exercise is tracked (timed vs reps). Distinct from the
+    // "Type" row below, which is the compound/isolation classification.
+    { label: "Format", value: exerciseType(exercise.category, exercise.isTimed) },
+    ...(exercise.exerciseType ? [{ label: "Type", value: EXERCISE_TYPE_LABELS[exercise.exerciseType as ExerciseType] }] : []),
     ...(exercise.bodyArea ? [{ label: "Body Area", value: capitalize(exercise.bodyArea) }] : []),
     ...(exercise.muscleGroup ? [{ label: "Muscle Group", value: capitalize(exercise.muscleGroup) }] : []),
     ...(exercise.equipment ? [{ label: "Equipment", value: capitalize(exercise.equipment) }] : []),
@@ -148,6 +152,7 @@ function ExerciseRow({
   selectLoading?: boolean;
 }) {
   const sub = [
+    exercise.exerciseType ? EXERCISE_TYPE_LABELS[exercise.exerciseType as ExerciseType] : null,
     exercise.muscleGroup ? capitalize(exercise.muscleGroup) : null,
     exercise.equipment ? capitalize(exercise.equipment) : null,
   ].filter(Boolean).join(" · ");
@@ -261,6 +266,7 @@ function ExerciseFormFields({
   muscleGroup, setMuscleGroup,
   equipment, setEquipment,
   movementPattern, setMovementPattern,
+  exType, setExType,
   error,
   loading,
   submitLabel,
@@ -271,6 +277,7 @@ function ExerciseFormFields({
   muscleGroup: MuscleGroup | ""; setMuscleGroup: (v: MuscleGroup | "") => void;
   equipment: Equipment | ""; setEquipment: (v: Equipment | "") => void;
   movementPattern: MovementPattern | ""; setMovementPattern: (v: MovementPattern | "") => void;
+  exType: ExerciseType | ""; setExType: (v: ExerciseType | "") => void;
   error: string;
   loading: boolean;
   submitLabel: string;
@@ -340,6 +347,16 @@ function ExerciseFormFields({
           <option key={val} value={val}>{MOVEMENT_LABELS[val]}</option>
         ))}
       </select>
+      <select
+        value={exType}
+        onChange={(e) => setExType(e.target.value as ExerciseType | "")}
+        className="w-full rounded-xl bg-muted px-4 py-3 text-base outline-none focus:ring-2 ring-primary"
+      >
+        <option value="">Type (optional)</option>
+        {EXERCISE_TYPES.map((val) => (
+          <option key={val} value={val}>{EXERCISE_TYPE_LABELS[val]}</option>
+        ))}
+      </select>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <button
         type="submit"
@@ -375,6 +392,7 @@ export function ExercisesClient({
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | "">("");
   const [equipment, setEquipment] = useState<Equipment | "">("");
   const [movementPattern, setMovementPattern] = useState<MovementPattern | "">("");
+  const [exType, setExType] = useState<ExerciseType | "">("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectLoading, setSelectLoading] = useState(false);
@@ -395,13 +413,14 @@ export function ExercisesClient({
     setMuscleGroup((exercise.muscleGroup as MuscleGroup | "") ?? "");
     setEquipment((exercise.equipment as Equipment | "") ?? "");
     setMovementPattern((exercise.movementPattern as MovementPattern | "") ?? "");
+    setExType((exercise.exerciseType as ExerciseType | "") ?? "");
     setError("");
   }
 
   function closeEdit() {
     setEditingExercise(null);
     setName(""); setCategory("strength"); setBodyArea("");
-    setMuscleGroup(""); setEquipment(""); setMovementPattern("");
+    setMuscleGroup(""); setEquipment(""); setMovementPattern(""); setExType("");
     setError("");
   }
 
@@ -418,7 +437,7 @@ export function ExercisesClient({
 
   function resetForm() {
     setName(""); setCategory("strength"); setBodyArea("");
-    setMuscleGroup(""); setEquipment(""); setMovementPattern("");
+    setMuscleGroup(""); setEquipment(""); setMovementPattern(""); setExType("");
     setError("");
   }
 
@@ -431,6 +450,7 @@ export function ExercisesClient({
       name: name.trim(), category, isCustom: true,
       bodyArea: bodyArea || undefined, muscleGroup: muscleGroup || undefined,
       equipment: equipment || undefined, movementPattern: movementPattern || undefined,
+      exerciseType: exType || undefined,
     });
     setLoading(false);
     if (!result.success) { setError(result.error ?? "Failed to update exercise"); return; }
@@ -448,6 +468,7 @@ export function ExercisesClient({
       name: name.trim(), category, isCustom: true,
       bodyArea: bodyArea || undefined, muscleGroup: muscleGroup || undefined,
       equipment: equipment || undefined, movementPattern: movementPattern || undefined,
+      exerciseType: exType || undefined,
     });
     setLoading(false);
     if (!result.success) { setError(result.error ?? "Failed to create exercise"); return; }
@@ -494,6 +515,7 @@ export function ExercisesClient({
               muscleGroup={muscleGroup} setMuscleGroup={setMuscleGroup}
               equipment={equipment} setEquipment={setEquipment}
               movementPattern={movementPattern} setMovementPattern={setMovementPattern}
+              exType={exType} setExType={setExType}
               error={error} loading={loading} submitLabel={loading ? "Saving…" : "Save Changes"}
             />
           </form>
@@ -580,6 +602,7 @@ export function ExercisesClient({
                 muscleGroup={muscleGroup} setMuscleGroup={setMuscleGroup}
                 equipment={equipment} setEquipment={setEquipment}
                 movementPattern={movementPattern} setMovementPattern={setMovementPattern}
+                exType={exType} setExType={setExType}
                 error={error} loading={loading} submitLabel={loading ? "Creating…" : "Create Exercise"}
               />
             </form>

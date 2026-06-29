@@ -267,6 +267,20 @@
       "when": 1782237460137,
       "tag": "0037_secret_jean_grey",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1782747577539,
+      "tag": "0038_wonderful_randall",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1782749549062,
+      "tag": "0039_nice_supreme_intelligence",
+      "breakpoints": true
     }
   ]
 }

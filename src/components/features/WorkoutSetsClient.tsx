@@ -3,11 +3,18 @@
 import { WorkoutSetsList } from "@/components/features/WorkoutSetsList";
 import {
   deleteProgramSet,
+  setProgramExerciseType,
   updateProgramExerciseIncrement,
   updateProgramExerciseIncrementReps,
   updateProgramExerciseProgressionMode,
 } from "@/lib/actions/programs";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
+import {
+  EXERCISE_TYPES,
+  EXERCISE_TYPE_LABELS,
+  resolveExerciseType,
+  type ExerciseType,
+} from "@/lib/utils/exercise-type";
 import { sanitizeDecimalInput } from "@/lib/utils/format";
 import type { Discipline } from "@/lib/utils/discipline";
 import type { ProgramSet } from "@/types/workout";
@@ -50,6 +57,10 @@ type Props = {
   overloadIncrementKg?: number | null;
   overloadIncrementReps?: number;
   progressionMode?: ProgressionMode;
+  /** Exercise's intrinsic type (the default shown when there's no override). */
+  exerciseTypeDefault?: string | null;
+  /** Per-program override of the exercise type; null = inherit the default. */
+  exerciseTypeOverride?: string | null;
   initialEditing?: boolean;
 };
 
@@ -67,6 +78,8 @@ export function WorkoutSetsClient({
   overloadIncrementKg: initialIncrement = null,
   overloadIncrementReps: initialIncrementReps = 0,
   progressionMode: initialMode = "manual",
+  exerciseTypeDefault = null,
+  exerciseTypeOverride: initialTypeOverride = null,
   initialEditing = false,
 }: Props) {
   const router = useRouter();
@@ -77,6 +90,7 @@ export function WorkoutSetsClient({
   const [sets, setSets] = useState(initial);
   const [increment, setIncrement] = useState(initialIncrement);
   const [incrementReps, setIncrementReps] = useState(initialIncrementReps);
+  const [typeOverride, setTypeOverride] = useState<string | null>(initialTypeOverride);
   const [mode, setMode] = useState<ProgressionMode>(() => {
     // Snap stale modes to sensible defaults for the exercise type
     if (exerciseIsTimed && initialMode !== "manual" && initialMode !== "time") return "time";
@@ -138,6 +152,13 @@ export function WorkoutSetsClient({
   async function handleModeChange(newMode: ProgressionMode) {
     setMode(newMode);
     await updateProgramExerciseProgressionMode(programExerciseId, newMode);
+    router.refresh();
+  }
+
+  // null clears the override so the exercise's intrinsic type is inherited.
+  async function handleTypeOverrideChange(next: ExerciseType | null) {
+    setTypeOverride(next);
+    await setProgramExerciseType({ programExerciseId, exerciseType: next });
     router.refresh();
   }
 
@@ -330,6 +351,50 @@ export function WorkoutSetsClient({
                     )}
                   </button>
                 ))}
+
+                {/* Exercise-type override — strength only. "Default" inherits the
+                    exercise's intrinsic type; pick another to override it here. */}
+                {!isRunning && !exerciseIsTimed && (
+                  <div className="border-t border-border">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider px-4 pt-3 pb-1">
+                      Type{exerciseTypeDefault ? ` · default ${EXERCISE_TYPE_LABELS[exerciseTypeDefault as ExerciseType]}` : ""}
+                    </p>
+                    <div className="flex flex-wrap gap-2 px-4 pb-3">
+                      <button
+                        onClick={() => handleTypeOverrideChange(null)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                          typeOverride == null
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        Default
+                      </button>
+                      {EXERCISE_TYPES.map((t) => (
+                        <button
+                          key={t}
+                          onClick={() => handleTypeOverrideChange(t)}
+                          className={`px-3 py-1.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                            typeOverride === t
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {EXERCISE_TYPE_LABELS[t]}
+                        </button>
+                      ))}
+                    </div>
+                    {resolveExerciseType(typeOverride as ExerciseType | null, exerciseTypeDefault as ExerciseType | null) && (
+                      <p className="text-xs text-muted-foreground px-4 pb-3">
+                        This program treats it as{" "}
+                        <span className="font-semibold text-foreground">
+                          {EXERCISE_TYPE_LABELS[resolveExerciseType(typeOverride as ExerciseType | null, exerciseTypeDefault as ExerciseType | null)!]}
+                        </span>
+                        .
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Kg increment — shown for weight and smart modes */}
                 {(mode === "weight" || mode === "smart") && (

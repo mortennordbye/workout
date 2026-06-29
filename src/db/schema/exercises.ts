@@ -77,6 +77,18 @@ export const movementPatternEnum = [
 // flexibility, and generic cardio) — those keep their existing behavior.
 export const disciplineEnum = ["swim", "bike", "run"] as const;
 
+// Exercise type / role. compound, isolation, plyometric, isometric are intrinsic
+// to the movement; "accessory" is a per-program role, so it's primarily an
+// override on program_exercises rather than a library default. The resolved type
+// is `programExercise.exerciseType ?? exercise.exerciseType`.
+export const exerciseTypeEnum = [
+  "compound",
+  "accessory",
+  "isolation",
+  "plyometric",
+  "isometric",
+] as const;
+
 export const exercises = pgTable("exercises", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -89,4 +101,8 @@ export const exercises = pgTable("exercises", {
   equipment: text("equipment", { enum: equipmentEnum }),
   movementPattern: text("movement_pattern", { enum: movementPatternEnum }),
   discipline: text("discipline", { enum: disciplineEnum }),
+  // Intrinsic exercise type (compound/isolation/plyometric/isometric). Nullable
+  // for legacy/cardio rows; backfilled from movement_pattern. Can be overridden
+  // per program via program_exercises.exerciseType.
+  exerciseType: text("exercise_type", { enum: exerciseTypeEnum }),
 });

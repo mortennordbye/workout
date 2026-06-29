@@ -405,6 +405,7 @@ export type ExportedProgram = {
         muscle: string | null;
         equipment: string | null;
         pattern: string | null;
+        type: string | null;
       };
       sets: Array<{
         n: number;

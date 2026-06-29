@@ -9,16 +9,19 @@
  * - target_reps: The planned number of reps (optional, for following programs)
  * - actual_reps: The reps actually completed
  * - weight_kg: Load lifted (use decimal for fractional plates like 2.5kg)
- * - rpe: Rate of Perceived Exertion (1-10 scale, where 10 = absolute max effort)
+ * - rir: Reps In Reserve — the primary effort input the user logs (0 = to failure,
+ *        5 = 5+ reps left). When set, rpe is derived as clamp(10 - rir, 1, 10).
+ * - rpe: Rate of Perceived Exertion (1-10 scale, where 10 = absolute max effort).
+ *        Derived from rir when rir is provided; kept for legacy rows and downstream logic.
  * - rest_time_seconds: Rest period after this set
  * - is_completed: Whether the set was finished or skipped
  *
- * RPE Scale Reference:
- * - 10: Maximum effort, no reps left in reserve (RIR = 0)
- * - 9: Could do 1 more rep (RIR = 1)
- * - 8: Could do 2-3 more reps (RIR = 2-3)
- * - 7: Moderate effort, 3-4 reps left
- * - 5-6: Comfortable, many reps in reserve
+ * RIR ↔ RPE mapping (rpe = 10 - rir):
+ * - RIR 0 → RPE 10: Maximum effort, no reps left in reserve
+ * - RIR 1 → RPE 9: Could do 1 more rep
+ * - RIR 2 → RPE 8: Could do 2 more reps
+ * - RIR 3 → RPE 7: Moderate effort, a few reps left
+ * - RIR 5+ → RPE ≤5: Comfortable, many reps in reserve
  *
  * Future enhancements for Auto-Deload & PR Detection:
  * - Track RPE trends: If RPE consistently > 9 for same weight, trigger deload
@@ -58,7 +61,10 @@ export const workoutSets = pgTable("workout_sets", {
   distanceMeters: integer("distance_meters"),
   inclinePercent: integer("incline_percent"),
   heartRateZone: integer("heart_rate_zone"), // 1-5
-  rpe: integer("rpe").notNull(), // 1-10 scale
+  // Reps In Reserve (0 = to failure, 5 = 5+). Primary user-logged effort signal;
+  // rpe is derived from it. Nullable for legacy rows logged before RIR existed.
+  rir: integer("rir"),
+  rpe: integer("rpe").notNull(), // 1-10 scale (derived from rir when present)
   restTimeSeconds: integer("rest_time_seconds").notNull(),
   // Free-text per-set note: "left shoulder twinged", "added belt", "felt easy"
   notes: text("notes"),

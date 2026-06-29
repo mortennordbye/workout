@@ -24,6 +24,7 @@ type Exercise = {
   muscleGroup?: string | null;
   equipment?: string | null;
   movementPattern?: string | null;
+  exerciseType?: string | null;
 };
 
 const GOAL_LABELS: Record<string, string> = {
@@ -48,7 +49,7 @@ export function buildAiSystemPrompt(userProfile: UserProfile, exercises: Exercis
       ? `\nAvailable exercises in my library (use these names exactly when possible):\n${exercises
           .map(
             (e) =>
-              `- ${e.name} (${[e.muscleGroup, e.equipment, e.movementPattern].filter(Boolean).join(", ")})`,
+              `- ${e.name} (${[e.muscleGroup, e.equipment, e.movementPattern, e.exerciseType].filter(Boolean).join(", ")})`,
           )
           .join("\n")}\n`
       : "";
@@ -146,7 +147,8 @@ Each exercise entry:
     "area": "upper_body",
     "muscle": "chest",
     "equipment": "barbell",
-    "pattern": "push"
+    "pattern": "push",
+    "type": "compound"
   },
   "sets": [
     { "n": 1, "reps": 8, "kg": 40, "rest": 60, "type": "warmup" },
@@ -161,7 +163,8 @@ Rules:
 - muscle: "chest", "back", "shoulders", "biceps", "triceps", "forearms", "quads", "hamstrings", "glutes", "calves", "abs", "lower_back", "full_body", or "cardio"
 - equipment: "barbell", "dumbbell", "machine", "cable", "bodyweight", "kettlebell", "bands", or "other"
 - pattern: "push", "pull", "hinge", "squat", "carry", "rotation", "isometric", or "cardio"
-- mode: "manual" (default — no auto-progression suggestions), "weight" (auto-suggest weight increases for compound lifts where progressive overload is the main driver), "smart" (weight + estimated rep adjustment, only for true working compounds at RPE 7+), or "reps" (bodyweight or rep-only progression). Default to "manual" for warm-ups, accessory/isolation work, machines you don't push hard, and anything where auto-suggestions would be noise.
+- type: the exercise's ROLE IN THIS PROGRAM — "compound" (multi-joint main lifts — squat, bench, deadlift, OHP, rows, pull-ups), "isolation" (single-joint, one muscle — curls, raises, extensions), "accessory" (a compound/isolation movement used here as support work for a main lift), "plyometric" (explosive — box jumps, clapping push-ups), or "isometric" (static holds — planks, wall sits). Use "accessory" when a movement supports a main lift in this program even if it's compound elsewhere (e.g. an incline press accessory to a flat bench).
+- mode: "manual" (default — no auto-progression suggestions), "weight" (auto-suggest weight increases for compound lifts where progressive overload is the main driver), "smart" (weight + estimated rep adjustment, only for true working compounds at RPE 7+), or "reps" (bodyweight or rep-only progression). Default to "manual" for warm-ups, accessory/isolation work (type "accessory"/"isolation"), machines you don't push hard, and anything where auto-suggestions would be noise.
 - kg: use 0 for bodyweight, null if unknown
 - rest: rest between sets in seconds (e.g. 90)
 - type: "working" (default — counts toward progression) or "warmup" (excluded from auto-progression suggestions). Use "warmup" for the first 1–2 light sets of compound lifts (squat, bench, deadlift, OHP, rows). Omit for accessories and isolation work — they don't need warmup sets in the program.
@@ -169,7 +172,7 @@ Rules:
 - weeks must be one of: 4, 6, 8, 10, 12, 16
 - day: 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat, 7=Sun
 - prog in cycle slots must exactly match a name in the "programs" array
-- Exercise order: always list compound/multi-joint exercises before isolation exercises within a program
+- Exercise order: always list compound (type "compound") exercises before accessory/isolation (type "accessory"/"isolation") exercises within a program; finish with isometric core work where appropriate
 - Starting weights: use ~75% of 1RM for 3–5 rep sets, ~70% for 6–8 reps, ~65% for 8–12 reps, ~60% for 12–15 reps. Estimate for exercises without PR data using body weight as reference where appropriate.
 - Periodization: for beginner/novice experience levels use linear progression (same weight each session, add weight only when top of rep range is hit consistently). For intermediate/advanced use undulating periodization (vary rep ranges across sessions or programs, e.g. heavy/medium/light days).
 - Weekly volume: aim for 10–20 working sets per muscle group per week across all programs in the cycle combined. Avoid both under-training (< 10 sets) and junk volume (> 20 sets).${equipmentRule}${frequencyRule}${durationRule}

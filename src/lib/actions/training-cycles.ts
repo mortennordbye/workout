@@ -404,6 +404,9 @@ async function computeCycleAdaptation(
     ? readinessVals.reduce((a, b) => a + b, 0) / readinessVals.length
     : null;
 
+  // rpe is RIR-derived (rpe = 10 − rir) for sets logged with Reps In Reserve,
+  // so this average is a real effort signal — the avgRpe ≤ 6 "push" condition in
+  // computeAdaptationFactor corresponds to averaging ≥ 4 reps in reserve.
   let avgRpe: number | null = null;
   if (recent.length > 0) {
     const rpeRows = await db

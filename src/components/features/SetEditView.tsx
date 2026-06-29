@@ -1,9 +1,15 @@
 "use client";
 
 import { BottomSheet } from "@/components/ui/BottomSheet";
-import { updateProgramSet } from "@/lib/actions/programs";
+import { setProgramExerciseType, updateProgramSet } from "@/lib/actions/programs";
 import { updateWorkoutSetNotes } from "@/lib/actions/workout-sets";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
+import {
+  EXERCISE_TYPES,
+  EXERCISE_TYPE_LABELS,
+  resolveExerciseType,
+  type ExerciseType,
+} from "@/lib/utils/exercise-type";
 import { formatEndurancePace, formatTime, sanitizeDecimalInput } from "@/lib/utils/format";
 import { disciplineConfig, type Discipline } from "@/lib/utils/discipline";
 import type { SetType } from "@/lib/validators/workout";
@@ -23,6 +29,10 @@ type Props = {
   exerciseId?: number | null;
   /** 1-based position of this set within the exercise — used as the workout_sets key. */
   setNumber?: number;
+  /** Exercise's intrinsic type — the default shown when there's no program override. */
+  exerciseTypeDefault?: string | null;
+  /** Per-program override of the exercise type; null = inherit the default. */
+  exerciseTypeOverride?: string | null;
 };
 
 const DURATION_OPTIONS = [15, 30, 45, 60, 90, 120, 180, 300, 600];
@@ -35,6 +45,16 @@ const HR_ZONES = [
   { zone: 4, label: "Z4", desc: "Threshold" },
   { zone: 5, label: "Z5", desc: "VO₂Max" },
 ];
+// Reps In Reserve chips. "None" leaves it unlogged; 0 = to failure, 5 = 5+ left.
+const RIR_OPTIONS: { value: number | null; label: string }[] = [
+  { value: null, label: "None" },
+  { value: 0, label: "0" },
+  { value: 1, label: "1" },
+  { value: 2, label: "2" },
+  { value: 3, label: "3" },
+  { value: 4, label: "4" },
+  { value: 5, label: "5+" },
+];
 
 export function SetEditView({
   set,
@@ -44,6 +64,8 @@ export function SetEditView({
   discipline = null,
   exerciseId = null,
   setNumber,
+  exerciseTypeDefault = null,
+  exerciseTypeOverride = null,
 }: Props) {
   const router = useRouter();
   const cfg = disciplineConfig(discipline);
@@ -57,7 +79,32 @@ export function SetEditView({
   const [showRepsPicker, setShowRepsPicker] = useState(false);
   const [showWeightPicker, setShowWeightPicker] = useState(false);
   const [showDurationPicker, setShowDurationPicker] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Per-program exercise-type override. Editing it here writes to the
+  // program_exercise (so it changes the type for ALL sets of this exercise in
+  // this program, not just this set). Local state gives an optimistic update.
+  const [typeOverride, setTypeOverride] = useState<ExerciseType | null>(
+    (exerciseTypeOverride as ExerciseType | null) ?? null,
+  );
+  const [savingType, setSavingType] = useState(false);
+  const resolvedType = resolveExerciseType(
+    typeOverride,
+    exerciseTypeDefault as ExerciseType | null,
+  );
+
+  async function handleTypeChange(next: ExerciseType | null) {
+    setTypeOverride(next);
+    setShowTypePicker(false);
+    setSavingType(true);
+    await setProgramExerciseType({
+      programExerciseId: set.programExerciseId,
+      exerciseType: next,
+    });
+    setSavingType(false);
+    router.refresh();
+  }
 
   const workoutSession = useWorkoutSession();
   const override = isWorkout ? (workoutSession?.overrides[set.id] ?? null) : null;
@@ -77,6 +124,8 @@ export function SetEditView({
   // then captures the reps actually achieved (0 is allowed), while the program
   // target is preserved so the set logs actualReps < targetReps.
   const [failed, setFailed] = useState<boolean>(override?.isFailed ?? false);
+  // Reps In Reserve (workout strength mode). Null until the user picks one.
+  const [rir, setRir] = useState<number | null>(override?.rir ?? null);
   const repsMin = isWorkout ? 0 : 1;
   const [duration, setDuration] = useState(override?.durationSeconds ?? Number(set.durationSeconds ?? 0));
   const [distanceMeters, setDistanceMeters] = useState(set.distanceMeters ?? cfg.defaultDistanceM);
@@ -155,9 +204,10 @@ export function SetEditView({
         workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight, durationSeconds: duration, notes: noteValue });
       } else if (failed) {
         // Failed: keep the program target as the goal, record the achieved reps.
-        workoutSession?.setOverride(set.id, { targetReps: set.targetReps ?? reps, weightKg: weight, notes: noteValue, isFailed: true, actualReps: reps });
+        // A failed set was taken to failure, so RIR is 0 regardless of the picker.
+        workoutSession?.setOverride(set.id, { targetReps: set.targetReps ?? reps, weightKg: weight, notes: noteValue, isFailed: true, actualReps: reps, rir: 0 });
       } else {
-        workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight, notes: noteValue });
+        workoutSession?.setOverride(set.id, { targetReps: reps, weightKg: weight, notes: noteValue, rir: rir ?? undefined });
       }
     } else if (isTimed) {
       await updateProgramSet({ id: set.id, durationSeconds: duration, setType });
@@ -410,6 +460,50 @@ export function SetEditView({
               <span className="text-base font-medium">Weight (kg)</span>
               <span className="text-base text-muted-foreground">{weight}</span>
             </button>
+
+            {/* Exercise type — edits the per-program override on the exercise
+                (applies to every set of this exercise in this program). */}
+            <button
+              onClick={() => setShowTypePicker(true)}
+              className="w-full flex items-center justify-between py-4 border-b border-border transition-colors hover:bg-muted/50 active:bg-muted/70"
+            >
+              <span className="text-base font-medium">Type</span>
+              <span className="flex items-center gap-2 text-base text-muted-foreground">
+                {savingType && <Loader2 className="h-4 w-4 animate-spin" />}
+                {resolvedType ? EXERCISE_TYPE_LABELS[resolvedType] : "—"}
+              </span>
+            </button>
+
+            {/* Reps in reserve — workout mode only. The effort signal that feeds
+                progression/adaptation (rpe is derived as 10 − rir). Hidden when the
+                set is marked failed, since failure implies RIR 0. */}
+            {isWorkout && !failed && (
+              <div className="py-4 border-b border-border">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-base font-medium">
+                    Reps in reserve <span className="text-xs text-muted-foreground">(optional)</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {rir == null ? "Not logged" : rir === 0 ? "to failure" : rir === 5 ? "5+ left" : `${rir} left`}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  {RIR_OPTIONS.map(({ value, label }) => (
+                    <button
+                      key={label}
+                      onClick={() => setRir(value)}
+                      className={`flex-1 h-11 rounded-xl text-sm font-semibold transition-all active:scale-95 ${
+                        rir === value
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-foreground"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Mark-as-failed — workout mode only. Keeps the target as the goal
                 and logs the (lower) reps actually achieved. */}
@@ -671,6 +765,52 @@ export function SetEditView({
                 onBlur={() => { const n = parseFloat(weightStr) || 0; setWeight(n); setWeightStr(String(n)); }}
                 className="w-full rounded-xl bg-background px-4 py-3 text-center text-2xl font-bold outline-none focus:ring-2 ring-primary"
               />
+            </div>
+          </div>
+      </BottomSheet>
+
+      {/* Exercise Type Picker Modal */}
+      <BottomSheet open={showTypePicker} onClose={() => setShowTypePicker(false)} blur>
+          <div className="w-full bg-card rounded-t-3xl p-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-muted-foreground uppercase tracking-wider">
+                Exercise Type
+              </span>
+              <button
+                onClick={() => setShowTypePicker(false)}
+                className="text-primary text-sm font-medium"
+              >
+                Done
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-4">
+              Applies to all sets of this exercise in this program.
+              {exerciseTypeDefault ? ` Default: ${EXERCISE_TYPE_LABELS[exerciseTypeDefault as ExerciseType]}.` : ""}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleTypeChange(null)}
+                className={`px-4 h-11 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                  typeOverride == null
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-foreground"
+                }`}
+              >
+                Default
+              </button>
+              {EXERCISE_TYPES.map((t) => (
+                <button
+                  key={t}
+                  onClick={() => handleTypeChange(t)}
+                  className={`px-4 h-11 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                    typeOverride === t
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground"
+                  }`}
+                >
+                  {EXERCISE_TYPE_LABELS[t]}
+                </button>
+              ))}
             </div>
           </div>
       </BottomSheet>

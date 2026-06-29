@@ -350,6 +350,9 @@ export function WorkoutSetsList({
             weightKg: ov?.weightKg ?? Number(item.set.weightKg ?? 0),
             durationSeconds: ov?.durationSeconds ?? item.set.durationSeconds ?? undefined,
             distanceMeters: ov?.distanceMeters ?? item.set.distanceMeters ?? undefined,
+            rir: ov?.rir,
+            // rpe is a fallback for sets logged without an RIR value; when rir is
+            // present the server derives rpe from it (rpe = 10 − rir).
             rpe: 7,
             restTimeSeconds: 0,
             notes: ov?.notes ?? null,
@@ -376,6 +379,8 @@ export function WorkoutSetsList({
             weightKg: ov?.weightKg ?? Number(setData.weightKg ?? 0),
             durationSeconds: ov?.durationSeconds ?? setData.durationSeconds ?? undefined,
             distanceMeters: ov?.distanceMeters ?? setData.distanceMeters ?? undefined,
+            // A failed set was taken to failure ⇒ RIR 0; otherwise use the logged value.
+            rir: failed ? 0 : ov?.rir,
             rpe: 7,
             restTimeSeconds: restSeconds,
             notes: ov?.notes ?? null,

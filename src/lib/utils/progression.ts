@@ -72,6 +72,8 @@ export type ProgramSetData = {
   setType?: string | null;
   /** Exercise movement pattern — used for adaptive increment sizing. Optional for backwards compatibility. */
   movementPattern?: string | null;
+  /** Resolved exercise type (program override ?? exercise default) — refines increment sizing. */
+  exerciseType?: string | null;
   /** Exercise name — optional, passed through to the suggestion for insight bucketing. */
   exerciseName?: string;
 };
@@ -129,6 +131,7 @@ export function adaptiveIncrementKg(
   movementPattern: string | null | undefined,
   goal: string | null | undefined,
   experienceLevel?: string | null,
+  exerciseType?: string | null,
 ): number {
   // User has an explicit increment — always respect it
   if (storedIncrement !== null) return storedIncrement;
@@ -140,9 +143,12 @@ export function adaptiveIncrementKg(
   if (experienceLevel === "beginner") return 5.0;
   if (experienceLevel === "advanced") return 1.25;
 
-  const isCompound = ["squat", "hinge", "push", "pull"].includes(
-    movementPattern ?? "",
-  );
+  // Prefer the explicit exercise type when set (only "compound" gets large jumps);
+  // fall back to the movement-pattern heuristic for unclassified exercises.
+  const isCompound =
+    exerciseType != null
+      ? exerciseType === "compound"
+      : ["squat", "hinge", "push", "pull"].includes(movementPattern ?? "");
 
   // Load-zone increments for users without an experience level set:
   //   < 30kg   — small loads; isolation: 1kg, compound: 2.5kg
@@ -161,11 +167,15 @@ export function adaptiveIncrementKg(
  * Returns true when a logged set qualifies as a "confident hit" —
  * the lifter both hit the target rep count AND had sufficient reserve.
  *
+ * For sets logged with Reps In Reserve, rpe is the RIR-derived value
+ * (rpe = 10 − rir), so this gate reasons in RIR terms transitively:
+ * RIR ≥ 3 → confident, RIR 2 → confident only with an extra rep, RIR 0-1 → not.
+ *
  * Gate:
  *   RPE null → treated as 7 (neutral; old sessions without RPE data)
- *   RPE ≤ 7  → confident if target reps met
- *   RPE 8    → confident only if actual > target (had at least one rep in reserve)
- *   RPE 9-10 → not confident regardless (near max effort; no reserve)
+ *   RPE ≤ 7  → confident if target reps met            (RIR ≥ 3)
+ *   RPE 8    → confident only if actual > target        (RIR 2; had a rep in reserve)
+ *   RPE 9-10 → not confident regardless                 (RIR 0-1; near max effort)
  */
 export function isConfidentHit(row: HistoryRow, programTargetReps: number | null): boolean {
   const target = row.targetReps ?? programTargetReps;
@@ -227,6 +237,7 @@ export function buildSuggestion(
     ps.movementPattern,
     profile?.goal,
     profile?.experienceLevel,
+    ps.exerciseType,
   );
   // For "time" mode, overloadIncrementReps encodes seconds increment.
   // (overloadIncrementReps is unused for timed exercises in all other modes.)
