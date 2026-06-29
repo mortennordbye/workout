@@ -7,7 +7,7 @@
  */
 
 import { db } from "@/db";
-import { programExercises, programSets, programs, trainingCycleSlots, trainingCycles, workoutSessions, workoutSets } from "@/db/schema";
+import { dismissedMakeups, programExercises, programSets, programs, trainingCycleSlots, trainingCycles, users, workoutSessions, workoutSets } from "@/db/schema";
 import {
   computeAdaptationFactor,
   deloadCadenceForLevel,
@@ -47,6 +47,7 @@ import {
 } from "@/lib/utils/cycle-position";
 import { and, asc, eq, gte, inArray, isNotNull, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Queries
@@ -174,6 +175,15 @@ export async function getActiveCycleForUser(): Promise<ActionResult<ActiveCycleI
       slots.map((s) => [s.id, s]),
     );
 
+    // User opt-out: when missed workouts are disabled, suppress all missed/
+    // overdue prompts (the day-of-week make-up card and the rotation badge both
+    // derive from missedSlots, so an empty list hides both).
+    const [userPref] = await db
+      .select({ missedWorkoutsEnabled: users.missedWorkoutsEnabled })
+      .from(users)
+      .where(eq(users.id, userId));
+    const missedEnabled = userPref?.missedWorkoutsEnabled ?? true;
+
     let todaySlot: TrainingCycleSlotWithProgram | null = null;
     let missedSlots: MissedSlot[] = [];
 
@@ -181,30 +191,51 @@ export async function getActiveCycleForUser(): Promise<ActionResult<ActiveCycleI
       const dayOfWeek = jsDayToDow(today.getDay());
       todaySlot = slots.find((s) => s.dayOfWeek === dayOfWeek) ?? null;
 
-      // Look back up to 7 days for missed active slots (bounded by startDate).
-      const lookbackStart = new Date(today);
-      lookbackStart.setDate(lookbackStart.getDate() - 7);
-      const windowStart = lookbackStart < startDate ? startDate : lookbackStart;
-      const sessions = await db
-        .select({ date: workoutSessions.date })
-        .from(workoutSessions)
-        .where(
-          and(
-            eq(workoutSessions.userId, userId),
-            eq(workoutSessions.isCompleted, true),
-            gte(workoutSessions.date, toDateStr(windowStart)),
-          ),
-        );
-      const completedDates = new Set(sessions.map((s) => s.date));
-      const missed = findDayOfWeekMissed(startDate, slots, completedDates, today, 7);
-      missedSlots = missed
-        .map((m) => {
-          const slot = slotById.get(m.slotId);
-          return slot ? { date: m.date, slot } : null;
-        })
-        .filter((x): x is MissedSlot => x !== null);
+      if (missedEnabled) {
+        // Look back up to 7 days for missed active slots (bounded by startDate).
+        const lookbackStart = new Date(today);
+        lookbackStart.setDate(lookbackStart.getDate() - 7);
+        const windowStart = lookbackStart < startDate ? startDate : lookbackStart;
+        const sessions = await db
+          .select({
+            date: workoutSessions.date,
+            intendedDate: workoutSessions.intendedDate,
+          })
+          .from(workoutSessions)
+          .where(
+            and(
+              eq(workoutSessions.userId, userId),
+              eq(workoutSessions.isCompleted, true),
+              gte(workoutSessions.date, toDateStr(windowStart)),
+            ),
+          );
+        // A slot is satisfied by a session logged on its date OR by a make-up
+        // session that points back to it via intendedDate.
+        const completedDates = new Set<string>();
+        for (const s of sessions) {
+          completedDates.add(s.date);
+          if (s.intendedDate) completedDates.add(s.intendedDate);
+        }
+
+        // Declined missed days — filtered out so they stop nagging.
+        const dismissed = await db
+          .select({ date: dismissedMakeups.date })
+          .from(dismissedMakeups)
+          .where(eq(dismissedMakeups.userId, userId));
+        const dismissedDates = new Set(dismissed.map((d) => d.date));
+
+        const missed = findDayOfWeekMissed(startDate, slots, completedDates, today, 7);
+        missedSlots = missed
+          .filter((m) => !dismissedDates.has(m.date))
+          .map((m) => {
+            const slot = slotById.get(m.slotId);
+            return slot ? { date: m.date, slot } : null;
+          })
+          .filter((x): x is MissedSlot => x !== null);
+      }
     } else {
       // Rotation: walk forward from startDate, advancing position per-slot.
+      // todaySlot is always needed; the missed list is gated on the opt-out.
       const sessions = await db
         .select({ date: workoutSessions.date })
         .from(workoutSessions)
@@ -223,12 +254,14 @@ export async function getActiveCycleForUser(): Promise<ActionResult<ActiveCycleI
         today,
       );
       todaySlot = todaySlotId != null ? (slotById.get(todaySlotId) ?? null) : null;
-      missedSlots = missed
-        .map((m) => {
-          const slot = slotById.get(m.slotId);
-          return slot ? { date: m.date, slot } : null;
-        })
-        .filter((x): x is MissedSlot => x !== null);
+      if (missedEnabled) {
+        missedSlots = missed
+          .map((m) => {
+            const slot = slotById.get(m.slotId);
+            return slot ? { date: m.date, slot } : null;
+          })
+          .filter((x): x is MissedSlot => x !== null);
+      }
     }
 
     return {
@@ -243,6 +276,74 @@ export async function getActiveCycleForUser(): Promise<ActionResult<ActiveCycleI
     };
   } catch (err) {
     return { success: false, error: String(err) };
+  }
+}
+
+const dismissMissedWorkoutSchema = z.object({
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format"),
+});
+
+/**
+ * Decline a specific missed workout so it stops appearing in the "Missed this
+ * week" list. Keyed by the original scheduled date of the missed slot.
+ */
+export async function dismissMissedWorkout(
+  data: unknown,
+): Promise<ActionResult<null>> {
+  const auth = await requireSession();
+  const parsed = dismissMissedWorkoutSchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Invalid input",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    await db
+      .insert(dismissedMakeups)
+      .values({ userId: auth.user.id, date: parsed.data.date })
+      .onConflictDoNothing();
+    revalidatePath("/");
+    return { success: true, data: null };
+  } catch (e) {
+    console.error("[dismissMissedWorkout] failed", e);
+    return { success: false, error: "Failed to dismiss missed workout" };
+  }
+}
+
+const setMissedWorkoutsEnabledSchema = z.object({ enabled: z.boolean() });
+
+/**
+ * Toggle the missed-workout / overdue prompts on the home screen.
+ */
+export async function setMissedWorkoutsEnabled(
+  data: unknown,
+): Promise<ActionResult<null>> {
+  const auth = await requireSession();
+  const parsed = setMissedWorkoutsEnabledSchema.safeParse(data);
+  if (!parsed.success) {
+    return {
+      success: false,
+      error: "Invalid input",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
+  }
+
+  try {
+    await db
+      .update(users)
+      .set({ missedWorkoutsEnabled: parsed.data.enabled })
+      .where(eq(users.id, auth.user.id));
+    revalidatePath("/");
+    revalidatePath("/settings");
+    return { success: true, data: null };
+  } catch (e) {
+    console.error("[setMissedWorkoutsEnabled] failed", e);
+    return { success: false, error: "Failed to update setting" };
   }
 }
 

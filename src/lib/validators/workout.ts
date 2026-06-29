@@ -42,6 +42,11 @@ export const createWorkoutSessionSchema = z.object({
     .max(1000, "Notes must be 1000 characters or less")
     .optional(),
   programId: z.number().int().positive().optional(),
+  // Original scheduled date when this session is making up a missed cycle day.
+  intendedDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
+    .optional(),
 });
 
 /**

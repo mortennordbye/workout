@@ -26,7 +26,7 @@ export async function createWorkoutSession(
   }
 
   try {
-    const { date, startTime, notes, programId } = validation.data;
+    const { date, startTime, notes, programId, intendedDate } = validation.data;
 
     // Sweep orphaned open sessions for this user. Without this, a user who
     // closes the tab mid-workout leaves a `isCompleted=false` row that
@@ -52,6 +52,7 @@ export async function createWorkoutSession(
         startTime: startTime ? new Date(startTime) : new Date(),
         notes,
         programId,
+        intendedDate,
         isCompleted: false,
       })
       .returning();
@@ -107,6 +108,34 @@ export async function completeWorkoutSession(
     if (e instanceof ForbiddenError) return { success: false, error: e.message };
     console.error("[completeWorkoutSession] failed", e);
     return { success: false, error: "Failed to complete workout session." };
+  }
+}
+
+/**
+ * Failsafe: auto-complete the current user's workout sessions that have been
+ * left open (isCompleted=false) for more than 10 hours. A user who forgets to
+ * tap "Finish" — or whose tab was evicted mid-workout — would otherwise leave a
+ * row open indefinitely. Logged sets are kept; we just close out the session.
+ *
+ * Called on home-screen load so it runs without needing a new workout to start
+ * (the createWorkoutSession sweep only fires on the next start).
+ */
+export async function closeStaleOpenSessions(): Promise<void> {
+  const auth = await requireSession();
+  try {
+    const tenHoursAgo = new Date(Date.now() - 10 * 60 * 60 * 1000);
+    await db
+      .update(workoutSessions)
+      .set({ isCompleted: true, endTime: new Date() })
+      .where(
+        and(
+          eq(workoutSessions.userId, auth.user.id),
+          eq(workoutSessions.isCompleted, false),
+          lt(workoutSessions.startTime, tenHoursAgo),
+        ),
+      );
+  } catch (e) {
+    console.error("[closeStaleOpenSessions] failed", e);
   }
 }
 

@@ -1,4 +1,5 @@
 import { WorkoutSessionInitializer } from "@/components/features/WorkoutSessionInitializer";
+import { Suspense } from "react";
 
 type Props = {
   children: React.ReactNode;
@@ -10,7 +11,11 @@ export default async function WorkoutLayout({ children, params }: Props) {
   const programId = Number(id);
   return (
     <>
-      {!Number.isNaN(programId) && <WorkoutSessionInitializer programId={programId} />}
+      {!Number.isNaN(programId) && (
+        <Suspense fallback={null}>
+          <WorkoutSessionInitializer programId={programId} />
+        </Suspense>
+      )}
       {children}
     </>
   );

@@ -57,6 +57,10 @@ export const workoutSessions = pgTable("workout_sessions", {
   // Pre-workout readiness score (1=Drained → 5=Excellent), captured at session start.
   // Null for sessions created before this feature was added.
   readiness: integer("readiness"),
+  // The cycle day this session is making up for, when started via a "Make up"
+  // prompt. Null for normal sessions. Lets the missed-workout logic treat a
+  // make-up logged today as satisfying the original missed day.
+  intendedDate: date("intended_date"),
 }, (t) => [
   index("idx_ws_user_completed_start").on(t.userId, t.isCompleted, t.startTime),
 ]);

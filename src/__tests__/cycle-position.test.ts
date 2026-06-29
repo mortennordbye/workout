@@ -134,6 +134,16 @@ describe("findDayOfWeekMissed", () => {
     expect(missed.map((m) => m.date)).toEqual(["2026-05-05"]);
   });
 
+  it("clears a missed day made up on a later date (intendedDate attribution)", () => {
+    // Mon 2026-05-04 was missed; user makes it up Wed, logging a session whose
+    // intendedDate is Mon. The caller folds intendedDate into the satisfied set,
+    // so Mon must no longer be flagged — only Tue remains.
+    const start = d("2026-05-04");
+    const satisfied = new Set(["2026-05-04"]); // sourced from the make-up's intendedDate
+    const missed = findDayOfWeekMissed(start, slots, satisfied, d("2026-05-06"));
+    expect(missed.map((m) => m.date)).toEqual(["2026-05-05"]);
+  });
+
   it("does not look before startDate", () => {
     const start = d("2026-05-06");
     const missed = findDayOfWeekMissed(start, slots, new Set(), d("2026-05-08"));

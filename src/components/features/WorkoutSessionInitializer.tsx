@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { useWorkoutSession } from "@/contexts/workout-session-context";
 import { createWorkoutSession } from "@/lib/actions/workout-sessions";
@@ -19,6 +20,12 @@ export function WorkoutSessionInitializer({ programId }: { programId: number }) 
   const workoutSession = useWorkoutSession();
   const hydrateCompletedSetIds = workoutSession?.hydrateCompletedSetIds;
   const sessionId = workoutSession?.sessionId ?? null;
+  // Set when arriving via a "Make up" prompt (?makeup=YYYY-MM-DD): the original
+  // missed day this session is making up for. Validated YYYY-MM-DD only.
+  const makeupParam = useSearchParams().get("makeup");
+  const intendedDate = makeupParam && /^\d{4}-\d{2}-\d{2}$/.test(makeupParam)
+    ? makeupParam
+    : undefined;
 
   // Rehydrate completed-set toggles from the server once the session id is
   // known. `completedSetIds` lives only in React state; if iOS evicted the
@@ -109,6 +116,7 @@ export function WorkoutSessionInitializer({ programId }: { programId: number }) 
         date: toDateString(startTime),
         startTime: startTime.toISOString(),
         programId,
+        intendedDate,
       });
       if (result.success) {
         workoutSession?.setActiveWorkout(

@@ -2,6 +2,7 @@
 
 import { useTheme } from "@/components/ui/theme-provider";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { setMissedWorkoutsEnabled } from "@/lib/actions/training-cycles";
 import { exportAllSessions } from "@/lib/actions/workout-sessions";
 import { requestNotificationPermission } from "@/lib/notifications";
 import { sanitizeDecimalInput } from "@/lib/utils/format";
@@ -108,6 +109,48 @@ function NotificationsRow() {
   );
 }
 
+function MissedWorkoutsRow({ initialEnabled }: { initialEnabled: boolean }) {
+  const [enabled, setEnabled] = useState(initialEnabled);
+  const [saving, setSaving] = useState(false);
+
+  async function toggle() {
+    if (saving) return;
+    const next = !enabled;
+    setEnabled(next); // optimistic
+    setSaving(true);
+    const result = await setMissedWorkoutsEnabled({ enabled: next });
+    setSaving(false);
+    if (!result.success) setEnabled(!next); // revert on failure
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex-1 min-w-0">
+        <RowLabel>Missed workout reminders</RowLabel>
+        <p className="text-xs text-muted-foreground">
+          Show make-up prompts and overdue badges when you skip a scheduled workout
+        </p>
+      </div>
+      <button
+        role="switch"
+        aria-checked={enabled}
+        aria-label="Toggle missed workout reminders"
+        onClick={toggle}
+        disabled={saving}
+        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+          enabled ? "bg-primary" : "bg-border"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
+            enabled ? "translate-x-[22px]" : "translate-x-0.5"
+          }`}
+        />
+      </button>
+    </div>
+  );
+}
+
 function ExportHistoryButton() {
   const [exporting, setExporting] = useState(false);
 
@@ -149,7 +192,11 @@ function ExportHistoryButton() {
   );
 }
 
-export function SettingsClient() {
+export function SettingsClient({
+  missedWorkoutsEnabled,
+}: {
+  missedWorkoutsEnabled: boolean;
+}) {
   const {
     accentColor, setAccentColor,
     customAccentHex, setCustomAccentHex,
@@ -311,7 +358,7 @@ export function SettingsClient() {
               </div>
             </Row>
 
-            <Row last>
+            <Row>
               <RowLabel>Rep Increment</RowLabel>
               <RowDescription>Extra reps to add each progression cycle</RowDescription>
               <div className="flex gap-2">
@@ -344,6 +391,10 @@ export function SettingsClient() {
                   <span className="text-xs text-muted-foreground">reps</span>
                 )}
               </div>
+            </Row>
+
+            <Row last>
+              <MissedWorkoutsRow initialEnabled={missedWorkoutsEnabled} />
             </Row>
 
           </div>

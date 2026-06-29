@@ -288,6 +288,13 @@
       "when": 1782753564616,
       "tag": "0040_nostalgic_shotgun",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1782758782779,
+      "tag": "0041_steep_blizzard",
+      "breakpoints": true
     }
   ]
 }

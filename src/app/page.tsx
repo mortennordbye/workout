@@ -1,6 +1,8 @@
+import { DeclineMakeupButton } from "@/components/features/DeclineMakeupButton";
 import { WeeklyGoalProgress } from "@/components/features/WeeklyGoalProgress";
 import { WorkoutInsightBanner } from "@/components/features/WorkoutInsightBanner";
 import { getActiveCycleForUser } from "@/lib/actions/training-cycles";
+import { closeStaleOpenSessions } from "@/lib/actions/workout-sessions";
 import { getCompletedSessions, getWorkoutInsight, getWorkoutStats } from "@/lib/actions/workout-sets";
 import { requireSession } from "@/lib/utils/session";
 import Link from "next/link";
@@ -37,6 +39,9 @@ function getThisWeekDates(): string[] {
 
 export default async function Home() {
   await requireSession();
+
+  // Failsafe: close out any workout left open for >10h before rendering.
+  await closeStaleOpenSessions();
 
   const monday = new Date();
   monday.setHours(0, 0, 0, 0);
@@ -194,18 +199,21 @@ export default async function Home() {
             <ul className="flex flex-col divide-y divide-amber-500/20">
               {dowMissed.map((m) =>
                 m.slot.program ? (
-                  <li key={m.date} className="flex items-center justify-between py-2">
-                    <span className="text-sm">
+                  <li key={m.date} className="flex items-center justify-between gap-2 py-2">
+                    <span className="text-sm min-w-0">
                       <span className="text-muted-foreground">{dowLabel(m.date)} — </span>
                       <span className="font-medium">{m.slot.program.name}</span>
                     </span>
-                    <Link
-                      href={`/programs/${m.slot.program.id}/workout`}
-                      prefetch={true}
-                      className="text-xs font-semibold text-primary px-3 py-1.5 rounded-full bg-primary/10 active:opacity-70"
-                    >
-                      Make up
-                    </Link>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Link
+                        href={`/programs/${m.slot.program.id}/workout?makeup=${m.date}`}
+                        prefetch={true}
+                        className="text-xs font-semibold text-primary px-3 py-1.5 rounded-full bg-primary/10 active:opacity-70"
+                      >
+                        Make up
+                      </Link>
+                      <DeclineMakeupButton date={m.date} />
+                    </div>
                   </li>
                 ) : null,
               )}
